@@ -9,6 +9,7 @@ import movie4 from "@/assets/movie4.jpg";
 const MoviesSection = () => {
   const movies = [
     {
+      id: "1",
       title: "The Dark Knight Returns",
       rating: 9.2,
       duration: "2h 45m",
@@ -18,6 +19,7 @@ const MoviesSection = () => {
       releaseDate: "Dec 15"
     },
     {
+      id: "2",
       title: "Stellar Odyssey",
       rating: 8.8,
       duration: "2h 20m",
@@ -27,6 +29,7 @@ const MoviesSection = () => {
       releaseDate: "Dec 22"
     },
     {
+      id: "3",
       title: "Romance in Paris",
       rating: 8.1,
       duration: "1h 55m",
@@ -36,6 +39,7 @@ const MoviesSection = () => {
       releaseDate: "Dec 18"
     },
     {
+      id: "4",
       title: "Thunder Road",
       rating: 8.5,
       duration: "2h 10m",

@@ -1,8 +1,10 @@
 import { Star, Clock, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useNavigate } from "react-router-dom";
 
 interface MovieCardProps {
+  id: string;
   title: string;
   rating: number;
   duration: string;
@@ -12,7 +14,8 @@ interface MovieCardProps {
   releaseDate: string;
 }
 
-const MovieCard = ({ title, rating, duration, genre, language, image, releaseDate }: MovieCardProps) => {
+const MovieCard = ({ id, title, rating, duration, genre, language, image, releaseDate }: MovieCardProps) => {
+  const navigate = useNavigate();
   return (
     <div className="cinema-card group cursor-pointer overflow-hidden">
       {/* Movie Poster */}
@@ -34,7 +37,10 @@ const MovieCard = ({ title, rating, duration, genre, language, image, releaseDat
 
         {/* Quick Book Button - appears on hover */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-          <Button className="cinema-gradient text-white rounded-full font-semibold">
+          <Button 
+            className="cinema-gradient text-white rounded-full font-semibold"
+            onClick={() => navigate(`/movie/${id}`)}
+          >
             Book Tickets
           </Button>
         </div>
