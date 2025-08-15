@@ -61,6 +61,14 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				cinema: {
+					red: 'hsl(var(--cinema-red))',
+					gold: 'hsl(var(--cinema-gold))',
+					dark: 'hsl(var(--cinema-dark))',
+					darker: 'hsl(var(--cinema-darker))',
+					card: 'hsl(var(--cinema-card))',
+					border: 'hsl(var(--cinema-border))'
 				}
 			},
 			borderRadius: {
