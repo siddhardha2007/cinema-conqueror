@@ -3,18 +3,136 @@ import { useBooking } from "@/contexts/BookingContext";
 import { theaters } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Star, Clock, Car, Coffee, Volume2, Armchair } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Clock, Car, Coffee, Volume2, Armchair, Loader2, Navigation } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useState, useEffect } from "react";
 
 const TheaterSelection = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useBooking();
   const { toast } = useToast();
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [nearbyTheaters, setNearbyTheaters] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string>("");
 
   if (!state.selectedMovie) {
     navigate('/');
     return null;
   }
+
+  const getCurrentLocation = () => {
+    setLoading(true);
+    setLocationError("");
+    
+    if (!navigator.geolocation) {
+      setLocationError("Geolocation is not supported by this browser");
+      setLoading(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        setLocation({ lat: latitude, lng: longitude });
+        await fetchNearbyTheaters(latitude, longitude);
+        setLoading(false);
+      },
+      (error) => {
+        setLocationError(`Error getting location: ${error.message}`);
+        setLoading(false);
+        toast({
+          title: "Location Error",
+          description: "Using default theaters. Please allow location access for nearby theaters.",
+          variant: "destructive"
+        });
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 300000 }
+    );
+  };
+
+  const fetchNearbyTheaters = async (lat: number, lng: number) => {
+    try {
+      // Using Google Places API to find movie theaters
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=10000&type=movie_theater&key=${import.meta.env.VITE_GOOGLE_PLACES_API_KEY}`,
+        {
+          mode: 'cors',
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch theaters');
+      }
+      
+      const data = await response.json();
+      
+      if (data.results && data.results.length > 0) {
+        const theatersWithShowtimes = data.results.slice(0, 8).map((place: any, index: number) => ({
+          id: place.place_id,
+          name: place.name,
+          location: place.vicinity,
+          distance: calculateDistance(lat, lng, place.geometry.location.lat, place.geometry.location.lng),
+          rating: place.rating || 4.0,
+          amenities: ["Parking", "Food Court", "AC", "Online Booking"],
+          showtimes: generateShowtimes() // Generate mock showtimes for real theaters
+        }));
+        
+        setNearbyTheaters(theatersWithShowtimes);
+        toast({
+          title: "Theaters Found",
+          description: `Found ${theatersWithShowtimes.length} theaters near you!`,
+        });
+      } else {
+        setNearbyTheaters(theaters); // Fallback to mock data
+        toast({
+          title: "No nearby theaters found",
+          description: "Showing default theaters instead.",
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching theaters:', error);
+      setNearbyTheaters(theaters); // Fallback to mock data
+      toast({
+        title: "Error fetching theaters",
+        description: "Using default theaters. Please check your internet connection.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    return `${distance.toFixed(1)} km`;
+  };
+
+  const generateShowtimes = () => {
+    const times = ["09:30", "12:45", "16:00", "19:15", "22:30"];
+    const types = ["2D", "3D", "IMAX", "4DX"];
+    const prices = [150, 200, 350, 450];
+    
+    return times.map((time, index) => ({
+      id: `show-${index}`,
+      time,
+      type: types[index % types.length],
+      price: prices[index % prices.length],
+      availableSeats: Math.floor(Math.random() * 50) + 20
+    }));
+  };
+
+  useEffect(() => {
+    // Auto-fetch location on component mount
+    getCurrentLocation();
+  }, []);
+
+  const displayTheaters = nearbyTheaters.length > 0 ? nearbyTheaters : theaters;
 
   const handleShowtimeSelect = (theater: any, showtime: any) => {
     dispatch({ type: 'SELECT_THEATER', payload: theater });
@@ -54,12 +172,53 @@ const TheaterSelection = () => {
 
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Select Cinema</h1>
-          <p className="text-muted-foreground">Choose your preferred theater and showtime</p>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold mb-2">Select Cinema</h1>
+              <p className="text-muted-foreground">
+                {location ? `Theaters near your location` : "Choose your preferred theater and showtime"}
+              </p>
+            </div>
+            <Button 
+              onClick={getCurrentLocation} 
+              disabled={loading}
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              {loading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Navigation className="h-4 w-4" />
+              )}
+              {loading ? "Finding..." : "Find Nearby"}
+            </Button>
+          </div>
+          
+          {locationError && (
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-4">
+              <p className="text-destructive text-sm">{locationError}</p>
+            </div>
+          )}
+          
+          {location && (
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-4">
+              <p className="text-primary text-sm flex items-center gap-2">
+                <MapPin className="h-4 w-4" />
+                Location found! Showing theaters within 10km radius
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="space-y-6">
-          {theaters.map((theater) => (
+          {loading && (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Finding theaters near you...</p>
+            </div>
+          )}
+          
+          {!loading && displayTheaters.map((theater) => (
             <div key={theater.id} className="cinema-card p-6 animate-fade-in">
               {/* Theater Info */}
               <div className="mb-6">
@@ -73,7 +232,7 @@ const TheaterSelection = () => {
                   </div>
                   <Badge variant="outline" className="text-cinema-gold border-cinema-gold">
                     <Star className="h-3 w-3 mr-1 fill-current" />
-                    4.2
+                    {theater.rating || 4.2}
                   </Badge>
                 </div>
 
