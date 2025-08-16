@@ -3,16 +3,17 @@ import { useBooking } from "@/contexts/BookingContext";
 import { theaters } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Star, Clock, Car, Coffee, Volume2, Armchair, Loader2, Navigation } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Clock, Car, Coffee, Volume2, Armchair, Loader2, Navigation, Phone, Globe } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { theaterService, Theater } from "@/services/theaterService";
 
 const TheaterSelection = () => {
   const navigate = useNavigate();
   const { state, dispatch } = useBooking();
   const { toast } = useToast();
   const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
-  const [nearbyTheaters, setNearbyTheaters] = useState<any[]>([]);
+  const [nearbyTheaters, setNearbyTheaters] = useState<Theater[]>([]);
   const [loading, setLoading] = useState(false);
   const [locationError, setLocationError] = useState<string>("");
 
@@ -35,10 +36,29 @@ const TheaterSelection = () => {
       async (position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ lat: latitude, lng: longitude });
-        await fetchNearbyTheaters(latitude, longitude);
+        console.log('Location found:', latitude, longitude);
+        
+        try {
+          const foundTheaters = await theaterService.findNearbyTheaters(latitude, longitude);
+          setNearbyTheaters(foundTheaters);
+          
+          toast({
+            title: "Location Found!",
+            description: `Found ${foundTheaters.length} theaters near you`,
+          });
+        } catch (error) {
+          console.error('Error finding theaters:', error);
+          toast({
+            title: "Using Default Theaters",
+            description: "Couldn't fetch nearby theaters, showing defaults",
+            variant: "destructive"
+          });
+        }
+        
         setLoading(false);
       },
       (error) => {
+        console.error('Geolocation error:', error);
         setLocationError(`Error getting location: ${error.message}`);
         setLoading(false);
         toast({
