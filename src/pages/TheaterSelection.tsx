@@ -71,141 +71,15 @@ const TheaterSelection = () => {
     );
   };
 
-  const fetchNearbyTheaters = async (lat: number, lng: number) => {
-    try {
-      // First try Google Places API
-      const googleApiKey = import.meta.env.VITE_GOOGLE_PLACES_API_KEY;
-      
-      if (googleApiKey && googleApiKey !== 'undefined') {
-        const googleResponse = await fetch(
-          `/api/places/nearbysearch/json?location=${lat},${lng}&radius=10000&type=movie_theater&key=${googleApiKey}`
-        );
-        
-        if (googleResponse.ok) {
-          const googleData = await googleResponse.json();
-          if (googleData.results && googleData.results.length > 0) {
-            const theatersWithShowtimes = googleData.results.slice(0, 8).map((place: any) => ({
-              id: place.place_id,
-              name: place.name,
-              location: place.vicinity,
-              distance: calculateDistance(lat, lng, place.geometry.location.lat, place.geometry.location.lng),
-              rating: place.rating || 4.0,
-              amenities: ["Parking", "Food Court", "AC", "Online Booking"],
-              showtimes: generateShowtimes()
-            }));
-            
-            setNearbyTheaters(theatersWithShowtimes);
-            toast({
-              title: "Real Theaters Found",
-              description: `Found ${theatersWithShowtimes.length} theaters near you!`,
-            });
-            return;
-          }
-        }
-      }
-      
-      // Fallback: Use TMDB API for movie theaters with location simulation
-      const tmdbResponse = await fetch(
-        `https://api.themoviedb.org/3/movie/now_playing?api_key=${import.meta.env.VITE_TMDB_API_KEY}&region=IN&page=1`
-      );
-      
-      if (tmdbResponse.ok) {
-        const tmdbData = await tmdbResponse.json();
-        const simulatedTheaters = generateLocalTheaters(lat, lng, tmdbData.results || []);
-        setNearbyTheaters(simulatedTheaters);
-        toast({
-          title: "Theaters Found",
-          description: `Found ${simulatedTheaters.length} theaters with current movies!`,
-        });
-        return;
-      }
-      
-      // Final fallback: Enhanced mock data with location
-      const localTheaters = generateLocalTheaters(lat, lng);
-      setNearbyTheaters(localTheaters);
-      toast({
-        title: "Local Theaters",
-        description: "Showing theaters in your area with current showtimes.",
-      });
-      
-    } catch (error) {
-      console.error('Error fetching theaters:', error);
-      // Generate location-based mock theaters
-      const localTheaters = generateLocalTheaters(lat, lng);
-      setNearbyTheaters(localTheaters);
-      toast({
-        title: "Theaters Located",
-        description: "Showing nearby theaters. Enable location for real-time data.",
-      });
-    }
-  };
-
-  const generateLocalTheaters = (lat: number, lng: number, movies?: any[]) => {
-    const theaterNames = [
-      "PVR Cinemas", "INOX Multiplex", "Cinepolis", "Miraj Cinemas", 
-      "Carnival Cinemas", "Fun Republic", "Big Cinemas", "Wave Cinemas"
-    ];
-    
-    const locations = [
-      "Mall Road", "City Center", "Phoenix Mall", "Forum Mall",
-      "Metropolitan Mall", "Central Plaza", "Marina Mall", "Cross Roads"
-    ];
-    
-    return theaterNames.map((name, index) => {
-      // Generate locations around the user's position
-      const randomLat = lat + (Math.random() - 0.5) * 0.1; // Within ~5km
-      const randomLng = lng + (Math.random() - 0.5) * 0.1;
-      
-      return {
-        id: `theater-${index}`,
-        name: `${name} ${locations[index]}`,
-        location: `${locations[index]}, Near You`,
-        distance: calculateDistance(lat, lng, randomLat, randomLng),
-        rating: (4.0 + Math.random() * 1.0).toFixed(1),
-        amenities: [
-          "Parking", "Food Court", "AC", "Online Booking",
-          ...(Math.random() > 0.5 ? ["Dolby Atmos"] : []),
-          ...(Math.random() > 0.7 ? ["IMAX", "4DX"] : []),
-          ...(Math.random() > 0.6 ? ["Recliner Seats"] : [])
-        ].slice(0, 4 + Math.floor(Math.random() * 3)),
-        showtimes: generateShowtimes(),
-        coordinates: { lat: randomLat, lng: randomLng }
-      };
-    });
-  };
-
-  const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number) => {
-    const R = 6371; // Radius of the Earth in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLng = (lng2 - lng1) * Math.PI / 180;
-    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-              Math.sin(dLng/2) * Math.sin(dLng/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-    const distance = R * c;
-    return `${distance.toFixed(1)} km`;
-  };
-
-  const generateShowtimes = () => {
-    const times = ["09:30", "12:45", "16:00", "19:15", "22:30"];
-    const types = ["2D", "3D", "IMAX", "4DX"];
-    const prices = [150, 200, 350, 450];
-    
-    return times.map((time, index) => ({
-      id: `show-${index}`,
-      time,
-      type: types[index % types.length],
-      price: prices[index % prices.length],
-      availableSeats: Math.floor(Math.random() * 50) + 20
-    }));
-  };
-
+  // Auto-fetch location on component mount
   useEffect(() => {
-    // Auto-fetch location on component mount
     getCurrentLocation();
   }, []);
 
-  const displayTheaters = nearbyTheaters.length > 0 ? nearbyTheaters : theaters;
+  const displayTheaters = nearbyTheaters.length > 0 ? nearbyTheaters : theaters.map(t => ({
+    ...t,
+    rating: 4.2 // Ensure consistent rating type
+  } as Theater));
 
   const handleShowtimeSelect = (theater: any, showtime: any) => {
     dispatch({ type: 'SELECT_THEATER', payload: theater });
@@ -305,7 +179,7 @@ const TheaterSelection = () => {
                   </div>
                   <Badge variant="outline" className="text-cinema-gold border-cinema-gold">
                     <Star className="h-3 w-3 mr-1 fill-current" />
-                    {theater.rating || 4.2}
+                    {theater.rating?.toFixed(1) || '4.0'}
                   </Badge>
                 </div>
 
