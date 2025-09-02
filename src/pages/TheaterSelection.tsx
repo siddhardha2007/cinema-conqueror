@@ -3,10 +3,11 @@ import { useBooking } from "@/contexts/BookingContext";
 import { theaters } from "@/data/mockData";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, MapPin, Star, Clock, Car, Coffee, Volume2, Armchair, Loader2, Navigation, Phone, Globe } from "lucide-react";
+import { ArrowLeft, MapPin, Star, Clock, Car, Coffee, Volume2, Armchair, Loader2, Navigation, Phone, Globe, RefreshCw, Zap } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { theaterService, Theater } from "@/services/theaterService";
+import { movieShowtimeService } from "@/services/movieShowtimeService";
 
 const TheaterSelection = () => {
   const navigate = useNavigate();
@@ -16,6 +17,8 @@ const TheaterSelection = () => {
   const [nearbyTheaters, setNearbyTheaters] = useState<Theater[]>([]);
   const [loading, setLoading] = useState(false);
   const [locationError, setLocationError] = useState<string>("");
+  const [showtimeLoading, setShowtimeLoading] = useState(false);
+  const [realTimeData, setRealTimeData] = useState<boolean>(false);
 
   if (!state.selectedMovie) {
     navigate('/');
@@ -36,18 +39,56 @@ const TheaterSelection = () => {
       async (position) => {
         const { latitude, longitude } = position.coords;
         setLocation({ lat: latitude, lng: longitude });
-        console.log('Location found:', latitude, longitude);
+        console.log('🎯 Location found:', latitude, longitude);
         
         try {
-          const foundTheaters = await theaterService.findNearbyTheaters(latitude, longitude);
+          // Enhanced theater discovery with movie-specific showtimes
+          const foundTheaters = await theaterService.findNearbyTheaters(
+            latitude, 
+            longitude, 
+            state.selectedMovie.id
+          );
           setNearbyTheaters(foundTheaters);
+          setRealTimeData(foundTheaters.length > 0);
+          
+          // Try to get real-time showtime data
+          const showtimeData = await movieShowtimeService.getShowtimes(
+            state.selectedMovie.id,
+            latitude,
+            longitude
+          );
+          
+          if (showtimeData) {
+            console.log('✨ Got real-time showtime data');
+            // Update theaters with real showtime data
+            const enhancedTheaters = foundTheaters.map(theater => {
+              const realTheater = showtimeData.theaters.find(st => 
+                st.name.toLowerCase().includes(theater.name.toLowerCase().split(' ')[0])
+              );
+              if (realTheater) {
+                // Map showtime format to match Theater interface
+                const mappedShowtimes = realTheater.showtimes.map((st, index) => ({
+                  id: `${theater.id}-showtime-${index}`,
+                  time: st.time,
+                  type: st.type,
+                  price: st.price,
+                  availableSeats: st.availableSeats,
+                  movieId: state.selectedMovie.id,
+                  bookingUrl: st.bookingUrl
+                }));
+                return { ...theater, showtimes: mappedShowtimes };
+              }
+              return theater;
+            });
+            setNearbyTheaters(enhancedTheaters);
+          }
           
           toast({
-            title: "Location Found!",
-            description: `Found ${foundTheaters.length} theaters near you`,
+            title: realTimeData ? "🎬 Live Data!" : "📍 Location Found!",
+            description: `Found ${foundTheaters.length} theaters ${realTimeData ? 'with real-time showtimes' : 'near you'}`,
           });
         } catch (error) {
-          console.error('Error finding theaters:', error);
+          console.error('❌ Error finding theaters:', error);
           toast({
             title: "Using Default Theaters",
             description: "Couldn't fetch nearby theaters, showing defaults",
