@@ -66,42 +66,102 @@ export const movies: Movie[] = [
 export const theaters: Theater[] = [
   {
     id: '1',
-    name: "PVR Phoenix Mills",
-    location: "Lower Parel, Mumbai",
-    distance: "2.3 km",
-    amenities: ["Dolby Atmos", "Recliner Seats", "Food Court", "Parking"],
+    name: "Mohini Cinemas Dolby Atmos",
+    location: "Gajuwaka, Vizag",
+    distance: "2.1 km",
+    amenities: ["Dolby Atmos", "Air Conditioning", "Online Booking", "Parking"],
     showtimes: [
-      { id: '1', time: "10:30 AM", type: "2D", price: 250, availableSeats: 120 },
-      { id: '2', time: "1:45 PM", type: "2D", price: 300, availableSeats: 95 },
-      { id: '3', time: "5:00 PM", type: "IMAX", price: 450, availableSeats: 80 },
-      { id: '4', time: "8:30 PM", type: "IMAX", price: 500, availableSeats: 45 },
-      { id: '5', time: "11:45 PM", type: "2D", price: 200, availableSeats: 150 }
+      { id: '1', time: "06:20 PM", type: "2D", price: 150, availableSeats: 120 },
+      { id: '2', time: "09:45 PM", type: "2D", price: 180, availableSeats: 95 },
+      { id: '3', time: "10:30 AM", type: "2D", price: 120, availableSeats: 140 },
+      { id: '4', time: "02:15 PM", type: "2D", price: 150, availableSeats: 85 }
     ]
   },
   {
     id: '2',
-    name: "INOX Megaplex",
-    location: "Andheri West, Mumbai",
-    distance: "5.1 km",
-    amenities: ["4DX", "Premium Seats", "Café", "VIP Lounge"],
+    name: "Sri Venkateswara Theatres Dolby 7.1 4K A/C",
+    location: "Vizag",
+    distance: "3.5 km",
+    amenities: ["Dolby 7.1", "4K Projection", "Air Conditioning", "Digital Sound"],
     showtimes: [
-      { id: '6', time: "11:00 AM", type: "2D", price: 280, availableSeats: 110 },
-      { id: '7', time: "2:15 PM", type: "4DX", price: 600, availableSeats: 30 },
-      { id: '8', time: "5:45 PM", type: "2D", price: 320, availableSeats: 75 },
-      { id: '9', time: "9:15 PM", type: "4DX", price: 650, availableSeats: 25 }
+      { id: '5', time: "06:30 PM", type: "2D", price: 160, availableSeats: 110 },
+      { id: '6', time: "10:00 PM", type: "2D", price: 190, availableSeats: 75 },
+      { id: '7', time: "11:00 AM", type: "2D", price: 130, availableSeats: 130 },
+      { id: '8', time: "03:00 PM", type: "2D", price: 160, availableSeats: 90 }
     ]
   },
   {
     id: '3',
-    name: "Cinepolis Fun Republic",
-    location: "Bandra West, Mumbai",
-    distance: "7.8 km",
-    amenities: ["Premium Cinema", "Gourmet Food", "Valet Parking", "Lounge"],
+    name: "INOX Vizag Chitralaya Mall",
+    location: "Chitralaya Mall, Vizag",
+    distance: "4.2 km",
+    amenities: ["Premium Seats", "Food Court", "Mall Shopping", "Valet Parking"],
     showtimes: [
-      { id: '10', time: "12:30 PM", type: "2D", price: 350, availableSeats: 90 },
-      { id: '11', time: "3:45 PM", type: "Premium", price: 550, availableSeats: 60 },
-      { id: '12', time: "7:00 PM", type: "Premium", price: 600, availableSeats: 40 },
-      { id: '13', time: "10:30 PM", type: "2D", price: 300, availableSeats: 100 }
+      { id: '9', time: "10:40 PM", type: "2D", price: 250, availableSeats: 60 },
+      { id: '10', time: "12:30 PM", type: "2D", price: 220, availableSeats: 80 },
+      { id: '11', time: "04:15 PM", type: "Premium", price: 350, availableSeats: 45 },
+      { id: '12', time: "07:45 PM", type: "Premium", price: 380, availableSeats: 30 }
+    ]
+  },
+  {
+    id: '4',
+    name: "Urvasi Theater Dolby 2K A/C",
+    location: "Vishakhapatnam",
+    distance: "5.8 km",
+    amenities: ["Dolby 2K", "Air Conditioning", "Digital Projection", "Comfortable Seating"],
+    showtimes: [
+      { id: '13', time: "06:00 PM", type: "2D", price: 140, availableSeats: 100 },
+      { id: '14', time: "09:15 PM", type: "2D", price: 170, availableSeats: 85 },
+      { id: '15', time: "01:00 PM", type: "2D", price: 140, availableSeats: 120 }
+    ]
+  },
+  {
+    id: '5',
+    name: "Sangam Theatre 4K Dolby Atmos",
+    location: "Vizag",
+    distance: "3.9 km",
+    amenities: ["4K Projection", "Dolby Atmos", "Recliner Seats", "Cafeteria"],
+    showtimes: [
+      { id: '16', time: "06:30 PM", type: "4K", price: 200, availableSeats: 70 },
+      { id: '17', time: "10:00 PM", type: "4K", price: 230, availableSeats: 50 },
+      { id: '18', time: "02:30 PM", type: "4K", price: 180, availableSeats: 90 }
+    ]
+  },
+  {
+    id: '6',
+    name: "Natraj Theater",
+    location: "MVP Colony, Vizag",
+    distance: "2.8 km",
+    amenities: ["Classic Cinema", "Air Conditioning", "Traditional Seating", "Snacks Counter"],
+    showtimes: [
+      { id: '19', time: "06:45 PM", type: "2D", price: 120, availableSeats: 150 },
+      { id: '20', time: "09:30 PM", type: "2D", price: 140, availableSeats: 130 },
+      { id: '21', time: "12:00 PM", type: "2D", price: 100, availableSeats: 180 },
+      { id: '22', time: "03:15 PM", type: "2D", price: 120, availableSeats: 160 }
+    ]
+  },
+  {
+    id: '7',
+    name: "STBL Cine World Madhurawada",
+    location: "Madhurawada, Vizag",
+    distance: "6.7 km",
+    amenities: ["Digital Projection", "Surround Sound", "Online Booking", "Parking"],
+    showtimes: [
+      { id: '23', time: "09:15 PM", type: "2D", price: 160, availableSeats: 95 },
+      { id: '24', time: "01:30 PM", type: "2D", price: 140, availableSeats: 110 },
+      { id: '25', time: "05:45 PM", type: "2D", price: 160, availableSeats: 80 }
+    ]
+  },
+  {
+    id: '8',
+    name: "Miraj Cinemas Bupathi Surya Central",
+    location: "Dondaparthy, Vizag",
+    distance: "8.1 km",
+    amenities: ["Premium Experience", "Food Court", "Reserved Parking", "VIP Lounge"],
+    showtimes: [
+      { id: '26', time: "10:40 PM", type: "Premium", price: 280, availableSeats: 40 },
+      { id: '27', time: "02:00 PM", type: "Premium", price: 250, availableSeats: 55 },
+      { id: '28', time: "06:15 PM", type: "Premium", price: 280, availableSeats: 35 }
     ]
   }
 ];
