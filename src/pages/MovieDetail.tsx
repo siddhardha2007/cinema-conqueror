@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
-import { movies } from "@/data/mockData";
+import { movieDataService } from "@/services/movieDataService";
+import { Movie } from "@/contexts/BookingContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Star, Clock, Calendar, Play, ArrowLeft, Heart, Share2 } from "lucide-react";
@@ -11,8 +13,36 @@ const MovieDetail = () => {
   const navigate = useNavigate();
   const { dispatch } = useBooking();
   const { toast } = useToast();
-  
-  const movie = movies.find(m => m.id === id);
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadMovie = async () => {
+      if (!id) return;
+      
+      try {
+        const movieData = await movieDataService.getMovieDetails(id);
+        setMovie(movieData);
+      } catch (error) {
+        console.error('Failed to load movie:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMovie();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+          <p className="mt-4 text-muted-foreground">Loading movie details...</p>
+        </div>
+      </div>
+    );
+  }
   
   if (!movie) {
     return (

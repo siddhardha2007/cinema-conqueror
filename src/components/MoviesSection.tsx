@@ -1,54 +1,28 @@
+import { useState, useEffect } from "react";
 import MovieCard from "./MovieCard";
 import { Button } from "@/components/ui/button";
 import { ChevronRight } from "lucide-react";
-import movie1 from "@/assets/movie1.jpg";
-import movie2 from "@/assets/movie2.jpg";
-import movie3 from "@/assets/movie3.jpg";
-import movie4 from "@/assets/movie4.jpg";
+import { movieDataService } from "@/services/movieDataService";
+import { Movie } from "@/contexts/BookingContext";
 
 const MoviesSection = () => {
-  const movies = [
-    {
-      id: "1",
-      title: "The Dark Knight Returns",
-      rating: 9.2,
-      duration: "2h 45m",
-      genre: "Action",
-      language: "English",
-      image: movie1,
-      releaseDate: "Dec 15"
-    },
-    {
-      id: "2",
-      title: "Stellar Odyssey",
-      rating: 8.8,
-      duration: "2h 20m",
-      genre: "Sci-Fi",
-      language: "English",
-      image: movie2,
-      releaseDate: "Dec 22"
-    },
-    {
-      id: "3",
-      title: "Romance in Paris",
-      rating: 8.1,
-      duration: "1h 55m",
-      genre: "Romance",
-      language: "English",
-      image: movie3,
-      releaseDate: "Dec 18"
-    },
-    {
-      id: "4",
-      title: "Thunder Road",
-      rating: 8.5,
-      duration: "2h 10m",
-      genre: "Action",
-      language: "English",
-      image: movie4,
-      releaseDate: "Dec 25"
-    }
-  ];
+  const [movies, setMovies] = useState<Movie[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadMovies = async () => {
+      try {
+        const response = await movieDataService.getCurrentMovies();
+        setMovies(response.results.slice(0, 8)); // Show first 8 movies
+      } catch (error) {
+        console.error('Failed to load movies:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMovies();
+  }, []);
 
   return (
     <section className="py-16">
@@ -66,9 +40,23 @@ const MoviesSection = () => {
 
         {/* Movies Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {movies.map((movie, index) => (
-            <MovieCard key={index} {...movie} />
-          ))}
+          {loading ? (
+            // Loading skeletons
+            Array.from({ length: 8 }).map((_, index) => (
+              <div key={index} className="cinema-card overflow-hidden animate-pulse">
+                <div className="aspect-[2/3] bg-muted"></div>
+                <div className="p-4 space-y-2">
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-3 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/2"></div>
+                </div>
+              </div>
+            ))
+          ) : (
+            movies.map((movie) => (
+              <MovieCard key={movie.id} {...movie} />
+            ))
+          )}
         </div>
 
         {/* Categories */}
