@@ -1,8 +1,8 @@
 import { Movie, Theater, Seat } from '@/contexts/BookingContext';
-import movie1 from "@/assets/movie1.jpg";
-import movie2 from "@/assets/movie2.jpg";
-import movie3 from "@/assets/movie3.jpg";
-import movie4 from "@/assets/movie4.jpg";
+import darkKnight from "@/assets/dark-knight.jpg";
+import inception from "@/assets/inception.jpg";
+import interstellar from "@/assets/interstellar.jpg";
+import oppenheimer from "@/assets/oppenheimer.jpg";
 
 export const movies: Movie[] = [
   {
@@ -12,7 +12,7 @@ export const movies: Movie[] = [
     duration: "2h 32m",
     genre: "Action",
     language: "English",
-    image: movie1,
+    image: darkKnight,
     releaseDate: "Dec 15, 2024",
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham City, testing the Dark Knight's resolve and moral code.",
     cast: ["Christian Bale", "Heath Ledger", "Aaron Eckhart", "Gary Oldman"],
@@ -26,7 +26,7 @@ export const movies: Movie[] = [
     duration: "2h 28m",
     genre: "Sci-Fi",
     language: "English",
-    image: movie2,
+    image: inception,
     releaseDate: "Dec 22, 2024",
     description: "A skilled thief enters people's dreams to steal secrets, but must perform the seemingly impossible task of inception - planting an idea instead of stealing one.",
     cast: ["Leonardo DiCaprio", "Marion Cotillard", "Tom Hardy", "Ellen Page"],
@@ -40,7 +40,7 @@ export const movies: Movie[] = [
     duration: "2h 49m",
     genre: "Sci-Fi",
     language: "English",
-    image: movie3,
+    image: interstellar,
     releaseDate: "Dec 18, 2024",
     description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival as Earth faces environmental collapse.",
     cast: ["Matthew McConaughey", "Anne Hathaway", "Jessica Chastain", "Michael Caine"],
@@ -54,7 +54,7 @@ export const movies: Movie[] = [
     duration: "3h 00m",
     genre: "Biography",
     language: "English",
-    image: movie4,
+    image: oppenheimer,
     releaseDate: "Dec 25, 2024",
     description: "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb during World War II.",
     cast: ["Cillian Murphy", "Emily Blunt", "Matt Damon", "Robert Downey Jr."],
