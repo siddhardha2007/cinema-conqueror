@@ -250,113 +250,29 @@ export class MovieDataService {
     }
   }
 
-  // Enhanced fallback data with real current movies
+  // Enhanced fallback data with Christopher Nolan classics
   private getEnhancedRealMovieData(page: number): MovieResponse {
-    const currentRealMovies: MovieDetails[] = [
-      {
-        id: '1034541',
-        title: 'Terrifier 3',
-        rating: 7.8,
-        duration: '2h 5m',
-        genre: 'Horror, Thriller',
-        language: 'English',
-        image: '/placeholder-movie-1.jpg',
-        releaseDate: 'Oct 11, 2024',
-        description: 'After surviving Art the Clown\'s Halloween massacre, Sienna and her brother struggle to rebuild their lives. As the holiday season approaches, they try to embrace the Christmas spirit and leave the horrors of the past behind.',
-        cast: ['Lauren LaVera', 'David Howard Thornton', 'Antonella Rose', 'Elliott Fullam'],
-        director: 'Damien Leone',
-        trailer: 'https://www.youtube.com/watch?v=6KkrccHEAqg'
-      },
-      {
-        id: '945961',
-        title: 'Alien: Romulus',
-        rating: 8.2,
-        duration: '1h 59m',
-        genre: 'Sci-Fi, Horror',
-        language: 'English',
-        image: '/placeholder-movie-2.jpg',
-        releaseDate: 'Aug 16, 2024',
-        description: 'While scavenging the deep ends of a derelict space station, a group of young space colonizers come face to face with the most terrifying life form in the universe.',
-        cast: ['Cailee Spaeny', 'David Jonsson', 'Archie Renaux', 'Isabela Merced'],
-        director: 'Fede Álvarez',
-        trailer: 'https://www.youtube.com/watch?v=OzY2r2JXsDM'
-      },
-      {
-        id: '1184918',
-        title: 'The Wild Robot',
-        rating: 8.9,
-        duration: '1h 42m',
-        genre: 'Animation, Family',
-        language: 'English',
-        image: '/placeholder-movie-3.jpg',
-        releaseDate: 'Sep 27, 2024',
-        description: 'A robot - ROZZUM unit 7134, "Roz" for short - is shipwrecked on an uninhabited island and must learn to adapt to the harsh surroundings, gradually building relationships with the animals.',
-        cast: ['Lupita Nyong\'o', 'Pedro Pascal', 'Kit Connor', 'Bill Nighy'],
-        director: 'Chris Sanders',
-        trailer: 'https://www.youtube.com/watch?v=67vbA5ZJdKQ'
-      },
-      {
-        id: '889737',
-        title: 'Joker: Folie à Deux',
-        rating: 7.1,
-        duration: '2h 18m',
-        genre: 'Drama, Musical',
-        language: 'English',
-        image: '/placeholder-movie-4.jpg',
-        releaseDate: 'Oct 4, 2024',
-        description: 'Struggling with his dual identity, failed comedian Arthur Fleck meets the love of his life, Harley Quinn, while incarcerated at Arkham State Hospital.',
-        cast: ['Joaquin Phoenix', 'Lady Gaga', 'Brendan Gleeson', 'Catherine Keener'],
-        director: 'Todd Phillips',
-        trailer: 'https://www.youtube.com/watch?v=_OKAwz2MsJs'
-      },
-      {
-        id: '1064213',
-        title: 'Beetlejuice Beetlejuice',
-        rating: 7.6,
-        duration: '1h 44m',
-        genre: 'Comedy, Fantasy',
-        language: 'English',
-        image: '/placeholder-movie-5.jpg',
-        releaseDate: 'Sep 6, 2024',
-        description: 'After a family tragedy, three generations of the Deetz family return home to Winter River. Still haunted by Beetlejuice, Lydia\'s life is turned upside down.',
-        cast: ['Michael Keaton', 'Winona Ryder', 'Jenna Ortega', 'Catherine O\'Hara'],
-        director: 'Tim Burton',
-        trailer: 'https://www.youtube.com/watch?v=CoZqL3N_v8s'
-      },
-      {
-        id: '1087822',
-        title: 'Hellboy: The Crooked Man',
-        rating: 6.8,
-        duration: '1h 39m',
-        genre: 'Action, Horror',
-        language: 'English',
-        image: '/placeholder-movie-6.jpg',
-        releaseDate: 'Oct 31, 2024',
-        description: 'Hellboy and a rookie BPRD agent get stranded in 1950s rural Appalachia. There, they discover a small community haunted by witches, led by a local devil with a troubling connection to Hellboy\'s past.',
-        cast: ['Jack Kesy', 'Jefferson White', 'Adeline Rudolph', 'Martin Bassindale'],
-        director: 'Brian Taylor',
-        trailer: 'https://www.youtube.com/watch?v=YqCyf-fOr-4'
-      }
-    ];
-
+    // Import from mock data
+    const { movies } = require('@/data/mockData');
+    
     const startIndex = (page - 1) * 6;
     const endIndex = startIndex + 6;
     
     return {
-      results: currentRealMovies.slice(startIndex, endIndex),
-      totalPages: Math.ceil(currentRealMovies.length / 6),
-      totalResults: currentRealMovies.length
+      results: movies.slice(startIndex, endIndex),
+      totalPages: Math.ceil(movies.length / 6),
+      totalResults: movies.length
     };
   }
 
   private getEnhancedMovieDetails(movieId: string): MovieDetails | null {
-    const enhanced = this.getEnhancedRealMovieData(1);
-    return enhanced.results.find(movie => movie.id === movieId) || null;
+    const { movies } = require('@/data/mockData');
+    return movies.find((movie: any) => movie.id === movieId) || null;
   }
 
   private searchEnhancedMovies(query: string, page: number): MovieResponse {
-    const allMovies = this.getEnhancedRealMovieData(1).results;
-    const filtered = allMovies.filter(movie => 
+    const { movies } = require('@/data/mockData');
+    const filtered = movies.filter((movie: any) => 
       movie.title.toLowerCase().includes(query.toLowerCase()) ||
       movie.genre.toLowerCase().includes(query.toLowerCase()) ||
       movie.description.toLowerCase().includes(query.toLowerCase())
