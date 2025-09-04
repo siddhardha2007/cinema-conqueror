@@ -1,4 +1,5 @@
 // Real-time Movie Data Service with TMDB Integration
+import { movies } from '@/data/mockData';
 
 export interface MovieDetails {
   id: string;
@@ -252,9 +253,6 @@ export class MovieDataService {
 
   // Enhanced fallback data with Christopher Nolan classics
   private getEnhancedRealMovieData(page: number): MovieResponse {
-    // Import from mock data
-    const { movies } = require('@/data/mockData');
-    
     const startIndex = (page - 1) * 6;
     const endIndex = startIndex + 6;
     
@@ -266,12 +264,10 @@ export class MovieDataService {
   }
 
   private getEnhancedMovieDetails(movieId: string): MovieDetails | null {
-    const { movies } = require('@/data/mockData');
     return movies.find((movie: any) => movie.id === movieId) || null;
   }
 
   private searchEnhancedMovies(query: string, page: number): MovieResponse {
-    const { movies } = require('@/data/mockData');
     const filtered = movies.filter((movie: any) => 
       movie.title.toLowerCase().includes(query.toLowerCase()) ||
       movie.genre.toLowerCase().includes(query.toLowerCase()) ||
