@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text, Box, Plane } from '@react-three/drei';
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Seat } from '@/contexts/BookingContext';
@@ -408,7 +408,15 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
   return (
     <div className="w-full h-[700px] bg-gradient-to-b from-slate-900 via-slate-800 to-black rounded-2xl overflow-hidden shadow-2xl">
-      <Canvas
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cinema-gold mx-auto mb-4"></div>
+            <p className="text-white">Loading 3D Theater...</p>
+          </div>
+        </div>
+      }>
+        <Canvas
         camera={{ position: [0, 12, 12], fov: 50 }}
         shadows={{ type: THREE.PCFSoftShadowMap }}
         style={{ background: 'linear-gradient(to bottom, #0f172a, #000000)' }}
@@ -498,6 +506,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           dampingFactor={0.05}
         />
       </Canvas>
+      </Suspense>
     </div>
   );
 }

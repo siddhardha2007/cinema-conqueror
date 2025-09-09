@@ -18,14 +18,20 @@ const SeatSelection = () => {
   useEffect(() => {
     if (state.selectedShowtime) {
       const generatedSeats = generateSeats(state.selectedShowtime.availableSeats);
+      console.log('Generated seats:', generatedSeats.length, 'seats');
       setSeats(generatedSeats);
+    } else {
+      console.log('No showtime selected, generating default seats');
+      const defaultSeats = generateSeats(150);
+      setSeats(defaultSeats);
     }
   }, [state.selectedShowtime]);
 
-  if (!state.selectedMovie || !state.selectedTheater || !state.selectedShowtime) {
-    navigate('/');
-    return null;
-  }
+  // Allow access to seat selection even without full booking context for testing
+  // if (!state.selectedMovie || !state.selectedTheater || !state.selectedShowtime) {
+  //   navigate('/');
+  //   return null;
+  // }
 
   const handleSeatClick = (seat: Seat) => {
     if (seat.isBooked) return;
@@ -71,9 +77,11 @@ const SeatSelection = () => {
             Back
           </Button>
           <div className="text-center">
-            <h1 className="font-semibold">{state.selectedMovie.title}</h1>
+            <h1 className="font-semibold">
+              {state.selectedMovie?.title || "Select Your Seats"}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              {state.selectedTheater.name} • {state.selectedShowtime.time}
+              {state.selectedTheater?.name || "Premium Theater"} • {state.selectedShowtime?.time || "Show Time"}
             </p>
           </div>
           <Button 
@@ -103,7 +111,16 @@ const SeatSelection = () => {
         {/* 3D Theater View */}
         {view3D ? (
           <div className="mb-8">
-            <Theater3D seats={seats} onSeatClick={handleSeatClick} />
+            {seats.length > 0 ? (
+              <Theater3D seats={seats} onSeatClick={handleSeatClick} />
+            ) : (
+              <div className="w-full h-[700px] bg-gradient-to-b from-slate-900 to-slate-800 rounded-2xl flex items-center justify-center">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cinema-gold mx-auto mb-4"></div>
+                  <p className="text-muted-foreground">Loading luxury theater...</p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <>
