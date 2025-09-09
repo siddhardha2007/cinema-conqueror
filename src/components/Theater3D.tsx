@@ -83,9 +83,11 @@ function Seat3D({
   );
 }
 
-// 3D Screen Component
+// 3D Screen Component with Theater Curtains
 function Screen3D() {
   const meshRef = useRef<THREE.Mesh>(null);
+  const curtainLeftRef = useRef<THREE.Mesh>(null);
+  const curtainRightRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
     if (meshRef.current) {
@@ -93,12 +95,29 @@ function Screen3D() {
       const material = meshRef.current.material as THREE.MeshStandardMaterial;
       material.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
     }
+    
+    // Gentle curtain movement
+    if (curtainLeftRef.current && curtainRightRef.current) {
+      const sway = Math.sin(state.clock.elapsedTime * 0.8) * 0.02;
+      curtainLeftRef.current.rotation.y = sway;
+      curtainRightRef.current.rotation.y = -sway;
+    }
   });
 
   return (
-    <group position={[0, 2, -8]}>
+    <group position={[0, 2, -10]}>
+      {/* Theater curtains */}
+      <mesh ref={curtainLeftRef} position={[-9, 0, 0.5]}>
+        <planeGeometry args={[2, 12]} />
+        <meshStandardMaterial color="#8b0000" side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={curtainRightRef} position={[9, 0, 0.5]}>
+        <planeGeometry args={[2, 12]} />
+        <meshStandardMaterial color="#8b0000" side={THREE.DoubleSide} />
+      </mesh>
+      
       {/* Main screen */}
-      <mesh ref={meshRef}>
+      <mesh ref={meshRef} position={[0, 0, 0]}>
         <planeGeometry args={[16, 9]} />
         <meshStandardMaterial 
           color="#1a1a1a" 
@@ -113,34 +132,135 @@ function Screen3D() {
         <meshStandardMaterial color="#111111" />
       </mesh>
       
+      {/* Decorative screen border */}
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[18, 11]} />
+        <meshStandardMaterial color="#f59e0b" />
+      </mesh>
+      
       {/* "SCREEN" text */}
       <Text
-        position={[0, -5.5, 0.01]}
-        fontSize={0.8}
+        position={[0, -6.5, 0.01]}
+        fontSize={1}
         color="#f59e0b"
         anchorX="center"
         anchorY="middle"
       >
         SCREEN
       </Text>
+      
+      {/* Theater speakers */}
+      <mesh position={[-10, -2, 0.3]}>
+        <boxGeometry args={[1, 3, 1]} />
+        <meshStandardMaterial color="#2a2a2a" />
+      </mesh>
+      <mesh position={[10, -2, 0.3]}>
+        <boxGeometry args={[1, 3, 1]} />
+        <meshStandardMaterial color="#2a2a2a" />
+      </mesh>
     </group>
   );
 }
 
-// Stage/Floor Component
-function Stage3D() {
+// Theater Environment Component
+function TheaterEnvironment() {
   return (
     <group>
-      {/* Main floor */}
+      {/* Main floor with carpet texture */}
       <mesh position={[0, -0.5, 0]} receiveShadow>
-        <boxGeometry args={[20, 0.2, 16]} />
-        <meshStandardMaterial color="#2a2a2a" />
+        <boxGeometry args={[25, 0.2, 20]} />
+        <meshStandardMaterial color="#1a0f0f" roughness={0.8} />
       </mesh>
       
       {/* Stage area */}
-      <mesh position={[0, -0.3, -7]} receiveShadow>
-        <boxGeometry args={[18, 0.4, 3]} />
+      <mesh position={[0, -0.3, -9]} receiveShadow>
+        <boxGeometry args={[22, 0.4, 4]} />
+        <meshStandardMaterial color="#0a0a0a" />
+      </mesh>
+      
+      {/* Theater Walls */}
+      {/* Left wall */}
+      <mesh position={[-12, 3, 0]}>
+        <boxGeometry args={[0.5, 8, 20]} />
+        <meshStandardMaterial color="#2d1b1b" />
+      </mesh>
+      
+      {/* Right wall */}
+      <mesh position={[12, 3, 0]}>
+        <boxGeometry args={[0.5, 8, 20]} />
+        <meshStandardMaterial color="#2d1b1b" />
+      </mesh>
+      
+      {/* Back wall */}
+      <mesh position={[0, 3, 10]}>
+        <boxGeometry args={[25, 8, 0.5]} />
+        <meshStandardMaterial color="#2d1b1b" />
+      </mesh>
+      
+      {/* Ceiling */}
+      <mesh position={[0, 7, 0]}>
+        <boxGeometry args={[25, 0.3, 20]} />
         <meshStandardMaterial color="#1a1a1a" />
+      </mesh>
+      
+      {/* Aisles */}
+      {/* Center aisle */}
+      <mesh position={[0, -0.45, 2]} receiveShadow>
+        <boxGeometry args={[1.5, 0.1, 12]} />
+        <meshStandardMaterial color="#0f0f0f" />
+      </mesh>
+      
+      {/* Side aisles */}
+      <mesh position={[-8, -0.45, 2]} receiveShadow>
+        <boxGeometry args={[1, 0.1, 12]} />
+        <meshStandardMaterial color="#0f0f0f" />
+      </mesh>
+      <mesh position={[8, -0.45, 2]} receiveShadow>
+        <boxGeometry args={[1, 0.1, 12]} />
+        <meshStandardMaterial color="#0f0f0f" />
+      </mesh>
+      
+      {/* Exit Signs */}
+      <group position={[-11, 5, 8]}>
+        <mesh>
+          <boxGeometry args={[1.5, 0.5, 0.1]} />
+          <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.3} />
+        </mesh>
+        <Text
+          position={[0, 0, 0.06]}
+          fontSize={0.2}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          EXIT
+        </Text>
+      </group>
+      
+      <group position={[11, 5, 8]}>
+        <mesh>
+          <boxGeometry args={[1.5, 0.5, 0.1]} />
+          <meshStandardMaterial color="#ff0000" emissive="#ff0000" emissiveIntensity={0.3} />
+        </mesh>
+        <Text
+          position={[0, 0, 0.06]}
+          fontSize={0.2}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="middle"
+        >
+          EXIT
+        </Text>
+      </group>
+      
+      {/* Emergency lighting strips */}
+      <mesh position={[-11.8, 0.5, 2]}>
+        <boxGeometry args={[0.1, 0.1, 12]} />
+        <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={0.2} />
+      </mesh>
+      <mesh position={[11.8, 0.5, 2]}>
+        <boxGeometry args={[0.1, 0.1, 12]} />
+        <meshStandardMaterial color="#00ff00" emissive="#00ff00" emissiveIntensity={0.2} />
       </mesh>
     </group>
   );
@@ -184,20 +304,56 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         shadows
         style={{ background: 'transparent' }}
       >
-        {/* Lighting */}
-        <ambientLight intensity={0.3} />
-        <pointLight position={[0, 10, 0]} intensity={0.8} castShadow />
-        <pointLight position={[0, 5, -8]} intensity={0.5} color="#f59e0b" />
-        <directionalLight
-          position={[5, 10, 5]}
-          intensity={0.5}
+        {/* Advanced Theater Lighting */}
+        <ambientLight intensity={0.15} color="#1a0f0f" />
+        
+        {/* Screen lighting */}
+        <pointLight position={[0, 5, -10]} intensity={1.2} color="#f59e0b" castShadow />
+        
+        {/* Ceiling spotlights */}
+        <spotLight
+          position={[-6, 6, 2]}
+          intensity={0.4}
+          angle={Math.PI / 6}
+          penumbra={0.5}
+          color="#ffaa00"
           castShadow
-          shadow-mapSize={[1024, 1024]}
+        />
+        <spotLight
+          position={[6, 6, 2]}
+          intensity={0.4}
+          angle={Math.PI / 6}
+          penumbra={0.5}
+          color="#ffaa00"
+          castShadow
+        />
+        <spotLight
+          position={[0, 6, 6]}
+          intensity={0.3}
+          angle={Math.PI / 4}
+          penumbra={0.8}
+          color="#ff6600"
+          castShadow
+        />
+        
+        {/* Exit sign lighting */}
+        <pointLight position={[-11, 5, 8]} intensity={0.3} color="#ff0000" />
+        <pointLight position={[11, 5, 8]} intensity={0.3} color="#ff0000" />
+        
+        {/* Emergency floor lighting */}
+        <pointLight position={[-11.5, 0.5, 2]} intensity={0.2} color="#00ff00" />
+        <pointLight position={[11.5, 0.5, 2]} intensity={0.2} color="#00ff00" />
+        
+        {/* Atmospheric rim lighting */}
+        <directionalLight
+          position={[0, 8, 12]}
+          intensity={0.2}
+          color="#4a4a4a"
         />
 
         {/* 3D Scene Components */}
         <Screen3D />
-        <Stage3D />
+        <TheaterEnvironment />
         
         {/* Render all seats */}
         {seatPositions.map(({ seat, position }) => (
