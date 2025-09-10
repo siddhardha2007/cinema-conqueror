@@ -122,92 +122,192 @@ function Screen3D() {
   const meshRef = useRef<THREE.Mesh>(null);
   const curtainLeftRef = useRef<THREE.Mesh>(null);
   const curtainRightRef = useRef<THREE.Mesh>(null);
+  const projectorLightRef = useRef<THREE.Mesh>(null);
   
   useFrame((state) => {
     if (meshRef.current) {
-      // Cinematic screen glow
+      // Dynamic cinematic screen glow with movie simulation
       const material = meshRef.current.material as THREE.MeshStandardMaterial;
-      material.emissiveIntensity = 0.4 + Math.sin(state.clock.elapsedTime * 0.3) * 0.2;
+      material.emissiveIntensity = 0.6 + Math.sin(state.clock.elapsedTime * 0.8) * 0.4;
+      
+      // Subtle screen flicker effect
+      material.color.setHSL(0.6, 0.8, 0.1 + Math.sin(state.clock.elapsedTime * 1.2) * 0.05);
     }
     
     // Elegant curtain movement
     if (curtainLeftRef.current && curtainRightRef.current) {
-      const sway = Math.sin(state.clock.elapsedTime * 0.6) * 0.01;
-      curtainLeftRef.current.position.x = -9.5 + sway;
-      curtainRightRef.current.position.x = 9.5 - sway;
+      const sway = Math.sin(state.clock.elapsedTime * 0.6) * 0.02;
+      curtainLeftRef.current.position.x = -11.5 + sway;
+      curtainRightRef.current.position.x = 11.5 - sway;
+    }
+
+    // Projector light beam animation
+    if (projectorLightRef.current) {
+      const intensity = 0.8 + Math.sin(state.clock.elapsedTime * 2) * 0.2;
+      projectorLightRef.current.scale.y = intensity;
     }
   });
 
   return (
-    <group position={[0, 2.5, -11]}>
-      {/* Luxury velvet curtains */}
-      <mesh ref={curtainLeftRef} position={[-9.5, 0, 1]}>
-        <planeGeometry args={[3, 14]} />
-        <meshStandardMaterial 
-          color="#8b0000" 
-          roughness={0.8}
-          metalness={0.1}
-          side={THREE.DoubleSide} 
-        />
-      </mesh>
-      <mesh ref={curtainRightRef} position={[9.5, 0, 1]}>
-        <planeGeometry args={[3, 14]} />
-        <meshStandardMaterial 
-          color="#8b0000" 
-          roughness={0.8}
-          metalness={0.1}
-          side={THREE.DoubleSide} 
-        />
-      </mesh>
-      
-      {/* Premium screen with cinematic glow */}
+    <group position={[0, 3, -12]}>
+      {/* Massive IMAX-style screen */}
       <mesh ref={meshRef} position={[0, 0, 0]}>
-        <planeGeometry args={[18, 10]} />
+        <planeGeometry args={[24, 14]} />
         <meshStandardMaterial 
-          color="#0a0a0a" 
-          emissive="#1a4b8c"
-          emissiveIntensity={0.4}
-          roughness={0.1}
-          metalness={0.3}
+          color="#0f1419" 
+          emissive="#2563eb"
+          emissiveIntensity={0.6}
+          roughness={0.05}
+          metalness={0.2}
         />
       </mesh>
       
-      {/* Elegant golden frame */}
+      {/* Movie content simulation - flickering colors */}
+      <mesh position={[0, 0, 0.01]}>
+        <planeGeometry args={[23.5, 13.5]} />
+        <meshStandardMaterial 
+          color="#1e293b" 
+          emissive="#3b82f6"
+          emissiveIntensity={0.4}
+          transparent
+          opacity={0.8}
+        />
+      </mesh>
+      
+      {/* Premium decorative frame with art deco design */}
       <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[20, 12]} />
+        <planeGeometry args={[26, 16]} />
         <meshStandardMaterial 
           color="#d4af37"
-          roughness={0.2}
-          metalness={0.8}
+          roughness={0.1}
+          metalness={0.9}
+          emissive="#fbbf24"
+          emissiveIntensity={0.1}
         />
       </mesh>
       
-      {/* Outer decorative frame */}
+      {/* Outer architectural frame */}
       <mesh position={[0, 0, -0.1]}>
-        <planeGeometry args={[21, 13]} />
-        <meshStandardMaterial color="#1a1a1a" />
+        <planeGeometry args={[28, 18]} />
+        <meshStandardMaterial 
+          color="#0f172a" 
+          roughness={0.3}
+          metalness={0.5}
+        />
       </mesh>
       
-      {/* Cinema branding */}
+      {/* Luxury velvet curtains with tassels */}
+      <mesh ref={curtainLeftRef} position={[-11.5, 0, 1]}>
+        <planeGeometry args={[4, 18]} />
+        <meshStandardMaterial 
+          color="#7f1d1d" 
+          roughness={0.9}
+          metalness={0.05}
+          side={THREE.DoubleSide}
+          emissive="#991b1b"
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+      <mesh ref={curtainRightRef} position={[11.5, 0, 1]}>
+        <planeGeometry args={[4, 18]} />
+        <meshStandardMaterial 
+          color="#7f1d1d" 
+          roughness={0.9}
+          metalness={0.05}
+          side={THREE.DoubleSide}
+          emissive="#991b1b"
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+      
+      {/* Projector light beam effect */}
+      <mesh ref={projectorLightRef} position={[0, 0, 6]}>
+        <coneGeometry args={[0.5, 12, 8]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          transparent
+          opacity={0.1}
+          emissive="#ffffff"
+          emissiveIntensity={0.3}
+        />
+      </mesh>
+      
+      {/* Premium sound system speakers */}
+      <mesh position={[-15, -2, 0.5]}>
+        <boxGeometry args={[2, 6, 2]} />
+        <meshStandardMaterial 
+          color="#0f172a" 
+          roughness={0.2}
+          metalness={0.8}
+          emissive="#1e293b"
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+      <mesh position={[15, -2, 0.5]}>
+        <boxGeometry args={[2, 6, 2]} />
+        <meshStandardMaterial 
+          color="#0f172a" 
+          roughness={0.2}
+          metalness={0.8}
+          emissive="#1e293b"
+          emissiveIntensity={0.1}
+        />
+      </mesh>
+      
+      {/* Subwoofers */}
+      <mesh position={[-15, -6, 1]}>
+        <boxGeometry args={[3, 2, 2]} />
+        <meshStandardMaterial color="#000000" roughness={0.1} metalness={0.9} />
+      </mesh>
+      <mesh position={[15, -6, 1]}>
+        <boxGeometry args={[3, 2, 2]} />
+        <meshStandardMaterial color="#000000" roughness={0.1} metalness={0.9} />
+      </mesh>
+      
+      {/* Cinema branding with glow */}
       <Text
-        position={[0, -7.5, 0.01]}
-        fontSize={1.2}
+        position={[0, -10, 0.01]}
+        fontSize={1.5}
         color="#d4af37"
         anchorX="center"
         anchorY="middle"
         font="/fonts/inter-bold.woff"
       >
-        CINEMA DELUXE
+        IMAX DELUXE THEATER
       </Text>
       
-      {/* Premium sound system */}
-      <mesh position={[-12, -1, 0.5]}>
-        <boxGeometry args={[1.5, 4, 1.5]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.7} />
+      {/* Atmospheric lighting strips around screen */}
+      <mesh position={[0, 9, 0.02]}>
+        <boxGeometry args={[26, 0.3, 0.1]} />
+        <meshStandardMaterial 
+          color="#3b82f6"
+          emissive="#3b82f6"
+          emissiveIntensity={0.8}
+        />
       </mesh>
-      <mesh position={[12, -1, 0.5]}>
-        <boxGeometry args={[1.5, 4, 1.5]} />
-        <meshStandardMaterial color="#1a1a1a" roughness={0.3} metalness={0.7} />
+      <mesh position={[0, -9, 0.02]}>
+        <boxGeometry args={[26, 0.3, 0.1]} />
+        <meshStandardMaterial 
+          color="#3b82f6"
+          emissive="#3b82f6"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      <mesh position={[-13, 0, 0.02]}>
+        <boxGeometry args={[0.3, 16, 0.1]} />
+        <meshStandardMaterial 
+          color="#3b82f6"
+          emissive="#3b82f6"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      <mesh position={[13, 0, 0.02]}>
+        <boxGeometry args={[0.3, 16, 0.1]} />
+        <meshStandardMaterial 
+          color="#3b82f6"
+          emissive="#3b82f6"
+          emissiveIntensity={0.8}
+        />
       </mesh>
     </group>
   );
