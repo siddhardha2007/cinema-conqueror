@@ -313,106 +313,187 @@ function Screen3D() {
   );
 }
 
-// Luxury Theater Environment
+// Luxury Theater Environment with Enhanced Lighting
 function TheaterEnvironment() {
+  const floorLightRef = useRef<THREE.Mesh>(null);
+  const ceilingLightRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    // Animated floor lighting
+    if (floorLightRef.current) {
+      const material = floorLightRef.current.material as THREE.MeshStandardMaterial;
+      material.emissiveIntensity = 0.2 + Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
+    }
+    
+    // Pulsing ceiling lights
+    if (ceilingLightRef.current) {
+      const material = ceilingLightRef.current.material as THREE.MeshStandardMaterial;
+      material.emissiveIntensity = 0.3 + Math.sin(state.clock.elapsedTime * 0.8) * 0.15;
+    }
+  });
+
   return (
     <group>
-      {/* Premium marble floor */}
-      <mesh position={[0, -0.5, 0]} receiveShadow>
+      {/* Premium illuminated marble floor */}
+      <mesh ref={floorLightRef} position={[0, -0.5, 0]} receiveShadow>
         <boxGeometry args={[30, 0.3, 25]} />
         <meshStandardMaterial 
-          color="#2c1810" 
+          color="#8b7355" 
           roughness={0.1}
           metalness={0.3}
+          emissive="#d4af37"
+          emissiveIntensity={0.2}
         />
       </mesh>
       
-      {/* Elevated stage platform */}
+      {/* Glowing floor patterns */}
+      <mesh position={[0, -0.35, 0]}>
+        <planeGeometry args={[28, 23]} />
+        <meshStandardMaterial 
+          color="#1e293b"
+          emissive="#3b82f6"
+          emissiveIntensity={0.3}
+          transparent
+          opacity={0.6}
+        />
+      </mesh>
+      
+      {/* Elevated stage platform with glow */}
       <mesh position={[0, -0.2, -10]} receiveShadow>
         <boxGeometry args={[25, 0.6, 5]} />
         <meshStandardMaterial 
-          color="#1a1008" 
+          color="#4a3728" 
           roughness={0.2}
           metalness={0.4}
+          emissive="#fbbf24"
+          emissiveIntensity={0.15}
         />
       </mesh>
       
-      {/* Luxury theater walls with fabric texture */}
+      {/* Luxury theater walls with ambient glow */}
       <mesh position={[-15, 4, 0]}>
         <boxGeometry args={[0.8, 10, 25]} />
         <meshStandardMaterial 
-          color="#4a2c2c" 
+          color="#7c3aed" 
           roughness={0.7}
           metalness={0.1}
+          emissive="#8b5cf6"
+          emissiveIntensity={0.2}
         />
       </mesh>
       <mesh position={[15, 4, 0]}>
         <boxGeometry args={[0.8, 10, 25]} />
         <meshStandardMaterial 
-          color="#4a2c2c" 
+          color="#7c3aed" 
           roughness={0.7}
           metalness={0.1}
+          emissive="#8b5cf6"
+          emissiveIntensity={0.2}
         />
       </mesh>
       
-      {/* Acoustic panels on back wall */}
+      {/* Acoustic panels with subtle lighting */}
       <mesh position={[0, 4, 12]}>
         <boxGeometry args={[30, 10, 0.8]} />
         <meshStandardMaterial 
-          color="#3a2020" 
+          color="#6366f1" 
           roughness={0.8}
+          emissive="#4338ca"
+          emissiveIntensity={0.15}
         />
       </mesh>
       
-      {/* Coffered ceiling with ambient lighting */}
-      <mesh position={[0, 9, 0]}>
+      {/* Illuminated coffered ceiling */}
+      <mesh ref={ceilingLightRef} position={[0, 9, 0]}>
         <boxGeometry args={[30, 0.5, 25]} />
         <meshStandardMaterial 
-          color="#2a1810" 
+          color="#4338ca" 
           roughness={0.3}
           metalness={0.2}
+          emissive="#6366f1"
+          emissiveIntensity={0.3}
         />
       </mesh>
       
-      {/* Luxury carpet aisles */}
+      {/* Ceiling light panels */}
+      <mesh position={[-8, 8.8, 0]}>
+        <boxGeometry args={[4, 0.2, 6]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      <mesh position={[8, 8.8, 0]}>
+        <boxGeometry args={[4, 0.2, 6]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      <mesh position={[0, 8.8, -8]}>
+        <boxGeometry args={[4, 0.2, 6]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      <mesh position={[0, 8.8, 8]}>
+        <boxGeometry args={[4, 0.2, 6]} />
+        <meshStandardMaterial 
+          color="#ffffff"
+          emissive="#ffffff"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      
+      {/* Luxury glowing carpet aisles */}
       <mesh position={[0, -0.4, 2]} receiveShadow>
         <boxGeometry args={[2, 0.15, 15]} />
         <meshStandardMaterial 
-          color="#5d1a1a" 
+          color="#dc2626" 
           roughness={0.9}
+          emissive="#ef4444"
+          emissiveIntensity={0.3}
         />
       </mesh>
       
-      {/* Side aisles with premium carpet */}
+      {/* Side aisles with premium carpet glow */}
       <mesh position={[-10, -0.4, 2]} receiveShadow>
         <boxGeometry args={[1.5, 0.15, 15]} />
         <meshStandardMaterial 
-          color="#5d1a1a" 
+          color="#dc2626" 
           roughness={0.9}
+          emissive="#ef4444"
+          emissiveIntensity={0.3}
         />
       </mesh>
       <mesh position={[10, -0.4, 2]} receiveShadow>
         <boxGeometry args={[1.5, 0.15, 15]} />
         <meshStandardMaterial 
-          color="#5d1a1a" 
+          color="#dc2626" 
           roughness={0.9}
+          emissive="#ef4444"
+          emissiveIntensity={0.3}
         />
       </mesh>
       
-      {/* Elegant exit signs with soft glow */}
+      {/* Enhanced exit signs with bright glow */}
       <group position={[-14, 6, 10]}>
         <mesh>
-          <boxGeometry args={[2, 0.8, 0.2]} />
+          <boxGeometry args={[2.5, 1, 0.3]} />
           <meshStandardMaterial 
-            color="#ff4444" 
-            emissive="#ff2222"
-            emissiveIntensity={0.5}
+            color="#22c55e" 
+            emissive="#16a34a"
+            emissiveIntensity={0.8}
             roughness={0.1}
           />
         </mesh>
         <Text
-          position={[0, 0, 0.11]}
-          fontSize={0.3}
+          position={[0, 0, 0.16]}
+          fontSize={0.4}
           color="#ffffff"
           anchorX="center"
           anchorY="middle"
@@ -424,17 +505,17 @@ function TheaterEnvironment() {
       
       <group position={[14, 6, 10]}>
         <mesh>
-          <boxGeometry args={[2, 0.8, 0.2]} />
+          <boxGeometry args={[2.5, 1, 0.3]} />
           <meshStandardMaterial 
-            color="#ff4444" 
-            emissive="#ff2222"
-            emissiveIntensity={0.5}
+            color="#22c55e" 
+            emissive="#16a34a"
+            emissiveIntensity={0.8}
             roughness={0.1}
           />
         </mesh>
         <Text
-          position={[0, 0, 0.11]}
-          fontSize={0.3}
+          position={[0, 0, 0.16]}
+          fontSize={0.4}
           color="#ffffff"
           anchorX="center"
           anchorY="middle"
@@ -444,32 +525,106 @@ function TheaterEnvironment() {
         </Text>
       </group>
       
-      {/* Ambient LED strips */}
+      {/* Enhanced ambient LED strips */}
       <mesh position={[-14.5, 1, 2]}>
-        <boxGeometry args={[0.2, 0.2, 15]} />
+        <boxGeometry args={[0.3, 0.3, 15]} />
         <meshStandardMaterial 
-          color="#4169e1" 
-          emissive="#4169e1"
-          emissiveIntensity={0.3}
+          color="#3b82f6" 
+          emissive="#2563eb"
+          emissiveIntensity={0.6}
         />
       </mesh>
       <mesh position={[14.5, 1, 2]}>
-        <boxGeometry args={[0.2, 0.2, 15]} />
+        <boxGeometry args={[0.3, 0.3, 15]} />
         <meshStandardMaterial 
-          color="#4169e1" 
-          emissive="#4169e1"
-          emissiveIntensity={0.3}
+          color="#3b82f6" 
+          emissive="#2563eb"
+          emissiveIntensity={0.6}
         />
       </mesh>
       
-      {/* Decorative ceiling beams */}
+      {/* Floor LED strips for guidance */}
+      <mesh position={[-1, -0.4, 2]}>
+        <boxGeometry args={[0.1, 0.1, 15]} />
+        <meshStandardMaterial 
+          color="#f59e0b" 
+          emissive="#f59e0b"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      <mesh position={[1, -0.4, 2]}>
+        <boxGeometry args={[0.1, 0.1, 15]} />
+        <meshStandardMaterial 
+          color="#f59e0b" 
+          emissive="#f59e0b"
+          emissiveIntensity={0.8}
+        />
+      </mesh>
+      
+      {/* Decorative glowing ceiling beams */}
       <mesh position={[-8, 8.5, 0]}>
         <boxGeometry args={[1, 0.8, 25]} />
-        <meshStandardMaterial color="#3a2818" roughness={0.6} />
+        <meshStandardMaterial 
+          color="#6366f1" 
+          roughness={0.6}
+          emissive="#4338ca"
+          emissiveIntensity={0.2}
+        />
       </mesh>
       <mesh position={[8, 8.5, 0]}>
         <boxGeometry args={[1, 0.8, 25]} />
-        <meshStandardMaterial color="#3a2818" roughness={0.6} />
+        <meshStandardMaterial 
+          color="#6366f1" 
+          roughness={0.6}
+          emissive="#4338ca"
+          emissiveIntensity={0.2}
+        />
+      </mesh>
+      
+      {/* Atmospheric fog/mist effects using planes */}
+      <mesh position={[0, 1, -5]} rotation={[-Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[25, 15]} />
+        <meshStandardMaterial 
+          color="#1e293b"
+          transparent
+          opacity={0.1}
+          emissive="#3b82f6"
+          emissiveIntensity={0.2}
+        />
+      </mesh>
+      
+      {/* Corner accent lighting */}
+      <mesh position={[-14, 1, -10]}>
+        <boxGeometry args={[0.5, 6, 0.5]} />
+        <meshStandardMaterial 
+          color="#8b5cf6"
+          emissive="#7c3aed"
+          emissiveIntensity={0.6}
+        />
+      </mesh>
+      <mesh position={[14, 1, -10]}>
+        <boxGeometry args={[0.5, 6, 0.5]} />
+        <meshStandardMaterial 
+          color="#8b5cf6"
+          emissive="#7c3aed"
+          emissiveIntensity={0.6}
+        />
+      </mesh>
+      <mesh position={[-14, 1, 10]}>
+        <boxGeometry args={[0.5, 6, 0.5]} />
+        <meshStandardMaterial 
+          color="#8b5cf6"
+          emissive="#7c3aed"
+          emissiveIntensity={0.6}
+        />
+      </mesh>
+      <mesh position={[14, 1, 10]}>
+        <boxGeometry args={[0.5, 6, 0.5]} />
+        <meshStandardMaterial 
+          color="#8b5cf6"
+          emissive="#7c3aed"
+          emissiveIntensity={0.6}
+        />
       </mesh>
     </group>
   );
@@ -521,62 +676,81 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         shadows={{ type: THREE.PCFSoftShadowMap }}
         style={{ background: 'linear-gradient(to bottom, #0f172a, #000000)' }}
       >
-        {/* Cinematic Lighting Setup */}
-        <ambientLight intensity={0.2} color="#1a1a2e" />
+        {/* Enhanced Cinematic Lighting Setup */}
+        <ambientLight intensity={0.4} color="#e0e7ff" />
         
-        {/* Key screen lighting */}
+        {/* Key screen lighting with increased intensity */}
         <spotLight
-          position={[0, 8, -11]}
+          position={[0, 10, -11]}
+          intensity={3}
+          angle={Math.PI / 2.5}
+          penumbra={0.3}
+          color="#60a5fa"
+          castShadow
+          shadow-mapSize={[4096, 4096]}
+        />
+        
+        {/* Main ceiling spotlights */}
+        <spotLight
+          position={[-8, 12, 2]}
           intensity={2}
           angle={Math.PI / 3}
           penumbra={0.5}
-          color="#4169e1"
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-        />
-        
-        {/* Dramatic ceiling spots */}
-        <spotLight
-          position={[-8, 8, 2]}
-          intensity={0.8}
-          angle={Math.PI / 4}
-          penumbra={0.7}
-          color="#d4af37"
+          color="#fbbf24"
           castShadow
         />
         <spotLight
-          position={[8, 8, 2]}
-          intensity={0.8}
-          angle={Math.PI / 4}
-          penumbra={0.7}
-          color="#d4af37"
-          castShadow
-        />
-        
-        {/* Audience area mood lighting */}
-        <spotLight
-          position={[0, 8, 8]}
-          intensity={0.4}
+          position={[8, 12, 2]}
+          intensity={2}
           angle={Math.PI / 3}
-          penumbra={1}
-          color="#8b5a2b"
+          penumbra={0.5}
+          color="#fbbf24"
           castShadow
         />
         
-        {/* Rim lighting for depth */}
-        <directionalLight
-          position={[0, 12, 15]}
-          intensity={0.3}
-          color="#6366f1"
+        {/* Audience area bright mood lighting */}
+        <spotLight
+          position={[0, 10, 8]}
+          intensity={1.5}
+          angle={Math.PI / 2.5}
+          penumbra={0.8}
+          color="#a78bfa"
+          castShadow
         />
         
-        {/* Ambient LED strip effects */}
-        <pointLight position={[-14, 1, 2]} intensity={0.5} color="#4169e1" />
-        <pointLight position={[14, 1, 2]} intensity={0.5} color="#4169e1" />
+        {/* Enhanced rim lighting for depth */}
+        <directionalLight
+          position={[0, 15, 15]}
+          intensity={0.8}
+          color="#c084fc"
+        />
         
-        {/* Exit sign illumination */}
-        <pointLight position={[-14, 6, 10]} intensity={0.4} color="#ff4444" />
-        <pointLight position={[14, 6, 10]} intensity={0.4} color="#ff4444" />
+        {/* Additional fill lighting */}
+        <pointLight position={[0, 8, 0]} intensity={1.2} color="#ffffff" />
+        
+        {/* Enhanced LED strip effects */}
+        <pointLight position={[-14, 1, 2]} intensity={1} color="#3b82f6" />
+        <pointLight position={[14, 1, 2]} intensity={1} color="#3b82f6" />
+        
+        {/* Corner accent lighting */}
+        <pointLight position={[-14, 3, -10]} intensity={0.8} color="#8b5cf6" />
+        <pointLight position={[14, 3, -10]} intensity={0.8} color="#8b5cf6" />
+        <pointLight position={[-14, 3, 10]} intensity={0.8} color="#8b5cf6" />
+        <pointLight position={[14, 3, 10]} intensity={0.8} color="#8b5cf6" />
+        
+        {/* Ceiling panel lighting */}
+        <pointLight position={[-8, 9, 0]} intensity={1.5} color="#ffffff" />
+        <pointLight position={[8, 9, 0]} intensity={1.5} color="#ffffff" />
+        <pointLight position={[0, 9, -8]} intensity={1.5} color="#ffffff" />
+        <pointLight position={[0, 9, 8]} intensity={1.5} color="#ffffff" />
+        
+        {/* Enhanced exit sign illumination */}
+        <pointLight position={[-14, 6, 10]} intensity={0.8} color="#22c55e" />
+        <pointLight position={[14, 6, 10]} intensity={0.8} color="#22c55e" />
+        
+        {/* Floor guidance lighting */}
+        <pointLight position={[-1, 0, 2]} intensity={0.6} color="#f59e0b" />
+        <pointLight position={[1, 0, 2]} intensity={0.6} color="#f59e0b" />
 
         {/* Luxury 3D Components */}
         <Screen3D />
