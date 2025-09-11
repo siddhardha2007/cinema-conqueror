@@ -164,7 +164,6 @@ function Seat3D({
         color={seat.isBooked ? '#666' : '#ffffff'}
         anchorX="center"
         anchorY="middle"
-        font="/fonts/inter-bold.woff"
       >
         {seat.number}
       </Text>
@@ -378,7 +377,6 @@ function Screen3D() {
         color="#d4af37"
         anchorX="center"
         anchorY="middle"
-        font="/fonts/inter-bold.woff"
       >
         DELUXE CINEMA HALL
       </Text>
