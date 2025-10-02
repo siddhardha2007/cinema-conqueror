@@ -176,15 +176,15 @@ export const generateSeats = (totalSeats: number = 150): Seat[] => {
       let seatType: 'regular' | 'premium' | 'vip' = 'regular';
       let price = 250;
       
-      // VIP seats (first 2 rows)
-      if (rowIndex < 2) {
-        seatType = 'vip';
-        price = 500;
-      }
-      // Premium seats (middle rows)
-      else if (rowIndex < 6) {
+      // Premium seats (back rows - last 3 rows)
+      if (rowIndex >= 7) {
         seatType = 'premium';
         price = 350;
+      }
+      // Regular seats (front and middle rows)
+      else {
+        seatType = 'regular';
+        price = 250;
       }
       
       seats.push({

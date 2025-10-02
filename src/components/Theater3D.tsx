@@ -25,11 +25,8 @@ function Seat3D({
     if (seat.isSelected) return '#dc2626';
     if (hovered) return '#f59e0b';
     
-    switch (seat.type) {
-      case 'vip': return '#fbbf24';
-      case 'premium': return '#3b82f6';
-      default: return '#6b7280';
-    }
+    if (seat.type === 'premium') return '#3b82f6';
+    return '#6b7280'; // regular seats
   };
 
   return (
@@ -151,7 +148,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     
     rows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
-      const rowZ = (rows.length - 1 - rowIndex) * 1.2 - 2; // Front rows have lower Z values
+      // Row A (index 0) is closest to screen (negative Z), last row is furthest (positive Z)
+      const rowZ = rowIndex * 1.2 - 2;
       
       rowSeats.forEach((seat, seatIndex) => {
         const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.0;
