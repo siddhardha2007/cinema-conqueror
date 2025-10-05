@@ -1,10 +1,4 @@
 project_id = "tefzsfoitgktftdlcujy"
 
-[functions.get-movies]
-verify_jwt = false
-
-[functions.get-cinemas]
-verify_jwt = false
-
-[functions.get-showtimes]
+[functions.get-movies-tmdb]
 verify_jwt = false
