@@ -38,32 +38,37 @@ export class MovieDataService {
 
   async getCurrentMovies(latitude?: number, longitude?: number, page: number = 1): Promise<MovieResponse> {
     try {
-      console.log('🎬 Fetching real movies from TMDB...');
+      console.log('🎬 Fetching real movies from MovieGlu...');
       
-      // Determine region based on location (simple approach)
-      const region = this.getRegionFromLocation(latitude, longitude);
+      // Default to a location if not provided
+      const lat = latitude || 28.6139; // Delhi
+      const lng = longitude || 77.2090;
 
-      const { data, error } = await supabase.functions.invoke('get-movies-tmdb', {
-        body: { region }
+      const { data, error } = await supabase.functions.invoke('get-movies', {
+        body: { 
+          latitude: lat,
+          longitude: lng,
+          date: new Date().toISOString()
+        }
       });
 
       if (error) {
-        console.error('❌ Error fetching movies from TMDB:', error);
+        console.error('❌ Error fetching movies from MovieGlu:', error);
         return this.getEnhancedRealMovieData(page);
       }
 
-      if (!data || !data.results || data.results.length === 0) {
-        console.log('📍 No TMDB data, using enhanced data');
+      if (!data || !data.films || data.films.length === 0) {
+        console.log('📍 No MovieGlu data, using enhanced data');
         return this.getEnhancedRealMovieData(page);
       }
 
-      console.log(`✅ Got ${data.results.length} real movies from TMDB`);
-      const processedMovies = this.processTMDBData(data.results);
+      console.log(`✅ Got ${data.films.length} real movies from MovieGlu`);
+      const processedMovies = this.processMovieGluData(data.films);
       
       return {
         results: processedMovies,
-        totalPages: data.total_pages || 1,
-        totalResults: data.total_results || processedMovies.length
+        totalPages: 1,
+        totalResults: processedMovies.length
       };
       
     } catch (error) {
@@ -88,24 +93,22 @@ export class MovieDataService {
     return 'IN'; // Default
   }
 
-  private processTMDBData(movies: any[]): MovieDetails[] {
+  private processMovieGluData(movies: any[]): MovieDetails[] {
     return movies.slice(0, 12).map((movie: any) => ({
-      id: movie.id.toString(),
-      title: movie.title || movie.original_title,
-      rating: movie.vote_average ? parseFloat(movie.vote_average.toFixed(1)) : 8.0,
-      duration: '2h 30m', // TMDB doesn't provide runtime in now_playing
-      genre: this.getGenreNames(movie.genre_ids || []),
-      language: this.formatLanguage(movie.original_language),
-      image: movie.poster_path ? `${this.TMDB_IMAGE_BASE}${movie.poster_path}` : '/placeholder-movie.jpg',
-      releaseDate: this.formatReleaseDate(movie.release_date),
-      description: movie.overview || 'An exciting cinematic experience awaits.',
-      cast: [],
-      director: 'Unknown Director',
-      trailer: '',
-      backdrop: movie.backdrop_path ? `${this.TMDB_BACKDROP_BASE}${movie.backdrop_path}` : undefined,
-      poster: movie.poster_path ? `${this.TMDB_IMAGE_BASE}${movie.poster_path}` : undefined,
-      popularity: movie.popularity,
-      voteCount: movie.vote_count
+      id: movie.film_id.toString(),
+      title: movie.film_name,
+      rating: movie.age_rating?.[0]?.rating || '12A',
+      duration: `${movie.duration_mins}min`,
+      genre: movie.genres?.map((g: any) => g.genre_name).join(', ') || 'Drama',
+      language: 'English',
+      image: movie.images?.poster?.['1']?.medium?.film_image || '/placeholder-movie.jpg',
+      releaseDate: this.formatReleaseDate(movie.release_dates?.[0]?.release_date),
+      description: movie.synopsis_long || 'An exciting cinematic experience awaits.',
+      cast: movie.cast?.map((c: any) => c.cast_name) || [],
+      director: movie.directors?.[0]?.director_name || 'Unknown Director',
+      trailer: movie.trailers?.high?.[0]?.film_trailer || '',
+      backdrop: movie.images?.still?.['1']?.medium?.film_image,
+      poster: movie.images?.poster?.['1']?.medium?.film_image
     }));
   }
 
