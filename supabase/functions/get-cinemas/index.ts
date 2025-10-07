@@ -28,7 +28,7 @@ serve(async (req) => {
       {
         method: 'GET',
         headers: {
-          'api-version': 'v200',
+          'api-version': 'v201',
           'Authorization': `Basic ${btoa(`${CLIENT_ID}:${API_KEY}`)}`,
           'client': CLIENT_ID,
           'x-api-key': API_KEY,
