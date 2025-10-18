@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import confetti from 'canvas-confetti';
 import Countdown from 'react-countdown';
+import { supabase } from "@/integrations/supabase/client";
 
 const BookingConfirmation = () => {
   const navigate = useNavigate();
@@ -18,6 +19,8 @@ const BookingConfirmation = () => {
   const [showReviewPrompt, setShowReviewPrompt] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [showSocialShare, setShowSocialShare] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [emailSending, setEmailSending] = useState(false);
 
   if (!state.selectedMovie || state.bookings.length === 0) {
     navigate('/');
@@ -67,6 +70,49 @@ const BookingConfirmation = () => {
     }, 3000);
     return () => clearTimeout(timer);
   }, []);
+
+  // Send confirmation email on mount
+  useEffect(() => {
+    const sendConfirmationEmail = async () => {
+      if (emailSent || emailSending) return;
+      
+      setEmailSending(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('send-booking-confirmation', {
+          body: {
+            email: 'customer@example.com', // In production, get from user profile
+            name: 'Valued Customer', // In production, get from user profile
+            bookingId: `BMS${latestBooking.id}`,
+            movieTitle: latestBooking.movieTitle,
+            theaterName: latestBooking.theaterName,
+            showDate: latestBooking.bookingDate,
+            showtime: latestBooking.showtime,
+            seats: latestBooking.seats,
+            totalAmount: latestBooking.totalAmount,
+          }
+        });
+
+        if (error) throw error;
+
+        setEmailSent(true);
+        toast({
+          title: "📧 Confirmation Email Sent",
+          description: "Check your inbox for booking details!",
+        });
+      } catch (error) {
+        console.error('Email error:', error);
+        toast({
+          title: "Email Failed",
+          description: "Couldn't send confirmation email. Your booking is still confirmed!",
+          variant: "destructive",
+        });
+      } finally {
+        setEmailSending(false);
+      }
+    };
+
+    sendConfirmationEmail();
+  }, [latestBooking, emailSent, emailSending, toast]);
 
   useEffect(() => {
     if (qrCanvasRef.current && latestBooking) {
