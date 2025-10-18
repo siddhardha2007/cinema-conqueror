@@ -80,8 +80,8 @@ const BookingConfirmation = () => {
       try {
         const { data, error } = await supabase.functions.invoke('send-booking-confirmation', {
           body: {
-            email: 'customer@example.com', // In production, get from user profile
-            name: 'Valued Customer', // In production, get from user profile
+            email: 'siddhardhachv@gmail.com', // Your verified Resend email
+            name: 'Movie Fan', // In production, get from user profile
             bookingId: `BMS${latestBooking.id}`,
             movieTitle: latestBooking.movieTitle,
             theaterName: latestBooking.theaterName,
