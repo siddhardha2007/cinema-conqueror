@@ -43,9 +43,17 @@ const handler = async (req: Request): Promise<Response> => {
     }: BookingEmailRequest = await req.json();
 
     console.log("✉️ Sending booking confirmation email");
-    console.log("To:", email);
+    console.log("Requested recipient:", email);
     console.log("Booking ID:", bookingId);
     console.log("Movie:", movieTitle);
+
+    // IMPORTANT: Resend test mode only allows sending to verified email
+    // In production, verify a domain and update the 'from' address
+    const verifiedEmail = "siddhardhachv@gmail.com";
+    const isTestMode = email !== verifiedEmail;
+    
+    console.log("Test mode:", isTestMode);
+    console.log("Sending to verified email:", verifiedEmail);
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -69,6 +77,14 @@ const handler = async (req: Request): Promise<Response> => {
               border-radius: 12px;
               overflow: hidden;
               box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            }
+            .test-banner {
+              background: #fbbf24;
+              color: #78350f;
+              padding: 12px 20px;
+              text-align: center;
+              font-weight: bold;
+              font-size: 14px;
             }
             .header {
               background: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
@@ -201,6 +217,12 @@ const handler = async (req: Request): Promise<Response> => {
         </head>
         <body>
           <div class="container">
+            ${isTestMode ? `
+            <div class="test-banner">
+              ⚠️ TEST MODE: This booking was for ${email}
+            </div>
+            ` : ''}
+            
             <div class="header">
               <div class="success-icon">✓</div>
               <h1>🎬 Booking Confirmed!</h1>
@@ -210,6 +232,12 @@ const handler = async (req: Request): Promise<Response> => {
             <div class="content">
               <p>Dear ${name},</p>
               <p>Thank you for booking with us! Your movie tickets have been confirmed. Get ready for an amazing cinematic experience!</p>
+              
+              ${isTestMode ? `
+              <div style="background: #fef3c7; border: 2px solid #fbbf24; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <strong>📧 Customer Email:</strong> ${email}
+              </div>
+              ` : ''}
               
               <div class="booking-id">
                 Booking ID: ${bookingId}
@@ -283,8 +311,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data, error } = await resend.emails.send({
       from: "MovieBooking <onboarding@resend.dev>",
-      to: [email],
-      subject: `🎬 Booking Confirmed - ${movieTitle} | ${bookingId}`,
+      to: [verifiedEmail],
+      subject: isTestMode 
+        ? `🎬 [For: ${email}] Booking Confirmed - ${movieTitle} | ${bookingId}`
+        : `🎬 Booking Confirmed - ${movieTitle} | ${bookingId}`,
       html: emailHtml,
     });
 
