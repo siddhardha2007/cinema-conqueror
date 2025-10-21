@@ -69,6 +69,8 @@ export interface Booking {
   totalAmount: number;
   bookingDate: string;
   status: 'confirmed' | 'cancelled';
+  userEmail: string;
+  userName: string;
 }
 
 type BookingAction =

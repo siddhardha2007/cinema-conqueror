@@ -16,6 +16,8 @@ const Payment = () => {
   const { toast } = useToast();
   const [paymentMethod, setPaymentMethod] = useState("card");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [userName, setUserName] = useState("");
 
   if (!state.selectedMovie || !state.selectedTheater || !state.selectedShowtime || state.selectedSeats.length === 0) {
     navigate('/');
@@ -28,6 +30,26 @@ const Payment = () => {
   const finalAmount = totalAmount + convenienceFee + taxes;
 
   const handlePayment = async () => {
+    if (!userEmail || !userName) {
+      toast({
+        title: "Contact Details Required",
+        description: "Please enter your name and email address.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(userEmail)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
     
     // Simulate payment processing
@@ -40,7 +62,9 @@ const Payment = () => {
         seats: state.selectedSeats.map(seat => `${seat.row}${seat.number}`),
         totalAmount: finalAmount,
         bookingDate: new Date().toLocaleDateString(),
-        status: 'confirmed' as const
+        status: 'confirmed' as const,
+        userEmail: userEmail,
+        userName: userName
       };
 
       dispatch({ type: 'CONFIRM_BOOKING', payload: booking });
@@ -84,6 +108,35 @@ const Payment = () => {
               <p className="text-sm text-muted-foreground mt-1">
                 Your payment information is encrypted and secure
               </p>
+            </div>
+
+            {/* Contact Details */}
+            <div className="cinema-card p-6 space-y-4">
+              <h3 className="text-lg font-semibold">Contact Details</h3>
+              <p className="text-sm text-muted-foreground">We'll send booking confirmation to this email</p>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <Label htmlFor="userName">Full Name *</Label>
+                  <Input 
+                    id="userName" 
+                    placeholder="John Doe" 
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="userEmail">Email Address *</Label>
+                  <Input 
+                    id="userEmail" 
+                    type="email"
+                    placeholder="john@example.com" 
+                    value={userEmail}
+                    onChange={(e) => setUserEmail(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
             </div>
 
             {/* Payment Method Selection */}
