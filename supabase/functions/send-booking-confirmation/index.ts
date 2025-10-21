@@ -21,11 +21,15 @@ interface BookingEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
+  console.log("🎬 Edge function called - send-booking-confirmation");
+  console.log("Request method:", req.method);
+  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    console.log("📧 Parsing request body...");
     const {
       email,
       name,
@@ -38,7 +42,10 @@ const handler = async (req: Request): Promise<Response> => {
       totalAmount,
     }: BookingEmailRequest = await req.json();
 
-    console.log("Sending booking confirmation to:", email);
+    console.log("✉️ Sending booking confirmation email");
+    console.log("To:", email);
+    console.log("Booking ID:", bookingId);
+    console.log("Movie:", movieTitle);
 
     const emailHtml = `
       <!DOCTYPE html>

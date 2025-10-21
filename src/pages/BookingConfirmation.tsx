@@ -71,13 +71,14 @@ const BookingConfirmation = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  // Send confirmation email on mount
+  // Send confirmation email on mount - runs once per booking
   useEffect(() => {
     const sendConfirmationEmail = async () => {
-      if (emailSent || emailSending) return;
+      console.log('🎬 Attempting to send confirmation email for booking:', latestBooking.id);
       
       setEmailSending(true);
       try {
+        console.log('📧 Invoking send-booking-confirmation function...');
         const { data, error } = await supabase.functions.invoke('send-booking-confirmation', {
           body: {
             email: 'siddhardhachv@gmail.com', // Your verified Resend email
@@ -92,15 +93,19 @@ const BookingConfirmation = () => {
           }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('❌ Edge function error:', error);
+          throw error;
+        }
 
+        console.log('✅ Email sent successfully:', data);
         setEmailSent(true);
         toast({
           title: "📧 Confirmation Email Sent",
           description: "Check your inbox for booking details!",
         });
       } catch (error) {
-        console.error('Email error:', error);
+        console.error('❌ Email sending failed:', error);
         toast({
           title: "Email Failed",
           description: "Couldn't send confirmation email. Your booking is still confirmed!",
@@ -111,8 +116,11 @@ const BookingConfirmation = () => {
       }
     };
 
-    sendConfirmationEmail();
-  }, [latestBooking, emailSent, emailSending, toast]);
+    // Only send email once when component mounts with a new booking
+    if (!emailSent && !emailSending) {
+      sendConfirmationEmail();
+    }
+  }, []); // Empty deps - only run once on mount
 
   useEffect(() => {
     if (qrCanvasRef.current && latestBooking) {
