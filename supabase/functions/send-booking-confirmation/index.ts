@@ -42,8 +42,24 @@ const handler = async (req: Request): Promise<Response> => {
       totalAmount,
     }: BookingEmailRequest = await req.json();
 
+    // Validate required fields
+    if (!email || !name) {
+      console.error("❌ Missing required fields - email or name");
+      return new Response(
+        JSON.stringify({ 
+          error: "Email and name are required",
+          details: { email: !!email, name: !!name }
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
     console.log("✉️ Sending booking confirmation email");
     console.log("Sending to recipient:", email);
+    console.log("Recipient name:", name);
     console.log("Booking ID:", bookingId);
     console.log("Movie:", movieTitle);
 
