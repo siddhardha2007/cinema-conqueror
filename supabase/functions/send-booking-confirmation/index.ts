@@ -30,6 +30,9 @@ const handler = async (req: Request): Promise<Response> => {
 
   try {
     console.log("📧 Parsing request body...");
+    const requestBody = await req.json();
+    console.log("📦 RAW REQUEST BODY:", JSON.stringify(requestBody, null, 2));
+    
     const {
       email,
       name,
@@ -40,7 +43,10 @@ const handler = async (req: Request): Promise<Response> => {
       showtime,
       seats,
       totalAmount,
-    }: BookingEmailRequest = await req.json();
+    }: BookingEmailRequest = requestBody;
+
+    console.log("📧 EXTRACTED EMAIL:", email);
+    console.log("👤 EXTRACTED NAME:", name);
 
     // Validate required fields
     if (!email || !name) {
@@ -58,10 +64,10 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("✉️ Sending booking confirmation email");
-    console.log("Sending to recipient:", email);
-    console.log("Recipient name:", name);
-    console.log("Booking ID:", bookingId);
-    console.log("Movie:", movieTitle);
+    console.log("📮 SENDING TO RECIPIENT:", email);
+    console.log("👤 RECIPIENT NAME:", name);
+    console.log("🎫 BOOKING ID:", bookingId);
+    console.log("🎬 MOVIE:", movieTitle);
 
     const emailHtml = `
       <!DOCTYPE html>
