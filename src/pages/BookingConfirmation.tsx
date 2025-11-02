@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import confetti from 'canvas-confetti';
 import Countdown from 'react-countdown';
-import { supabase } from "@/integrations/supabase/client";
+import emailjs from '@emailjs/browser';
 
 const BookingConfirmation = () => {
   const navigate = useNavigate();
@@ -78,27 +78,28 @@ const BookingConfirmation = () => {
       
       setEmailSending(true);
       try {
-        console.log('📧 Invoking send-booking-confirmation function...');
-        const { data, error } = await supabase.functions.invoke('send-booking-confirmation', {
-          body: {
-            email: latestBooking.userEmail,
-            name: latestBooking.userName,
-            bookingId: `BMS${latestBooking.id}`,
-            movieTitle: latestBooking.movieTitle,
-            theaterName: latestBooking.theaterName,
-            showDate: latestBooking.bookingDate,
-            showtime: latestBooking.showtime,
-            seats: latestBooking.seats,
-            totalAmount: latestBooking.totalAmount,
-          }
-        });
+        console.log('📧 Sending email via EmailJS...');
+        
+        const templateParams = {
+          to_email: latestBooking.userEmail,
+          to_name: latestBooking.userName,
+          booking_id: `BMS${latestBooking.id}`,
+          movie_title: latestBooking.movieTitle,
+          theater_name: latestBooking.theaterName,
+          show_date: latestBooking.bookingDate,
+          showtime: latestBooking.showtime,
+          seats: latestBooking.seats.join(', '),
+          total_amount: `₹${latestBooking.totalAmount}`,
+        };
 
-        if (error) {
-          console.error('❌ Edge function error:', error);
-          throw error;
-        }
+        const response = await emailjs.send(
+          'service_ykip41x',
+          'template_m55epzb',
+          templateParams,
+          'rehqW7lvmVOU672LQ'
+        );
 
-        console.log('✅ Email sent successfully:', data);
+        console.log('✅ Email sent successfully:', response);
         setEmailSent(true);
         toast({
           title: "📧 Confirmation Email Sent",
