@@ -20,9 +20,7 @@ serve(async (req) => {
       throw new Error('MovieGlu API credentials not configured');
     }
 
-    const { latitude, longitude } = await req.json();
-    
-    console.log('Fetching movies from MovieGlu:', { latitude, longitude });
+    console.log('Fetching movies from MovieGlu...');
 
     const response = await fetch(
       `https://api-gate2.movieglu.com/filmsNowShowing/?n=20`,
@@ -34,7 +32,6 @@ serve(async (req) => {
           'client': CLIENT_ID,
           'x-api-key': API_KEY,
           'territory': TERRITORY,
-          'geolocation': `${latitude};${longitude}`,
           'device-datetime': new Date().toISOString(),
         },
       }
