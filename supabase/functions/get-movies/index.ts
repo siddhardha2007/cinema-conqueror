@@ -20,6 +20,16 @@ serve(async (req) => {
       throw new Error('MovieGlu API credentials not configured');
     }
 
+    console.log('MovieGlu credentials check:', {
+      hasApiKey: !!API_KEY,
+      apiKeyLength: API_KEY?.length,
+      clientId: CLIENT_ID,
+      territory: TERRITORY,
+      hasAuthToken: !!AUTH_TOKEN,
+      authTokenLength: AUTH_TOKEN?.length,
+      authTokenPrefix: AUTH_TOKEN?.substring(0, 10) + '...'
+    });
+
     console.log('Fetching movies from MovieGlu...');
 
     const response = await fetch(
@@ -51,7 +61,11 @@ serve(async (req) => {
           'hasApiKey': !!API_KEY
         }
       });
-      throw new Error(`MovieGlu API error: ${response.status} - ${errorText}`);
+      
+      // Return empty films array so frontend can use mock data
+      return new Response(JSON.stringify({ films: [] }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
     const data = await response.json();
