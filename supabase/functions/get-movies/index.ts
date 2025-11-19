@@ -39,8 +39,19 @@ serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('MovieGlu API error:', response.status, errorText);
-      throw new Error(`MovieGlu API error: ${response.status}`);
+      console.error('MovieGlu API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorBody: errorText,
+        headers: {
+          'api-version': 'v200',
+          'client': CLIENT_ID,
+          'territory': TERRITORY,
+          'hasAuth': !!AUTH_TOKEN,
+          'hasApiKey': !!API_KEY
+        }
+      });
+      throw new Error(`MovieGlu API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
