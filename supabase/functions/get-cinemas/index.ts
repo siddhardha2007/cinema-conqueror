@@ -29,7 +29,7 @@ serve(async (req) => {
       {
         method: 'GET',
         headers: {
-          'api-version': 'v201',
+          'api-version': 'v200',
           'Authorization': `Basic ${AUTH_TOKEN}`,
           'client': CLIENT_ID,
           'x-api-key': API_KEY,
