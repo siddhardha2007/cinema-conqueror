@@ -11,10 +11,10 @@ serve(async (req) => {
   }
 
   try {
-    const API_KEY = Deno.env.get('MOVIEGLU_API_KEY');
-    const CLIENT_ID = Deno.env.get('MOVIEGLU_CLIENT_ID');
-    const TERRITORY = Deno.env.get('MOVIEGLU_TERRITORY');
-    const AUTH_TOKEN = Deno.env.get('MOVIEGLU_AUTH_TOKEN');
+    const API_KEY = Deno.env.get('MOVIEGLU_API_KEY')?.trim();
+    const CLIENT_ID = Deno.env.get('MOVIEGLU_CLIENT_ID')?.trim();
+    const TERRITORY = Deno.env.get('MOVIEGLU_TERRITORY')?.trim();
+    const AUTH_TOKEN = Deno.env.get('MOVIEGLU_AUTH_TOKEN')?.trim();
 
     if (!API_KEY || !CLIENT_ID || !TERRITORY || !AUTH_TOKEN) {
       throw new Error('MovieGlu API credentials not configured');
