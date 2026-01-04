@@ -30,7 +30,7 @@ function Seat3D({
   };
 
   return (
-    <group position={position} rotation={[0, Math.PI, 0]}>
+    <group position={position} rotation={[0, 0, 0]}>
       {/* Seat base */}
       <mesh
         onClick={() => !seat.isBooked && onClick(seat)}
