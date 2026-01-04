@@ -1,5 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { useState, useMemo, Suspense } from 'react';
 import type { Seat } from '@/contexts/BookingContext';
 
@@ -70,17 +71,18 @@ function Seat3D({
   );
 }
 
-// Simple Screen
+// Simple Screen with high emissive for bloom
 function Screen3D() {
   return (
     <group position={[0, 3, -12]}>
-      {/* Screen */}
+      {/* Screen - high emissive intensity to trigger bloom */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[20, 12]} />
         <meshStandardMaterial 
           color="#1e3a8a" 
-          emissive="#3b82f6"
-          emissiveIntensity={0.5}
+          emissive="#60a5fa"
+          emissiveIntensity={2}
+          toneMapped={false}
         />
       </mesh>
       
@@ -213,6 +215,16 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           enableDamping={true}
           dampingFactor={0.05}
         />
+
+        {/* Post-processing bloom effect */}
+        <EffectComposer>
+          <Bloom
+            intensity={0.8}
+            luminanceThreshold={0.9}
+            luminanceSmoothing={0.4}
+            mipmapBlur
+          />
+        </EffectComposer>
       </Canvas>
       </Suspense>
     </div>
