@@ -30,7 +30,7 @@ function Seat3D({
   };
 
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, Math.PI, 0]}>
       {/* Seat base */}
       <mesh
         onClick={() => !seat.isBooked && onClick(seat)}
@@ -46,8 +46,8 @@ function Seat3D({
         />
       </mesh>
       
-      {/* Seat back */}
-      <mesh position={[0, 0.3, -0.3]}>
+      {/* Seat back - positioned toward positive Z so seat faces negative Z (toward screen) */}
+      <mesh position={[0, 0.3, 0.3]}>
         <boxGeometry args={[0.8, 0.6, 0.1]} />
         <meshStandardMaterial 
           color={getSeatColor()} 
@@ -55,13 +55,14 @@ function Seat3D({
         />
       </mesh>
       
-      {/* Seat number */}
+      {/* Seat number - on top of seat */}
       <Text
-        position={[0, 0.1, 0.41]}
+        position={[0, 0.15, 0]}
         fontSize={0.15}
         color="#ffffff"
         anchorX="center"
         anchorY="middle"
+        rotation={[-Math.PI / 2, 0, 0]}
       >
         {seat.number}
       </Text>
@@ -149,13 +150,16 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     rows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
       // Row A (index 0) is closest to screen (negative Z), last row is furthest (positive Z)
-      const rowZ = rowIndex * 1.2 - 2;
+      // Seats positioned at positive Z, screen at negative Z
+      const rowZ = rowIndex * 1.2 + 2;
+      // Add slight elevation for stadium seating effect (back rows higher)
+      const rowY = rowIndex * 0.15;
       
       rowSeats.forEach((seat, seatIndex) => {
         const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.0;
         positions.push({
           seat,
-          position: [seatX, 0, rowZ]
+          position: [seatX, rowY, rowZ]
         });
       });
     });
@@ -174,7 +178,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       }>
         <Canvas
-        camera={{ position: [0, 10, 10], fov: 50 }}
+        camera={{ position: [0, 8, 18], fov: 50 }}
         style={{ background: '#0f172a' }}
       >
         {/* Simple Lighting Setup */}
@@ -196,16 +200,16 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           />
         ))}
 
-        {/* Camera Controls */}
+        {/* Camera Controls - positioned behind seats looking toward screen */}
         <OrbitControls
           enablePan={true}
           enableZoom={true}
           enableRotate={true}
           minDistance={8}
-          maxDistance={25}
+          maxDistance={30}
           minPolarAngle={Math.PI / 8}
-          maxPolarAngle={Math.PI / 2}
-          target={[0, 2, 0]}
+          maxPolarAngle={Math.PI / 2.2}
+          target={[0, 1, -5]}
           enableDamping={true}
           dampingFactor={0.05}
         />
