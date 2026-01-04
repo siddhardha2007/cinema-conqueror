@@ -1,8 +1,15 @@
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Text } from '@react-three/drei';
-import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { useState, useMemo, Suspense } from 'react';
+import { useState, useMemo, Suspense, lazy } from 'react';
 import type { Seat } from '@/contexts/BookingContext';
+
+// Lazy load postprocessing to avoid SSR issues
+const EffectComposer = lazy(() => 
+  import('@react-three/postprocessing').then(mod => ({ default: mod.EffectComposer }))
+);
+const Bloom = lazy(() => 
+  import('@react-three/postprocessing').then(mod => ({ default: mod.Bloom }))
+);
 
 interface Theater3DProps {
   seats: Seat[];
@@ -216,15 +223,16 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           dampingFactor={0.05}
         />
 
-        {/* Post-processing bloom effect */}
-        <EffectComposer>
-          <Bloom
-            intensity={0.8}
-            luminanceThreshold={0.9}
-            luminanceSmoothing={0.4}
-            mipmapBlur
-          />
-        </EffectComposer>
+        {/* Post-processing bloom effect - wrapped in Suspense for lazy loading */}
+        <Suspense fallback={null}>
+          <EffectComposer>
+            <Bloom
+              intensity={0.6}
+              luminanceThreshold={0.8}
+              luminanceSmoothing={0.3}
+            />
+          </EffectComposer>
+        </Suspense>
       </Canvas>
       </Suspense>
     </div>
