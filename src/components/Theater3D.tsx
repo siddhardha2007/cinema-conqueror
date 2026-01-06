@@ -133,10 +133,10 @@ function Seat3D({
   );
 }
 
-// Screen with glow effect using point lights
+// Screen Wall at Z = -12.5 (Size: 30x20)
 function Screen3D() {
   return (
-    <group position={[0, 3, -12]}>
+    <group position={[0, 5, -12.5]}>
       {/* Screen - bright emissive material */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[20, 12]} />
@@ -151,12 +151,12 @@ function Screen3D() {
       <pointLight position={[-8, 0, 2]} intensity={1.5} distance={10} color="#3b82f6" />
       <pointLight position={[8, 0, 2]} intensity={1.5} distance={10} color="#3b82f6" />
       
-      {/* Frame */}
-      <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[22, 14]} />
+      {/* Screen Wall (30x20) */}
+      <mesh position={[0, 0, -0.1]}>
+        <planeGeometry args={[30, 20]} />
         <meshStandardMaterial 
-          color="#1f2937"
-          roughness={0.3}
+          color="#0a0a14"
+          roughness={0.95}
         />
       </mesh>
       
@@ -174,34 +174,34 @@ function Screen3D() {
   );
 }
 
-// Stadium Seating Risers
-function StadiumRisers({ rowCount }: { rowCount: number }) {
-  const risers = useMemo(() => {
-    const steps = [];
-    for (let i = 0; i < rowCount; i++) {
-      const rowZ = i * 1.2 + 2;
-      const rowY = i * 0.15;
-      steps.push({ z: rowZ, y: rowY, index: i });
+// 8 Individual Step Meshes - Width 26, Height 0.4, Depth 1.2
+function StadiumSteps() {
+  const steps = useMemo(() => {
+    const stepData = [];
+    for (let i = 0; i < 8; i++) {
+      // Step Position: Y = index * 0.3, Z = index * 1.2 + 2
+      const stepY = i * 0.3;
+      const stepZ = i * 1.2 + 2;
+      stepData.push({ y: stepY, z: stepZ, index: i });
     }
-    return steps;
-  }, [rowCount]);
+    return stepData;
+  }, []);
 
   return (
     <group>
-      {risers.map((riser, i) => (
-        <group key={i}>
-          {/* Horizontal platform (where seats sit) */}
-          <mesh position={[0, riser.y - 0.1, riser.z]}>
-            <boxGeometry args={[24, 0.15, 1.1]} />
+      {steps.map((step) => (
+        <group key={step.index}>
+          {/* Step platform - Width 26, Height 0.4, Depth 1.2 */}
+          <mesh position={[0, step.y, step.z]}>
+            <boxGeometry args={[26, 0.4, 1.2]} />
             <meshStandardMaterial color="#1a1a2e" roughness={0.9} />
           </mesh>
-          {/* Vertical riser (the step face) */}
-          {i > 0 && (
-            <mesh position={[0, riser.y - 0.15 / 2 - 0.075, riser.z - 0.6]}>
-              <boxGeometry args={[24, 0.15, 0.1]} />
-              <meshStandardMaterial color="#16162a" roughness={0.85} />
-            </mesh>
-          )}
+          
+          {/* Blue emissive strip at front edge - Height 0.02, at Z + 0.59 */}
+          <mesh position={[0, step.y + 0.21, step.z + 0.59]}>
+            <boxGeometry args={[26, 0.02, 0.04]} />
+            <meshBasicMaterial color="#0ea5e9" toneMapped={false} />
+          </mesh>
         </group>
       ))}
     </group>
@@ -211,7 +211,7 @@ function StadiumRisers({ rowCount }: { rowCount: number }) {
 // Projector Light Beam
 function ProjectorBeam() {
   return (
-    <group position={[0, 7, 18]}>
+    <group position={[0, 8, 20]}>
       {/* Projector housing */}
       <mesh>
         <boxGeometry args={[1.5, 0.8, 1]} />
@@ -226,22 +226,21 @@ function ProjectorBeam() {
       {/* Spotlight for actual light */}
       <spotLight
         position={[0, 0, 0]}
-        target-position={[0, 3, -12]}
+        target-position={[0, 5, -12.5]}
         angle={0.15}
         penumbra={0.3}
         intensity={2}
-        distance={40}
+        distance={50}
         color="#e8e8ff"
-        castShadow
       />
       
       {/* Visible light cone (dusty beam effect) */}
-      <mesh position={[0, -2, -14]} rotation={[Math.PI / 12, 0, 0]}>
-        <coneGeometry args={[4, 32, 32, 1, true]} />
+      <mesh position={[0, -1.5, -16]} rotation={[Math.PI / 14, 0, 0]}>
+        <coneGeometry args={[5, 38, 32, 1, true]} />
         <meshBasicMaterial
           color="#8899cc"
           transparent
-          opacity={0.04}
+          opacity={0.03}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -251,9 +250,9 @@ function ProjectorBeam() {
 }
 
 // Aisle Floor Lights
-function AisleLighting({ rowCount }: { rowCount: number }) {
-  const maxZ = (rowCount - 1) * 1.2 + 2.5;
-  const minZ = 1;
+function AisleLighting() {
+  const minZ = 2;
+  const maxZ = 7 * 1.2 + 2.5;
   const aisleLength = maxZ - minZ;
 
   return (
@@ -270,46 +269,24 @@ function AisleLighting({ rowCount }: { rowCount: number }) {
       </mesh>
       
       {/* Glow lights for aisle */}
-      <pointLight position={[-0.85, 0.2, (maxZ + minZ) / 2]} intensity={0.3} distance={3} color="#0ea5e9" />
-      <pointLight position={[0.85, 0.2, (maxZ + minZ) / 2]} intensity={0.3} distance={3} color="#0ea5e9" />
+      <pointLight position={[-0.85, 0.3, (maxZ + minZ) / 2]} intensity={0.3} distance={4} color="#0ea5e9" />
+      <pointLight position={[0.85, 0.3, (maxZ + minZ) / 2]} intensity={0.3} distance={4} color="#0ea5e9" />
     </group>
   );
 }
 
-// Premium Theater Environment
-function TheaterEnvironment({ rowCount }: { rowCount: number }) {
+// Open Stadium Environment (no walls, floor, ceiling)
+function TheaterEnvironment() {
   return (
     <group>
-      {/* Base floor under everything */}
-      <mesh position={[0, -0.6, 5]}>
-        <boxGeometry args={[30, 0.2, 30]} />
-        <meshStandardMaterial color="#0d0d1a" roughness={0.95} />
-      </mesh>
-      
-      {/* Stadium risers */}
-      <StadiumRisers rowCount={rowCount} />
+      {/* Stadium steps only */}
+      <StadiumSteps />
       
       {/* Projector beam */}
       <ProjectorBeam />
       
       {/* Aisle lighting */}
-      <AisleLighting rowCount={rowCount} />
-      
-      {/* Side walls for atmosphere */}
-      <mesh position={[-14, 3, 2]}>
-        <boxGeometry args={[0.3, 8, 25]} />
-        <meshStandardMaterial color="#0f0f1f" roughness={0.9} />
-      </mesh>
-      <mesh position={[14, 3, 2]}>
-        <boxGeometry args={[0.3, 8, 25]} />
-        <meshStandardMaterial color="#0f0f1f" roughness={0.9} />
-      </mesh>
-      
-      {/* Ceiling */}
-      <mesh position={[0, 8, 2]}>
-        <boxGeometry args={[28, 0.3, 25]} />
-        <meshStandardMaterial color="#080810" roughness={0.95} />
-      </mesh>
+      <AisleLighting />
     </group>
   );
 }
@@ -336,8 +313,10 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     
     rows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
+      // Seat Z: rowIndex * 1.2 + 2 (Center of the step)
       const rowZ = rowIndex * 1.2 + 2;
-      const rowY = rowIndex * 0.15;
+      // Seat Y: (rowIndex * 0.3) + 0.3 (Step height + sitting offset)
+      const rowY = (rowIndex * 0.3) + 0.3;
       
       rowSeats.forEach((seat, seatIndex) => {
         const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.0;
@@ -359,8 +338,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     // Animate camera to seat's eye level
     const [x, y, z] = seatData.position;
     setCameraTarget({
-      position: new THREE.Vector3(x, y + 1.2, z),
-      lookAt: new THREE.Vector3(0, 3, -12) // Look at the screen
+      position: new THREE.Vector3(x, y + 1.0, z),
+      lookAt: new THREE.Vector3(0, 5, -12.5) // Look at the screen
     });
     setIsAnimating(true);
     setViewingFromSeat(`${seat.row}${seat.number}`);
@@ -431,7 +410,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
           {/* 3D Components */}
           <Screen3D />
-          <TheaterEnvironment rowCount={Object.keys(seatsByRow).length} />
+          <TheaterEnvironment />
           
           {/* Render all seats */}
           {seatPositions.map(({ seat, position }) => (
