@@ -1,8 +1,8 @@
 import React, { useState, useMemo, Suspense, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, useTexture } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button'; 
 import { RotateCcw, Eye } from 'lucide-react';
 
 // --- Types ---
@@ -30,8 +30,8 @@ interface CameraTarget {
 // --- Constants ---
 const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 8, 18);
 const DEFAULT_LOOK_AT = new THREE.Vector3(0, 1, -5);
-const SCREEN_Z = -15;
-const SCREEN_Y = 6;
+const SCREEN_Z = -15; 
+const SCREEN_Y = 6;   
 
 // --- Helper Functions ---
 function easeInOutCubic(t: number): number {
@@ -41,14 +41,14 @@ function easeInOutCubic(t: number): number {
 // --- Components ---
 
 // 1. Camera Controller
-function CameraController({
-  target,
-  isAnimating,
-  onAnimationComplete,
-  controlsRef
-}: {
-  target: CameraTarget;
-  isAnimating: boolean;
+function CameraController({ 
+  target, 
+  isAnimating, 
+  onAnimationComplete, 
+  controlsRef 
+}: { 
+  target: CameraTarget; 
+  isAnimating: boolean; 
   onAnimationComplete: () => void;
   controlsRef: React.MutableRefObject<any>;
 }) {
@@ -57,12 +57,12 @@ function CameraController({
 
   useFrame((_, delta) => {
     if (!isAnimating) return;
-
+    
     progressRef.current = Math.min(progressRef.current + delta * 1.5, 1);
     const t = easeInOutCubic(progressRef.current);
-
+    
     camera.position.lerp(target.position, t * 0.1);
-
+    
     if (controlsRef.current) {
         const currentTarget = controlsRef.current.target;
         currentTarget.lerp(target.lookAt, t * 0.1);
@@ -78,14 +78,14 @@ function CameraController({
   return null;
 }
 
-// 2. Seat Component with "Royal Cinema" Colors
-function Seat3D({
-  seat,
-  position,
-  onClick
-}: {
-  seat: Seat;
-  position: [number, number, number];
+// 2. Seat Component (Fixed Visibility)
+function Seat3D({ 
+  seat, 
+  position, 
+  onClick 
+}: { 
+  seat: Seat; 
+  position: [number, number, number]; 
   onClick: (seat: Seat) => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -93,17 +93,12 @@ function Seat3D({
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
   const getSeatColor = () => {
-    // 1. Booked: Matte Slate (Visible but dull)
-    if (isBooked) return '#475569';
-    
-    // 2. Selected: Bright Emerald Green (Clear "Go" signal)
-    if (isSelected) return '#10b981';
-    
-    // 3. Premium: Royal Gold (Expensive feel)
-    if (seat.type === 'premium') return '#fbbf24';
-    
-    // 4. Standard: Deep Ocean Teal (Classy)
-    return '#0891b2';
+    // FIXED: Brighter colors for better visibility
+    if (isBooked) return '#94a3b8'; // Lighter slate for visibility
+    if (isSelected) return '#ef4444'; // Bright red
+    if (hovered) return '#fbbf24';    // Bright gold
+    if (seat.type === 'premium') return '#60a5fa'; // Brighter blue
+    return '#d1d5db'; // Much lighter grey for standard seats
   };
 
   return (
@@ -130,12 +125,15 @@ function Seat3D({
         }}
         position={[0, 0.05, 0]}
         scale={hovered && !isBooked ? 1.05 : 1}
+        castShadow={false}
+        receiveShadow={false}
       >
-        <meshStandardMaterial
-          color={getSeatColor()}
-          // Booked = Matte (Rough), Active = Slightly Shiny
-          roughness={isBooked ? 0.9 : 0.6}
-          metalness={0.1}
+        <meshStandardMaterial 
+          color={getSeatColor()} 
+          roughness={0.5}
+          metalness={0.2}
+          emissive={getSeatColor()}
+          emissiveIntensity={0.1}
         />
       </RoundedBox>
       
@@ -145,30 +143,48 @@ function Seat3D({
         radius={0.05}
         smoothness={4}
         position={[0, 0.35, 0.32]}
+        castShadow={false}
+        receiveShadow={false}
       >
-        <meshStandardMaterial
-          color={getSeatColor()}
-          roughness={isBooked ? 0.9 : 0.6}
-          metalness={0.1}
+        <meshStandardMaterial 
+          color={getSeatColor()} 
+          roughness={0.5}
+          metalness={0.2}
+          emissive={getSeatColor()}
+          emissiveIntensity={0.1}
         />
       </RoundedBox>
       
-      {/* Armrests (Darker Teal/Slate to match) */}
-      <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[-0.4, 0.15, 0.1]}>
-        <meshStandardMaterial color={isBooked ? "#334155" : "#0e7490"} roughness={0.6} />
+      {/* Armrests (Lighter Grey) */}
+      <RoundedBox 
+        args={[0.08, 0.15, 0.5]} 
+        radius={0.02} 
+        smoothness={2} 
+        position={[-0.4, 0.15, 0.1]}
+        castShadow={false}
+        receiveShadow={false}
+      >
+        <meshStandardMaterial color="#64748b" roughness={0.6} />
       </RoundedBox>
-      <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[0.4, 0.15, 0.1]}>
-        <meshStandardMaterial color={isBooked ? "#334155" : "#0e7490"} roughness={0.6} />
+      <RoundedBox 
+        args={[0.08, 0.15, 0.5]} 
+        radius={0.02} 
+        smoothness={2} 
+        position={[0.4, 0.15, 0.1]}
+        castShadow={false}
+        receiveShadow={false}
+      >
+        <meshStandardMaterial color="#64748b" roughness={0.6} />
       </RoundedBox>
       
       {/* Seat Number */}
       <Text
         position={[0, 0.2, 0]}
         fontSize={0.12}
-        color="#ffffff"
+        color="#000000"
         anchorX="center"
         anchorY="middle"
-        rotation={[-Math.PI / 2, 0, 0]}
+        rotation={[-Math.PI / 2, 0, 0]} 
       >
         {seat.number}
       </Text>
@@ -176,42 +192,46 @@ function Seat3D({
   );
 }
 
-// 3. Screen Component with Movie Poster Texture
+// 3. Screen Component
 function Screen3D() {
-  // Replace this URL with your actual movie poster image URL
-  const posterUrl = 'https://via.placeholder.com/1920x1080/0a0a0a/ffffff?text=NOW+SHOWING:+THE+DARK+KNIGHT';
-  
-  // Load the texture
-  const posterTexture = useTexture(posterUrl);
-
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen Mesh with Image Texture */}
+      {/* Screen Mesh */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[24, 10]} />
-        <meshBasicMaterial
-          map={posterTexture} // Apply the image texture here
-          color="#ffffff" // Ensure base color is white so it doesn't tint the image
-          toneMapped={false}
+        <meshBasicMaterial 
+          color="#ffffff"
+          toneMapped={false} 
         />
       </mesh>
       
-      {/* Realistic Glow (Soft Blue-White) from the screen */}
-      <pointLight position={[0, 0, 2]} intensity={1.5} distance={20} color="#bfdbfe" />
+      {/* Screen Glow */}
+      <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
       
       {/* Frame */}
       <mesh position={[0, 0, -0.1]}>
         <planeGeometry args={[32, 18]} />
-        <meshStandardMaterial
+        <meshStandardMaterial 
           color="#020617"
           roughness={0.9}
         />
       </mesh>
+      
+      {/* Label */}
+      <Text
+        position={[0, -6.5, 0.1]}
+        fontSize={0.8}
+        color="#64748b"
+        anchorX="center"
+        anchorY="middle"
+      >
+        SCREEN
+      </Text>
     </group>
   );
 }
 
-// 4. Concrete Stadium Steps
+// 4. Stadium Steps
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -225,13 +245,13 @@ function StadiumSteps() {
     <group>
       {steps.map((step) => (
         <group key={step.index}>
-          {/* Concrete Step */}
+          {/* Step */}
           <mesh position={[0, step.y, step.z]} receiveShadow>
             <boxGeometry args={[26, 0.4, 1.2]} />
             <meshStandardMaterial color="#1e293b" roughness={0.9} />
           </mesh>
           
-          {/* Blue LED Strip (Subtle) */}
+          {/* LED Strip */}
           <mesh position={[0, step.y + 0.21, step.z + 0.59]}>
             <boxGeometry args={[26, 0.02, 0.03]} />
             <meshBasicMaterial color="#3b82f6" toneMapped={false} />
@@ -242,14 +262,14 @@ function StadiumSteps() {
   );
 }
 
-// 5. Environment with Lighter Floor
+// 5. Environment
 function TheaterEnvironment() {
   return (
     <group>
-      {/* Dark Concrete Floor (Slightly lighter to show shadows) */}
+      {/* Floor */}
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.8} />
+        <meshStandardMaterial color="#0f172a" roughness={0.8} />
       </mesh>
 
       <StadiumSteps />
@@ -258,11 +278,11 @@ function TheaterEnvironment() {
       <group position={[0, 8, 18]} rotation={[0.15, 0, 0]}>
          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -10]}>
             <cylinderGeometry args={[0.1, 4, 20, 32, 1, true]} />
-            <meshBasicMaterial
-                color="#bae6fd"
-                opacity={0.05}
-                transparent={true}
-                side={THREE.DoubleSide}
+            <meshBasicMaterial 
+                color="#bae6fd" 
+                opacity={0.08} 
+                transparent={true} 
+                side={THREE.DoubleSide} 
                 depthWrite={false}
                 blending={THREE.AdditiveBlending}
             />
@@ -274,9 +294,9 @@ function TheaterEnvironment() {
 
 // --- Main Export ---
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
-  const [cameraTarget, setCameraTarget] = useState<CameraTarget>({
-    position: DEFAULT_CAMERA_POS,
-    lookAt: DEFAULT_LOOK_AT
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ 
+    position: DEFAULT_CAMERA_POS, 
+    lookAt: DEFAULT_LOOK_AT 
   });
   const [isAnimating, setIsAnimating] = useState(false);
   const [viewingSeatId, setViewingSeatId] = useState<string | null>(null);
@@ -297,7 +317,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     
     rows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
-      const rowZ = rowIndex * 1.2 + 2;
+      const rowZ = rowIndex * 1.2 + 2; 
       const rowY = (rowIndex * 0.3) + 0.3;
       
       rowSeats.forEach((seat, seatIndex) => {
@@ -346,7 +366,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </div>
         )}
         <div className="pointer-events-auto">
-             <Button
+             <Button 
               onClick={handleResetView}
               variant="outline"
               size="sm"
@@ -358,24 +378,24 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
       
-      {/* UI: Color Legend with NEW Colors */}
+      {/* Color Legend */}
       <div className="absolute top-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg pointer-events-none">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2">Seat Guide</h3>
         <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#0891b2]"></div>
+                <div className="w-3 h-3 rounded-full bg-[#d1d5db]"></div>
                 <span className="text-gray-300 text-xs">Standard</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#fbbf24]"></div>
+                <div className="w-3 h-3 rounded-full bg-[#60a5fa]"></div>
                 <span className="text-gray-300 text-xs">Premium</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#10b981]"></div>
+                <div className="w-3 h-3 rounded-full bg-[#ef4444]"></div>
                 <span className="text-gray-300 text-xs">Selected</span>
             </div>
             <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#475569]"></div>
+                <div className="w-3 h-3 rounded-full bg-[#94a3b8]"></div>
                 <span className="text-gray-300 text-xs">Booked</span>
             </div>
         </div>
@@ -391,22 +411,31 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           camera={{ position: [0, 8, 18], fov: 50 }}
           gl={{ antialias: true }}
         >
-          <CameraController
-            target={cameraTarget}
+          <CameraController 
+            target={cameraTarget} 
             isAnimating={isAnimating}
             onAnimationComplete={() => setIsAnimating(false)}
             controlsRef={controlsRef}
           />
 
-          {/* Brighter Lighting */}
-          <ambientLight intensity={0.4} />
-          <spotLight
-            position={[5, 15, 5]}
-            angle={0.5}
-            penumbra={1}
-            intensity={1}
-            castShadow
-            color="#fdf4ff" // Warm tint
+          {/* FIXED: Much brighter lighting */}
+          <ambientLight intensity={0.6} />
+          <directionalLight 
+            position={[10, 15, 10]} 
+            intensity={0.8} 
+            castShadow={false}
+          />
+          <directionalLight 
+            position={[-10, 15, 10]} 
+            intensity={0.5} 
+            castShadow={false}
+          />
+          <spotLight 
+            position={[0, 20, 5]} 
+            angle={0.5} 
+            penumbra={1} 
+            intensity={0.8} 
+            castShadow={false}
           />
 
           <Screen3D />
@@ -425,7 +454,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             ref={controlsRef}
             minDistance={5}
             maxDistance={35}
-            maxPolarAngle={Math.PI / 2.1}
+            maxPolarAngle={Math.PI / 2.1} 
             target={[0, 1, -5]}
             enableDamping={true}
           />
