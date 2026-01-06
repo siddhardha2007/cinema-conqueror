@@ -40,6 +40,7 @@ function easeInOutCubic(t: number): number {
 
 // --- Components ---
 
+// 1. Camera Controller
 function CameraController({ 
   target, 
   isAnimating, 
@@ -77,7 +78,7 @@ function CameraController({
   return null;
 }
 
-// --- THE VISIBILITY FIX IS HERE ---
+// 2. Seat Component (The Realistic Dark Style)
 function Seat3D({ 
   seat, 
   position, 
@@ -92,8 +93,7 @@ function Seat3D({
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
   const getSeatColor = () => {
-    // FIX: Changed from dark #374151 to lighter Slate Grey #64748b
-    // Now it stands out against the black floor.
+    // FIX: Slate Grey (#64748b) for booked seats so they are visible on dark floor
     if (isBooked) return '#64748b'; 
     
     if (isSelected) return '#dc2626'; // Red
@@ -129,7 +129,7 @@ function Seat3D({
       >
         <meshStandardMaterial 
           color={getSeatColor()} 
-          // Booked seats are matte (rough), others are slightly shiny
+          // Booked = Matte (Rough), Active = Slightly Shiny
           roughness={isBooked ? 0.9 : 0.6}
           metalness={0.1}
         />
@@ -149,7 +149,7 @@ function Seat3D({
         />
       </RoundedBox>
       
-      {/* Armrests - Made lighter to be visible */}
+      {/* Armrests (Dark Grey) */}
       <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[-0.4, 0.15, 0.1]}>
         <meshStandardMaterial color="#475569" roughness={0.6} />
       </RoundedBox>
@@ -172,6 +172,7 @@ function Seat3D({
   );
 }
 
+// 3. Screen Component (Realistic, No Neon)
 function Screen3D() {
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
@@ -184,7 +185,7 @@ function Screen3D() {
         />
       </mesh>
       
-      {/* Realistic Glow */}
+      {/* Realistic Glow (Soft Blue-White) */}
       <pointLight position={[0, 0, 2]} intensity={1.5} distance={20} color="#bfdbfe" />
       
       {/* Frame */}
@@ -210,7 +211,7 @@ function Screen3D() {
   );
 }
 
-// Restored Concrete Stadium Steps
+// 4. Concrete Stadium Steps (Not Glass)
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -230,7 +231,7 @@ function StadiumSteps() {
             <meshStandardMaterial color="#1e293b" roughness={0.9} />
           </mesh>
           
-          {/* Blue LED Strip */}
+          {/* Blue LED Strip (Subtle) */}
           <mesh position={[0, step.y + 0.21, step.z + 0.59]}>
             <boxGeometry args={[26, 0.02, 0.03]} />
             <meshBasicMaterial color="#3b82f6" toneMapped={false} />
@@ -241,10 +242,11 @@ function StadiumSteps() {
   );
 }
 
+// 5. Environment (Dark Floor, No Grid)
 function TheaterEnvironment() {
   return (
     <group>
-      {/* Dark Floor */}
+      {/* Dark Concrete Floor */}
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
         <meshStandardMaterial color="#020617" roughness={0.8} />
@@ -353,6 +355,29 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
               <RotateCcw className="w-4 h-4 mr-2" />
               Reset View
             </Button>
+        </div>
+      </div>
+      
+      {/* UI: Color Legend (Restored for Dark Mode) */}
+      <div className="absolute top-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg pointer-events-none">
+        <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2">Seat Guide</h3>
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#9ca3af]"></div>
+                <span className="text-gray-300 text-xs">Standard</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#3b82f6]"></div>
+                <span className="text-gray-300 text-xs">Premium</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#dc2626]"></div>
+                <span className="text-gray-300 text-xs">Selected</span>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#64748b]"></div>
+                <span className="text-gray-300 text-xs">Booked</span>
+            </div>
         </div>
       </div>
 
