@@ -1,4 +1,4 @@
-import React, { useState, useMemo, Suspense, useRef } from 'react';
+import React, { useState, useMemo, Suspense, useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, RoundedBox, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
@@ -33,6 +33,7 @@ const DEFAULT_LOOK_AT = new THREE.Vector3(0, 1, -5);
 const SCREEN_Z = -15; 
 const SCREEN_Y = 6;   
 
+// SAFE IMAGE URLS (Use these to prevent crashing)
 const MOVIES = {
   dark_knight: {
     title: "The Dark Knight",
@@ -196,22 +197,38 @@ function Seat3D({
   );
 }
 
-// 3. Screen Component (Dynamic Poster)
-function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: string }) {
-  // Load texture dynamically based on prop
-  const texture = useTexture(posterUrl);
+// 3. Screen Content (The Image Part)
+// Separated so it can suspend without blocking the whole UI
+function ScreenContent({ posterUrl }: { posterUrl: string }) {
+    // This hook might suspend if the image is loading
+    const texture = useTexture(posterUrl);
+    
+    return (
+        <mesh position={[0, 0, 0]}>
+            <planeGeometry args={[24, 10]} />
+            <meshBasicMaterial 
+                map={texture} 
+                color="#ffffff"
+                toneMapped={false} 
+            />
+        </mesh>
+    );
+}
 
+// 4. Main Screen Wrapper (Handles Loading Fallback)
+function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: string }) {
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen Mesh */}
-      <mesh position={[0, 0, 0]}>
-        <planeGeometry args={[24, 10]} />
-        <meshBasicMaterial 
-          map={texture} 
-          color="#ffffff"
-          toneMapped={false} 
-        />
-      </mesh>
+      {/* Screen Mesh Wrapper with local Suspense */}
+      <Suspense fallback={
+         // While image loads, show a white screen instead of crashing
+         <mesh position={[0, 0, 0]}>
+            <planeGeometry args={[24, 10]} />
+            <meshBasicMaterial color="#ffffff" />
+         </mesh>
+      }>
+         <ScreenContent posterUrl={posterUrl} />
+      </Suspense>
       
       {/* Screen Glow */}
       <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
@@ -255,7 +272,7 @@ function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: st
   );
 }
 
-// 4. Stadium Steps
+// 5. Stadium Steps
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -283,7 +300,7 @@ function StadiumSteps() {
   );
 }
 
-// 5. Environment
+// 6. Environment
 function TheaterEnvironment() {
   return (
     <group>
@@ -321,8 +338,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   });
   const [isAnimating, setIsAnimating] = useState(false);
   const [viewingSeatId, setViewingSeatId] = useState<string | null>(null);
-  
-  // NEW: Movie State
   const [selectedMovieKey, setSelectedMovieKey] = useState<keyof typeof MOVIES>('dark_knight');
   
   const controlsRef = useRef<any>(null);
@@ -381,7 +396,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   return (
     <div className="relative w-full h-[700px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
       
-      {/* --- MOVIE SELECTOR UI (Top Left) --- */}
+      {/* Movie Switcher */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider bg-black/50 p-1 rounded w-fit backdrop-blur-sm">Select Movie</h3>
         <div className="flex gap-2">
@@ -404,7 +419,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* View Controls (Top Right) */}
+      {/* View Controls */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
         {viewingSeatId && (
           <div className="bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg animate-in fade-in zoom-in">
@@ -425,7 +440,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
       
-      {/* Color Legend (Bottom Left) */}
+      {/* Color Legend */}
       <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg pointer-events-none">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2">Seat Guide</h3>
         <div className="flex flex-col gap-2">
@@ -448,70 +463,68 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      <Suspense fallback={
-        <div className="w-full h-full flex items-center justify-center bg-slate-900">
-          <div className="text-white font-medium animate-pulse">Loading Cinema...</div>
-        </div>
-      }>
-        <Canvas
-          shadows 
-          camera={{ position: [0, 8, 18], fov: 50 }}
-          gl={{ antialias: true }}
-        >
-          <CameraController 
-            target={cameraTarget} 
-            isAnimating={isAnimating}
-            onAnimationComplete={() => setIsAnimating(false)}
-            controlsRef={controlsRef}
-          />
+      <Canvas
+        shadows 
+        camera={{ position: [0, 8, 18], fov: 50 }}
+        gl={{ antialias: true }}
+      >
+        <CameraController 
+          target={cameraTarget} 
+          isAnimating={isAnimating}
+          onAnimationComplete={() => setIsAnimating(false)}
+          controlsRef={controlsRef}
+        />
 
-          <ambientLight intensity={0.5} />
-          <directionalLight 
-            position={[10, 20, 10]} 
-            intensity={1} 
-            castShadow 
-            shadow-mapSize={[2048, 2048]} 
-          />
-          <directionalLight 
-            position={[-10, 15, 10]} 
-            intensity={0.4} 
-            castShadow={false}
-          />
-          <spotLight 
-            position={[0, 20, 5]} 
-            angle={0.5} 
-            penumbra={1} 
-            intensity={0.6} 
-            castShadow={false}
-          />
+        <ambientLight intensity={0.5} />
+        <directionalLight 
+          position={[10, 20, 10]} 
+          intensity={1} 
+          castShadow 
+          shadow-mapSize={[2048, 2048]} 
+        />
+        <directionalLight 
+          position={[-10, 15, 10]} 
+          intensity={0.4} 
+          castShadow={false}
+        />
+        <spotLight 
+          position={[0, 20, 5]} 
+          angle={0.5} 
+          penumbra={1} 
+          intensity={0.6} 
+          castShadow={false}
+        />
 
-          {/* Pass selected movie poster to screen */}
-          <Screen3D 
-            posterUrl={MOVIES[selectedMovieKey].poster} 
-            movieTitle={MOVIES[selectedMovieKey].title}
+        {/* IMPORTANT FIX: 
+          We removed the outer Suspense here. 
+          The Suspense is now INSIDE Screen3D. 
+          This prevents the whole theater from going blank if an image lags.
+        */}
+        <Screen3D 
+          posterUrl={MOVIES[selectedMovieKey].poster} 
+          movieTitle={MOVIES[selectedMovieKey].title}
+        />
+        
+        <TheaterEnvironment />
+        
+        {seatPositions.map(({ seat, position }) => (
+          <Seat3D
+            key={seat.id}
+            seat={seat}
+            position={position}
+            onClick={handleSeatClick}
           />
-          
-          <TheaterEnvironment />
-          
-          {seatPositions.map(({ seat, position }) => (
-            <Seat3D
-              key={seat.id}
-              seat={seat}
-              position={position}
-              onClick={handleSeatClick}
-            />
-          ))}
+        ))}
 
-          <OrbitControls
-            ref={controlsRef}
-            minDistance={5}
-            maxDistance={35}
-            maxPolarAngle={Math.PI / 2.1} 
-            target={[0, 1, -5]}
-            enableDamping={true}
-          />
-        </Canvas>
-      </Suspense>
+        <OrbitControls
+          ref={controlsRef}
+          minDistance={5}
+          maxDistance={35}
+          maxPolarAngle={Math.PI / 2.1} 
+          target={[0, 1, -5]}
+          enableDamping={true}
+        />
+      </Canvas>
     </div>
   );
 }
