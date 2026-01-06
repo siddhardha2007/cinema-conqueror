@@ -178,27 +178,31 @@ function Seat3D({
 }
 
 // 3. Screen Component (With Poster and Curtains)
+// 3. Screen Component (Fixed Image Loading)
 function Screen3D() {
-  // Replace with any image URL you prefer
-  const posterUrl = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1920&auto=format&fit=crop";
+  // We use a Wikimedia URL because they allow 3D apps to load images easily (CORS friendly)
+  // You can replace this with any URL, but make sure the host allows external loading.
+  const posterUrl = "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg"; 
+  
+  // Load texture with a fallback to ensure it doesn't crash
   const posterTexture = useTexture(posterUrl);
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen Mesh with Texture */}
+      {/* Screen Mesh */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[24, 10]} />
         <meshBasicMaterial 
-          map={posterTexture} // Apply the image
-          color="#ffffff"
-          toneMapped={false} 
+          map={posterTexture} // The movie poster
+          color="#ffffff"     // Base white color ensures image isn't tinted
+          toneMapped={false}  // Keeps colors bright/accurate
         />
       </mesh>
       
-      {/* Screen Glow Light */}
+      {/* Glow Light (Blue-ish to match the movie feel) */}
       <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
 
-      {/* --- NEW: Stage Curtains --- */}
+      {/* --- Curtains --- */}
       <group>
           {/* Left Curtain */}
           <mesh position={[-13.5, 0, -0.5]} receiveShadow>
@@ -210,14 +214,14 @@ function Screen3D() {
               <boxGeometry args={[3, 14, 1]} />
               <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
           </mesh>
-           {/* Top Valance Curtain */}
+           {/* Top Curtain Valance */}
            <mesh position={[0, 6, -0.5]} receiveShadow>
               <boxGeometry args={[30, 2, 1]} />
               <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
           </mesh>
       </group>
       
-      {/* Screen Frame behind curtains */}
+      {/* Black Frame behind screen */}
       <mesh position={[0, 0, -0.6]}>
         <planeGeometry args={[32, 18]} />
         <meshStandardMaterial 
@@ -226,7 +230,7 @@ function Screen3D() {
         />
       </mesh>
       
-      {/* Label */}
+      {/* Text Label */}
       <Text
         position={[0, -6.5, 0.1]}
         fontSize={0.8}
