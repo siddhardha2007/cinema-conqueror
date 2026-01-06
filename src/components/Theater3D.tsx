@@ -1,6 +1,6 @@
 import React, { useState, useMemo, Suspense, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button'; 
 import { RotateCcw, Eye } from 'lucide-react';
@@ -78,7 +78,7 @@ function CameraController({
   return null;
 }
 
-// 2. Seat Component (Fixed Visibility)
+// 2. Seat Component (High Visibility + Shadows enabled)
 function Seat3D({ 
   seat, 
   position, 
@@ -93,7 +93,6 @@ function Seat3D({
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
   const getSeatColor = () => {
-    // FIXED: Brighter colors for better visibility
     if (isBooked) return '#94a3b8'; // Lighter slate for visibility
     if (isSelected) return '#ef4444'; // Bright red
     if (hovered) return '#fbbf24';    // Bright gold
@@ -125,8 +124,8 @@ function Seat3D({
         }}
         position={[0, 0.05, 0]}
         scale={hovered && !isBooked ? 1.05 : 1}
-        castShadow={false}
-        receiveShadow={false}
+        castShadow // Enable shadow casting for realism
+        receiveShadow
       >
         <meshStandardMaterial 
           color={getSeatColor()} 
@@ -143,8 +142,8 @@ function Seat3D({
         radius={0.05}
         smoothness={4}
         position={[0, 0.35, 0.32]}
-        castShadow={false}
-        receiveShadow={false}
+        castShadow
+        receiveShadow
       >
         <meshStandardMaterial 
           color={getSeatColor()} 
@@ -155,25 +154,11 @@ function Seat3D({
         />
       </RoundedBox>
       
-      {/* Armrests (Lighter Grey) */}
-      <RoundedBox 
-        args={[0.08, 0.15, 0.5]} 
-        radius={0.02} 
-        smoothness={2} 
-        position={[-0.4, 0.15, 0.1]}
-        castShadow={false}
-        receiveShadow={false}
-      >
+      {/* Armrests */}
+      <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[-0.4, 0.15, 0.1]} castShadow>
         <meshStandardMaterial color="#64748b" roughness={0.6} />
       </RoundedBox>
-      <RoundedBox 
-        args={[0.08, 0.15, 0.5]} 
-        radius={0.02} 
-        smoothness={2} 
-        position={[0.4, 0.15, 0.1]}
-        castShadow={false}
-        receiveShadow={false}
-      >
+      <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[0.4, 0.15, 0.1]} castShadow>
         <meshStandardMaterial color="#64748b" roughness={0.6} />
       </RoundedBox>
       
@@ -192,24 +177,48 @@ function Seat3D({
   );
 }
 
-// 3. Screen Component
+// 3. Screen Component (With Poster and Curtains)
 function Screen3D() {
+  // Replace with any image URL you prefer
+  const posterUrl = "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1920&auto=format&fit=crop";
+  const posterTexture = useTexture(posterUrl);
+
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen Mesh */}
+      {/* Screen Mesh with Texture */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[24, 10]} />
         <meshBasicMaterial 
+          map={posterTexture} // Apply the image
           color="#ffffff"
           toneMapped={false} 
         />
       </mesh>
       
-      {/* Screen Glow */}
+      {/* Screen Glow Light */}
       <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
+
+      {/* --- NEW: Stage Curtains --- */}
+      <group>
+          {/* Left Curtain */}
+          <mesh position={[-13.5, 0, -0.5]} receiveShadow>
+              <boxGeometry args={[3, 14, 1]} />
+              <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
+          </mesh>
+          {/* Right Curtain */}
+          <mesh position={[13.5, 0, -0.5]} receiveShadow>
+              <boxGeometry args={[3, 14, 1]} />
+              <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
+          </mesh>
+           {/* Top Valance Curtain */}
+           <mesh position={[0, 6, -0.5]} receiveShadow>
+              <boxGeometry args={[30, 2, 1]} />
+              <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
+          </mesh>
+      </group>
       
-      {/* Frame */}
-      <mesh position={[0, 0, -0.1]}>
+      {/* Screen Frame behind curtains */}
+      <mesh position={[0, 0, -0.6]}>
         <planeGeometry args={[32, 18]} />
         <meshStandardMaterial 
           color="#020617"
@@ -221,17 +230,17 @@ function Screen3D() {
       <Text
         position={[0, -6.5, 0.1]}
         fontSize={0.8}
-        color="#64748b"
+        color="#94a3b8"
         anchorX="center"
         anchorY="middle"
       >
-        SCREEN
+        NOW SHOWING
       </Text>
     </group>
   );
 }
 
-// 4. Stadium Steps
+// 4. Stadium Steps (Shadows enabled)
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -245,8 +254,8 @@ function StadiumSteps() {
     <group>
       {steps.map((step) => (
         <group key={step.index}>
-          {/* Step */}
-          <mesh position={[0, step.y, step.z]} receiveShadow>
+          {/* Step - Enabled shadows for depth */}
+          <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
             <boxGeometry args={[26, 0.4, 1.2]} />
             <meshStandardMaterial color="#1e293b" roughness={0.9} />
           </mesh>
@@ -262,11 +271,11 @@ function StadiumSteps() {
   );
 }
 
-// 5. Environment
+// 5. Environment (Atmosphere added)
 function TheaterEnvironment() {
   return (
     <group>
-      {/* Floor */}
+      {/* Floor - Receives shadows */}
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
         <meshStandardMaterial color="#0f172a" roughness={0.8} />
@@ -288,6 +297,10 @@ function TheaterEnvironment() {
             />
          </mesh>
       </group>
+      
+      {/* --- NEW: Atmospheric Fog --- */}
+      {/* Blends the distant floor into the background color smoothly */}
+      <fog attach="fog" args={['#0f172a', 20, 60]} />
     </group>
   );
 }
@@ -407,7 +420,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       }>
         <Canvas
-          shadows
+          shadows // IMPORTANT: Shadows enabled globally
           camera={{ position: [0, 8, 18], fov: 50 }}
           gl={{ antialias: true }}
         >
@@ -418,23 +431,26 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             controlsRef={controlsRef}
           />
 
-          {/* FIXED: Much brighter lighting */}
-          <ambientLight intensity={0.6} />
+          {/* Lighting - Shadows Enabled on main light */}
+          <ambientLight intensity={0.5} />
+          {/* Main directional light casts shadows */}
           <directionalLight 
-            position={[10, 15, 10]} 
-            intensity={0.8} 
-            castShadow={false}
+            position={[10, 20, 10]} 
+            intensity={1} 
+            castShadow 
+            shadow-mapSize={[2048, 2048]} // Higher quality shadows
           />
+          {/* Fill lights do not cast shadows to avoid clutter */}
           <directionalLight 
             position={[-10, 15, 10]} 
-            intensity={0.5} 
+            intensity={0.4} 
             castShadow={false}
           />
           <spotLight 
             position={[0, 20, 5]} 
             angle={0.5} 
             penumbra={1} 
-            intensity={0.8} 
+            intensity={0.6} 
             castShadow={false}
           />
 
