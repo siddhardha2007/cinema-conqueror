@@ -3,7 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, RoundedBox, useTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button'; 
-import { RotateCcw, Eye } from 'lucide-react';
+import { RotateCcw, Eye, Film } from 'lucide-react';
 
 // --- Types ---
 export interface Seat {
@@ -27,11 +27,30 @@ interface CameraTarget {
   lookAt: THREE.Vector3;
 }
 
-// --- Constants ---
+// --- Constants & Movie Data ---
 const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 8, 18);
 const DEFAULT_LOOK_AT = new THREE.Vector3(0, 1, -5);
 const SCREEN_Z = -15; 
 const SCREEN_Y = 6;   
+
+const MOVIES = {
+  dark_knight: {
+    title: "The Dark Knight",
+    poster: "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg"
+  },
+  inception: {
+    title: "Inception",
+    poster: "https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg"
+  },
+  interstellar: {
+    title: "Interstellar",
+    poster: "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg"
+  },
+  oppenheimer: {
+    title: "Oppenheimer",
+    poster: "https://upload.wikimedia.org/wikipedia/en/4/4a/Oppenheimer_%28film%29.jpg"
+  }
+};
 
 // --- Helper Functions ---
 function easeInOutCubic(t: number): number {
@@ -78,7 +97,7 @@ function CameraController({
   return null;
 }
 
-// 2. Seat Component (High Visibility + Shadows enabled)
+// 2. Seat Component
 function Seat3D({ 
   seat, 
   position, 
@@ -93,11 +112,11 @@ function Seat3D({
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
   const getSeatColor = () => {
-    if (isBooked) return '#94a3b8'; // Lighter slate for visibility
-    if (isSelected) return '#ef4444'; // Bright red
-    if (hovered) return '#fbbf24';    // Bright gold
-    if (seat.type === 'premium') return '#60a5fa'; // Brighter blue
-    return '#d1d5db'; // Much lighter grey for standard seats
+    if (isBooked) return '#94a3b8'; 
+    if (isSelected) return '#ef4444'; 
+    if (hovered) return '#fbbf24';    
+    if (seat.type === 'premium') return '#60a5fa'; 
+    return '#d1d5db'; 
   };
 
   return (
@@ -124,7 +143,7 @@ function Seat3D({
         }}
         position={[0, 0.05, 0]}
         scale={hovered && !isBooked ? 1.05 : 1}
-        castShadow // Enable shadow casting for realism
+        castShadow 
         receiveShadow
       >
         <meshStandardMaterial 
@@ -177,15 +196,10 @@ function Seat3D({
   );
 }
 
-// 3. Screen Component (With Poster and Curtains)
-// 3. Screen Component (Fixed Image Loading)
-function Screen3D() {
-  // We use a Wikimedia URL because they allow 3D apps to load images easily (CORS friendly)
-  // You can replace this with any URL, but make sure the host allows external loading.
-  const posterUrl = "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg"; 
-  
-  // Load texture with a fallback to ensure it doesn't crash
-  const posterTexture = useTexture(posterUrl);
+// 3. Screen Component (Dynamic Poster)
+function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: string }) {
+  // Load texture dynamically based on prop
+  const texture = useTexture(posterUrl);
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
@@ -193,35 +207,32 @@ function Screen3D() {
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[24, 10]} />
         <meshBasicMaterial 
-          map={posterTexture} // The movie poster
-          color="#ffffff"     // Base white color ensures image isn't tinted
-          toneMapped={false}  // Keeps colors bright/accurate
+          map={texture} 
+          color="#ffffff"
+          toneMapped={false} 
         />
       </mesh>
       
-      {/* Glow Light (Blue-ish to match the movie feel) */}
+      {/* Screen Glow */}
       <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
 
-      {/* --- Curtains --- */}
+      {/* Curtains */}
       <group>
-          {/* Left Curtain */}
           <mesh position={[-13.5, 0, -0.5]} receiveShadow>
               <boxGeometry args={[3, 14, 1]} />
               <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
           </mesh>
-          {/* Right Curtain */}
           <mesh position={[13.5, 0, -0.5]} receiveShadow>
               <boxGeometry args={[3, 14, 1]} />
               <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
           </mesh>
-           {/* Top Curtain Valance */}
            <mesh position={[0, 6, -0.5]} receiveShadow>
               <boxGeometry args={[30, 2, 1]} />
               <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
           </mesh>
       </group>
       
-      {/* Black Frame behind screen */}
+      {/* Frame */}
       <mesh position={[0, 0, -0.6]}>
         <planeGeometry args={[32, 18]} />
         <meshStandardMaterial 
@@ -230,7 +241,7 @@ function Screen3D() {
         />
       </mesh>
       
-      {/* Text Label */}
+      {/* Title Label */}
       <Text
         position={[0, -6.5, 0.1]}
         fontSize={0.8}
@@ -238,13 +249,13 @@ function Screen3D() {
         anchorX="center"
         anchorY="middle"
       >
-        NOW SHOWING
+        NOW SHOWING: {movieTitle.toUpperCase()}
       </Text>
     </group>
   );
 }
 
-// 4. Stadium Steps (Shadows enabled)
+// 4. Stadium Steps
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -258,13 +269,10 @@ function StadiumSteps() {
     <group>
       {steps.map((step) => (
         <group key={step.index}>
-          {/* Step - Enabled shadows for depth */}
           <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
             <boxGeometry args={[26, 0.4, 1.2]} />
             <meshStandardMaterial color="#1e293b" roughness={0.9} />
           </mesh>
-          
-          {/* LED Strip */}
           <mesh position={[0, step.y + 0.21, step.z + 0.59]}>
             <boxGeometry args={[26, 0.02, 0.03]} />
             <meshBasicMaterial color="#3b82f6" toneMapped={false} />
@@ -275,11 +283,10 @@ function StadiumSteps() {
   );
 }
 
-// 5. Environment (Atmosphere added)
+// 5. Environment
 function TheaterEnvironment() {
   return (
     <group>
-      {/* Floor - Receives shadows */}
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
         <meshStandardMaterial color="#0f172a" roughness={0.8} />
@@ -287,7 +294,6 @@ function TheaterEnvironment() {
 
       <StadiumSteps />
       
-      {/* Projector Beam */}
       <group position={[0, 8, 18]} rotation={[0.15, 0, 0]}>
          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -10]}>
             <cylinderGeometry args={[0.1, 4, 20, 32, 1, true]} />
@@ -302,8 +308,6 @@ function TheaterEnvironment() {
          </mesh>
       </group>
       
-      {/* --- NEW: Atmospheric Fog --- */}
-      {/* Blends the distant floor into the background color smoothly */}
       <fog attach="fog" args={['#0f172a', 20, 60]} />
     </group>
   );
@@ -317,6 +321,9 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   });
   const [isAnimating, setIsAnimating] = useState(false);
   const [viewingSeatId, setViewingSeatId] = useState<string | null>(null);
+  
+  // NEW: Movie State
+  const [selectedMovieKey, setSelectedMovieKey] = useState<keyof typeof MOVIES>('dark_knight');
   
   const controlsRef = useRef<any>(null);
 
@@ -374,7 +381,30 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   return (
     <div className="relative w-full h-[700px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
       
-      {/* UI Controls */}
+      {/* --- MOVIE SELECTOR UI (Top Left) --- */}
+      <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+        <h3 className="text-white text-xs font-bold uppercase tracking-wider bg-black/50 p-1 rounded w-fit backdrop-blur-sm">Select Movie</h3>
+        <div className="flex gap-2">
+            {(Object.keys(MOVIES) as Array<keyof typeof MOVIES>).map((key) => (
+                <button
+                    key={key}
+                    onClick={() => setSelectedMovieKey(key)}
+                    className={`
+                        px-3 py-1.5 rounded-md text-xs font-medium transition-all
+                        flex items-center gap-2 border
+                        ${selectedMovieKey === key 
+                            ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' 
+                            : 'bg-black/60 border-white/10 text-gray-400 hover:text-white hover:bg-black/80'}
+                    `}
+                >
+                    <Film className="w-3 h-3" />
+                    {MOVIES[key].title}
+                </button>
+            ))}
+        </div>
+      </div>
+
+      {/* View Controls (Top Right) */}
       <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
         {viewingSeatId && (
           <div className="bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg animate-in fade-in zoom-in">
@@ -395,8 +425,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
       
-      {/* Color Legend */}
-      <div className="absolute top-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg pointer-events-none">
+      {/* Color Legend (Bottom Left) */}
+      <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg pointer-events-none">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2">Seat Guide</h3>
         <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
@@ -424,7 +454,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       }>
         <Canvas
-          shadows // IMPORTANT: Shadows enabled globally
+          shadows 
           camera={{ position: [0, 8, 18], fov: 50 }}
           gl={{ antialias: true }}
         >
@@ -435,16 +465,13 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             controlsRef={controlsRef}
           />
 
-          {/* Lighting - Shadows Enabled on main light */}
           <ambientLight intensity={0.5} />
-          {/* Main directional light casts shadows */}
           <directionalLight 
             position={[10, 20, 10]} 
             intensity={1} 
             castShadow 
-            shadow-mapSize={[2048, 2048]} // Higher quality shadows
+            shadow-mapSize={[2048, 2048]} 
           />
-          {/* Fill lights do not cast shadows to avoid clutter */}
           <directionalLight 
             position={[-10, 15, 10]} 
             intensity={0.4} 
@@ -458,7 +485,12 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             castShadow={false}
           />
 
-          <Screen3D />
+          {/* Pass selected movie poster to screen */}
+          <Screen3D 
+            posterUrl={MOVIES[selectedMovieKey].poster} 
+            movieTitle={MOVIES[selectedMovieKey].title}
+          />
+          
           <TheaterEnvironment />
           
           {seatPositions.map(({ seat, position }) => (
