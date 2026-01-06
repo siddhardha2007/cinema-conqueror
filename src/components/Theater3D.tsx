@@ -36,19 +36,19 @@ const SCREEN_Y = 6;
 const MOVIES = {
   dark_knight: {
     title: "The Dark Knight",
-    poster: "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg"
+    poster: "dark-jnight.jpg"
   },
   inception: {
     title: "Inception",
-    poster: "https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg"
+    poster: "inception.jpg"
   },
   interstellar: {
     title: "Interstellar",
-    poster: "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg"
+    poster: "interstellar.jpg"
   },
   oppenheimer: {
     title: "Oppenheimer",
-    poster: "https://upload.wikimedia.org/wikipedia/en/4/4a/Oppenheimer_%28film%29.jpg"
+    poster: "oppenheimer.jpg"
   }
 };
 
