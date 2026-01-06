@@ -174,26 +174,141 @@ function Screen3D() {
   );
 }
 
-// Simple Theater Floor
-function TheaterEnvironment() {
+// Stadium Seating Risers
+function StadiumRisers({ rowCount }: { rowCount: number }) {
+  const risers = useMemo(() => {
+    const steps = [];
+    for (let i = 0; i < rowCount; i++) {
+      const rowZ = i * 1.2 + 2;
+      const rowY = i * 0.15;
+      steps.push({ z: rowZ, y: rowY, index: i });
+    }
+    return steps;
+  }, [rowCount]);
+
   return (
     <group>
-      {/* Floor */}
-      <mesh position={[0, -0.5, 0]}>
-        <boxGeometry args={[30, 0.2, 25]} />
-        <meshStandardMaterial 
-          color="#1f2937" 
-          roughness={0.8}
-        />
+      {risers.map((riser, i) => (
+        <group key={i}>
+          {/* Horizontal platform (where seats sit) */}
+          <mesh position={[0, riser.y - 0.1, riser.z]}>
+            <boxGeometry args={[24, 0.15, 1.1]} />
+            <meshStandardMaterial color="#1a1a2e" roughness={0.9} />
+          </mesh>
+          {/* Vertical riser (the step face) */}
+          {i > 0 && (
+            <mesh position={[0, riser.y - 0.15 / 2 - 0.075, riser.z - 0.6]}>
+              <boxGeometry args={[24, 0.15, 0.1]} />
+              <meshStandardMaterial color="#16162a" roughness={0.85} />
+            </mesh>
+          )}
+        </group>
+      ))}
+    </group>
+  );
+}
+
+// Projector Light Beam
+function ProjectorBeam() {
+  return (
+    <group position={[0, 7, 18]}>
+      {/* Projector housing */}
+      <mesh>
+        <boxGeometry args={[1.5, 0.8, 1]} />
+        <meshStandardMaterial color="#0a0a0a" roughness={0.3} metalness={0.8} />
+      </mesh>
+      {/* Projector lens */}
+      <mesh position={[0, -0.1, -0.5]}>
+        <cylinderGeometry args={[0.2, 0.25, 0.3, 16]} />
+        <meshStandardMaterial color="#1e3a5f" emissive="#3b82f6" emissiveIntensity={0.5} />
       </mesh>
       
-      {/* Center aisle */}
-      <mesh position={[0, -0.4, 2]}>
-        <boxGeometry args={[1.5, 0.1, 15]} />
-        <meshStandardMaterial 
-          color="#4b5563" 
-          roughness={0.7}
+      {/* Spotlight for actual light */}
+      <spotLight
+        position={[0, 0, 0]}
+        target-position={[0, 3, -12]}
+        angle={0.15}
+        penumbra={0.3}
+        intensity={2}
+        distance={40}
+        color="#e8e8ff"
+        castShadow
+      />
+      
+      {/* Visible light cone (dusty beam effect) */}
+      <mesh position={[0, -2, -14]} rotation={[Math.PI / 12, 0, 0]}>
+        <coneGeometry args={[4, 32, 32, 1, true]} />
+        <meshBasicMaterial
+          color="#8899cc"
+          transparent
+          opacity={0.04}
+          side={THREE.DoubleSide}
+          depthWrite={false}
         />
+      </mesh>
+    </group>
+  );
+}
+
+// Aisle Floor Lights
+function AisleLighting({ rowCount }: { rowCount: number }) {
+  const maxZ = (rowCount - 1) * 1.2 + 2.5;
+  const minZ = 1;
+  const aisleLength = maxZ - minZ;
+
+  return (
+    <group>
+      {/* Left aisle strip */}
+      <mesh position={[-0.85, 0.01, (maxZ + minZ) / 2]}>
+        <boxGeometry args={[0.08, 0.02, aisleLength]} />
+        <meshBasicMaterial color="#0ea5e9" toneMapped={false} />
+      </mesh>
+      {/* Right aisle strip */}
+      <mesh position={[0.85, 0.01, (maxZ + minZ) / 2]}>
+        <boxGeometry args={[0.08, 0.02, aisleLength]} />
+        <meshBasicMaterial color="#0ea5e9" toneMapped={false} />
+      </mesh>
+      
+      {/* Glow lights for aisle */}
+      <pointLight position={[-0.85, 0.2, (maxZ + minZ) / 2]} intensity={0.3} distance={3} color="#0ea5e9" />
+      <pointLight position={[0.85, 0.2, (maxZ + minZ) / 2]} intensity={0.3} distance={3} color="#0ea5e9" />
+    </group>
+  );
+}
+
+// Premium Theater Environment
+function TheaterEnvironment({ rowCount }: { rowCount: number }) {
+  return (
+    <group>
+      {/* Base floor under everything */}
+      <mesh position={[0, -0.6, 5]}>
+        <boxGeometry args={[30, 0.2, 30]} />
+        <meshStandardMaterial color="#0d0d1a" roughness={0.95} />
+      </mesh>
+      
+      {/* Stadium risers */}
+      <StadiumRisers rowCount={rowCount} />
+      
+      {/* Projector beam */}
+      <ProjectorBeam />
+      
+      {/* Aisle lighting */}
+      <AisleLighting rowCount={rowCount} />
+      
+      {/* Side walls for atmosphere */}
+      <mesh position={[-14, 3, 2]}>
+        <boxGeometry args={[0.3, 8, 25]} />
+        <meshStandardMaterial color="#0f0f1f" roughness={0.9} />
+      </mesh>
+      <mesh position={[14, 3, 2]}>
+        <boxGeometry args={[0.3, 8, 25]} />
+        <meshStandardMaterial color="#0f0f1f" roughness={0.9} />
+      </mesh>
+      
+      {/* Ceiling */}
+      <mesh position={[0, 8, 2]}>
+        <boxGeometry args={[28, 0.3, 25]} />
+        <meshStandardMaterial color="#080810" roughness={0.95} />
       </mesh>
     </group>
   );
@@ -316,7 +431,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
           {/* 3D Components */}
           <Screen3D />
-          <TheaterEnvironment />
+          <TheaterEnvironment rowCount={Object.keys(seatsByRow).length} />
           
           {/* Render all seats */}
           {seatPositions.map(({ seat, position }) => (
