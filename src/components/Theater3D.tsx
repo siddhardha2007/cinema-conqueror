@@ -1,9 +1,9 @@
 import React, { useState, useMemo, Suspense, useRef } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Environment, Grid } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button'; 
-import { RotateCcw, Eye, Info } from 'lucide-react';
+import { RotateCcw, Eye } from 'lucide-react';
 
 // --- Types ---
 export interface Seat {
@@ -28,8 +28,8 @@ interface CameraTarget {
 }
 
 // --- Constants ---
-const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 10, 22);
-const DEFAULT_LOOK_AT = new THREE.Vector3(0, 2, -5);
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 8, 18);
+const DEFAULT_LOOK_AT = new THREE.Vector3(0, 1, -5);
 const SCREEN_Z = -15; 
 const SCREEN_Y = 6;   
 
@@ -77,6 +77,7 @@ function CameraController({
   return null;
 }
 
+// --- THE VISIBILITY FIX IS HERE ---
 function Seat3D({ 
   seat, 
   position, 
@@ -90,26 +91,20 @@ function Seat3D({
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
-  // VIBRANT COLOR PALETTE
   const getSeatColor = () => {
-    if (isBooked) return '#1e1b4b'; // Dark Indigo (Booked)
-    if (isSelected) return '#f472b6'; // Neon Pink (Selected)
-    if (hovered) return '#facc15'; // Bright Yellow (Hover)
-    if (seat.type === 'premium') return '#a855f7'; // Bright Purple (Premium)
-    return '#22d3ee'; // Neon Cyan (Standard Available)
-  };
-
-  // GLOW INTENSITY
-  const getEmissive = () => {
-    if (isSelected) return '#f472b6';
-    if (hovered) return '#facc15';
-    if (seat.type === 'premium') return '#a855f7';
-    return '#000000'; // Standard seats don't glow unless hovered
+    // FIX: Changed from dark #374151 to lighter Slate Grey #64748b
+    // Now it stands out against the black floor.
+    if (isBooked) return '#64748b'; 
+    
+    if (isSelected) return '#dc2626'; // Red
+    if (hovered) return '#f59e0b';    // Gold
+    if (seat.type === 'premium') return '#3b82f6'; // Blue
+    return '#9ca3af'; // Light Grey (Standard)
   };
 
   return (
     <group position={position}>
-      {/* Seat Base - Shiny Plastic Look */}
+      {/* Seat Cushion */}
       <RoundedBox
         args={[0.8, 0.15, 0.7]}
         radius={0.05}
@@ -130,14 +125,13 @@ function Seat3D({
             document.body.style.cursor = 'auto';
         }}
         position={[0, 0.05, 0]}
-        scale={hovered && !isBooked ? 1.1 : 1}
+        scale={hovered && !isBooked ? 1.05 : 1}
       >
         <meshStandardMaterial 
           color={getSeatColor()} 
-          emissive={getEmissive()}
-          emissiveIntensity={hovered || isSelected ? 0.5 : 0.2}
-          roughness={0.2} // Shiny
-          metalness={0.5} // Metallic
+          // Booked seats are matte (rough), others are slightly shiny
+          roughness={isBooked ? 0.9 : 0.6}
+          metalness={0.1}
         />
       </RoundedBox>
       
@@ -150,20 +144,30 @@ function Seat3D({
       >
         <meshStandardMaterial 
           color={getSeatColor()} 
-          emissive={getEmissive()}
-          emissiveIntensity={hovered || isSelected ? 0.5 : 0.2}
-          roughness={0.2}
-          metalness={0.5}
+          roughness={isBooked ? 0.9 : 0.6}
+          metalness={0.1}
         />
       </RoundedBox>
       
-      {/* Armrests (Darker contrast) */}
+      {/* Armrests - Made lighter to be visible */}
       <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[-0.4, 0.15, 0.1]}>
-        <meshStandardMaterial color="#0f172a" roughness={0.5} />
+        <meshStandardMaterial color="#475569" roughness={0.6} />
       </RoundedBox>
       <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[0.4, 0.15, 0.1]}>
-        <meshStandardMaterial color="#0f172a" roughness={0.5} />
+        <meshStandardMaterial color="#475569" roughness={0.6} />
       </RoundedBox>
+      
+      {/* Seat Number */}
+      <Text
+        position={[0, 0.2, 0]}
+        fontSize={0.12}
+        color="#ffffff"
+        anchorX="center"
+        anchorY="middle"
+        rotation={[-Math.PI / 2, 0, 0]} 
+      >
+        {seat.number}
+      </Text>
     </group>
   );
 }
@@ -171,31 +175,34 @@ function Seat3D({
 function Screen3D() {
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen - Bright White Glow */}
+      {/* Screen Mesh */}
       <mesh position={[0, 0, 0]}>
-        <planeGeometry args={[26, 12]} />
+        <planeGeometry args={[24, 10]} />
         <meshBasicMaterial 
-          color="#e0f2fe"
+          color="#ffffff"
           toneMapped={false} 
         />
       </mesh>
       
-      {/* Massive Bloom Light behind screen */}
-      <pointLight position={[0, 0, 2]} intensity={3} distance={25} color="#38bdf8" />
+      {/* Realistic Glow */}
+      <pointLight position={[0, 0, 2]} intensity={1.5} distance={20} color="#bfdbfe" />
       
       {/* Frame */}
-      <mesh position={[0, 0, -0.2]}>
-        <planeGeometry args={[28, 14]} />
-        <meshStandardMaterial color="#000000" roughness={0.1} />
+      <mesh position={[0, 0, -0.1]}>
+        <planeGeometry args={[32, 18]} />
+        <meshStandardMaterial 
+          color="#020617"
+          roughness={0.9}
+        />
       </mesh>
       
+      {/* Label on Wall */}
       <Text
-        position={[0, -7, 0.1]}
-        fontSize={1.2}
-        color="#38bdf8" // Cyan Text
+        position={[0, -6.5, 0.1]}
+        fontSize={0.8}
+        color="#475569"
         anchorX="center"
         anchorY="middle"
-        fillOpacity={0.8}
       >
         SCREEN
       </Text>
@@ -203,6 +210,7 @@ function Screen3D() {
   );
 }
 
+// Restored Concrete Stadium Steps
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -216,22 +224,16 @@ function StadiumSteps() {
     <group>
       {steps.map((step) => (
         <group key={step.index}>
-          {/* Transparent Glassy Steps */}
+          {/* Concrete Step */}
           <mesh position={[0, step.y, step.z]} receiveShadow>
             <boxGeometry args={[26, 0.4, 1.2]} />
-            <meshStandardMaterial 
-                color="#312e81" // Deep Indigo
-                roughness={0.1}
-                metalness={0.8}
-                transparent
-                opacity={0.9}
-            />
+            <meshStandardMaterial color="#1e293b" roughness={0.9} />
           </mesh>
           
-          {/* Neon Pink Edges */}
+          {/* Blue LED Strip */}
           <mesh position={[0, step.y + 0.21, step.z + 0.59]}>
             <boxGeometry args={[26, 0.02, 0.03]} />
-            <meshBasicMaterial color="#d946ef" toneMapped={false} />
+            <meshBasicMaterial color="#3b82f6" toneMapped={false} />
           </mesh>
         </group>
       ))}
@@ -242,30 +244,28 @@ function StadiumSteps() {
 function TheaterEnvironment() {
   return (
     <group>
-      {/* 1. Neon Grid Floor (The "Tron" Look) */}
-      <Grid 
-        position={[0, -0.1, 0]} 
-        args={[100, 100]} 
-        cellSize={2} 
-        cellThickness={1} 
-        cellColor="#6366f1" 
-        sectionSize={6} 
-        sectionThickness={1.5} 
-        sectionColor="#a855f7" 
-        fadeDistance={50} 
-        fadeStrength={1.5}
-      />
-
-      {/* 2. Base Floor Reflection */}
-      <mesh position={[0, -0.2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      {/* Dark Floor */}
+      <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[100, 100]} />
-        <meshStandardMaterial color="#020617" roughness={0.1} metalness={0.8} />
+        <meshStandardMaterial color="#020617" roughness={0.8} />
       </mesh>
 
       <StadiumSteps />
       
-      {/* 3. Volumetric Fog for atmosphere */}
-      <fog attach="fog" args={['#2e1065', 5, 60]} /> 
+      {/* Projector Beam */}
+      <group position={[0, 8, 18]} rotation={[0.15, 0, 0]}>
+         <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -10]}>
+            <cylinderGeometry args={[0.1, 4, 20, 32, 1, true]} />
+            <meshBasicMaterial 
+                color="#bae6fd" 
+                opacity={0.05} 
+                transparent={true} 
+                side={THREE.DoubleSide} 
+                depthWrite={false}
+                blending={THREE.AdditiveBlending}
+            />
+         </mesh>
+      </group>
     </group>
   );
 }
@@ -333,54 +333,37 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   };
 
   return (
-    // Updated Container: From Dark Slate to Deep Purple/Black Gradient
-    <div className="relative w-full h-[700px] bg-gradient-to-b from-[#2e1065] to-black rounded-2xl overflow-hidden shadow-2xl border-2 border-[#6366f1]">
+    <div className="relative w-full h-[700px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
       
-      {/* UI: Color Legend (NEW FUNCTION) */}
-      <div className="absolute top-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg">
-        <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2">Seat Guide</h3>
-        <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#22d3ee] shadow-[0_0_8px_#22d3ee]"></div>
-                <span className="text-gray-300 text-xs">Standard</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#a855f7] shadow-[0_0_8px_#a855f7]"></div>
-                <span className="text-gray-300 text-xs">Premium</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#f472b6] shadow-[0_0_8px_#f472b6]"></div>
-                <span className="text-gray-300 text-xs">Selected</span>
-            </div>
-            <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#1e1b4b]"></div>
-                <span className="text-gray-500 text-xs">Booked</span>
-            </div>
+      {/* UI Controls */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 pointer-events-none">
+        {viewingSeatId && (
+          <div className="bg-black/60 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg animate-in fade-in zoom-in">
+            <Eye className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-medium">Viewing from selected seat</span>
+          </div>
+        )}
+        <div className="pointer-events-auto">
+             <Button 
+              onClick={handleResetView}
+              variant="outline"
+              size="sm"
+              className="bg-black/50 hover:bg-black/70 border-white/20 text-white backdrop-blur-sm"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Reset View
+            </Button>
         </div>
       </div>
 
-      {/* UI: View Controls */}
-      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
-        {viewingSeatId && (
-          <div className="bg-[#f472b6] text-black font-bold px-4 py-2 rounded-full flex items-center gap-2 shadow-[0_0_15px_#f472b6] animate-in fade-in zoom-in">
-            <Eye className="w-4 h-4" />
-            <span className="text-sm">Seat View</span>
-          </div>
-        )}
-        <Button 
-          onClick={handleResetView}
-          className="bg-cyan-500 hover:bg-cyan-400 text-black font-bold shadow-[0_0_10px_#06b6d4] border-none"
-          size="sm"
-        >
-          <RotateCcw className="w-4 h-4 mr-2" />
-          Reset View
-        </Button>
-      </div>
-
-      <Suspense fallback={<div className="text-cyan-400">Loading Neon Cinema...</div>}>
+      <Suspense fallback={
+        <div className="w-full h-full flex items-center justify-center bg-slate-900">
+          <div className="text-white font-medium animate-pulse">Loading Cinema...</div>
+        </div>
+      }>
         <Canvas
           shadows
-          camera={{ position: [0, 10, 22], fov: 50 }}
+          camera={{ position: [0, 8, 18], fov: 50 }}
           gl={{ antialias: true }}
         >
           <CameraController 
@@ -390,11 +373,16 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             controlsRef={controlsRef}
           />
 
-          {/* LIGHTING UPGRADE: Brighter, Colorful */}
-          <ambientLight intensity={1.5} /> {/* Much brighter base layer */}
-          <spotLight position={[10, 20, 10]} color="#d946ef" intensity={2} angle={0.5} /> {/* Pink Light Right */}
-          <spotLight position={[-10, 20, 10]} color="#06b6d4" intensity={2} angle={0.5} /> {/* Cyan Light Left */}
-          
+          {/* Standard Realistic Lighting */}
+          <ambientLight intensity={0.2} />
+          <spotLight 
+            position={[0, 20, 5]} 
+            angle={0.5} 
+            penumbra={1} 
+            intensity={0.5} 
+            castShadow 
+          />
+
           <Screen3D />
           <TheaterEnvironment />
           
@@ -412,7 +400,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             minDistance={5}
             maxDistance={35}
             maxPolarAngle={Math.PI / 2.1} 
-            target={[0, 2, -5]}
+            target={[0, 1, -5]}
             enableDamping={true}
           />
         </Canvas>
