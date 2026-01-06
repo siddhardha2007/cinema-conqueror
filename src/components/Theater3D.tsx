@@ -1,18 +1,10 @@
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, RoundedBox } from '@react-three/drei';
-import { useState, useMemo, Suspense, lazy, useRef, useEffect } from 'react';
+import { useState, useMemo, Suspense, useRef } from 'react';
 import type { Seat } from '@/contexts/BookingContext';
 import { Button } from '@/components/ui/button';
 import { RotateCcw, Eye } from 'lucide-react';
 import * as THREE from 'three';
-
-// Lazy load postprocessing to avoid SSR issues
-const EffectComposer = lazy(() => 
-  import('@react-three/postprocessing').then(mod => ({ default: mod.EffectComposer }))
-);
-const Bloom = lazy(() => 
-  import('@react-three/postprocessing').then(mod => ({ default: mod.Bloom }))
-);
 
 interface Theater3DProps {
   seats: Seat[];
@@ -141,20 +133,23 @@ function Seat3D({
   );
 }
 
-// Simple Screen with high emissive for bloom
+// Screen with glow effect using point lights
 function Screen3D() {
   return (
     <group position={[0, 3, -12]}>
-      {/* Screen - high emissive intensity to trigger bloom */}
+      {/* Screen - bright emissive material */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[20, 12]} />
-        <meshStandardMaterial 
-          color="#1e3a8a" 
-          emissive="#60a5fa"
-          emissiveIntensity={2}
+        <meshBasicMaterial 
+          color="#4a90d9"
           toneMapped={false}
         />
       </mesh>
+      
+      {/* Screen glow lights */}
+      <pointLight position={[0, 0, 2]} intensity={3} distance={15} color="#60a5fa" />
+      <pointLight position={[-8, 0, 2]} intensity={1.5} distance={10} color="#3b82f6" />
+      <pointLight position={[8, 0, 2]} intensity={1.5} distance={10} color="#3b82f6" />
       
       {/* Frame */}
       <mesh position={[0, 0, -0.05]}>
@@ -348,16 +343,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             dampingFactor={0.05}
           />
 
-          {/* Post-processing bloom effect */}
-          <Suspense fallback={null}>
-            <EffectComposer>
-              <Bloom
-                intensity={0.6}
-                luminanceThreshold={0.8}
-                luminanceSmoothing={0.3}
-              />
-            </EffectComposer>
-          </Suspense>
         </Canvas>
       </Suspense>
     </div>
