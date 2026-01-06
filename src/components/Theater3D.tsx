@@ -1,6 +1,6 @@
 import React, { useState, useMemo, Suspense, useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, useTexture } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox } from '@react-three/drei';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button'; 
 import { RotateCcw, Eye, Film } from 'lucide-react';
@@ -33,7 +33,7 @@ const DEFAULT_LOOK_AT = new THREE.Vector3(0, 1, -5);
 const SCREEN_Z = -15; 
 const SCREEN_Y = 6;   
 
-// SAFE IMAGE URLS (Use these to prevent crashing)
+// SAFE IMAGES (Wikimedia allows Cross-Origin loading)
 const MOVIES = {
   dark_knight: {
     title: "The Dark Knight",
@@ -122,7 +122,6 @@ function Seat3D({
 
   return (
     <group position={position}>
-      {/* Seat Cushion */}
       <RoundedBox
         args={[0.8, 0.15, 0.7]}
         radius={0.05}
@@ -155,8 +154,6 @@ function Seat3D({
           emissiveIntensity={0.1}
         />
       </RoundedBox>
-      
-      {/* Seat Back */}
       <RoundedBox
         args={[0.8, 0.55, 0.12]}
         radius={0.05}
@@ -173,16 +170,12 @@ function Seat3D({
           emissiveIntensity={0.1}
         />
       </RoundedBox>
-      
-      {/* Armrests */}
       <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[-0.4, 0.15, 0.1]} castShadow>
         <meshStandardMaterial color="#64748b" roughness={0.6} />
       </RoundedBox>
       <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[0.4, 0.15, 0.1]} castShadow>
         <meshStandardMaterial color="#64748b" roughness={0.6} />
       </RoundedBox>
-      
-      {/* Seat Number */}
       <Text
         position={[0, 0.2, 0]}
         fontSize={0.12}
@@ -197,40 +190,47 @@ function Seat3D({
   );
 }
 
-// 3. Screen Content (The Image Part)
-// Separated so it can suspend without blocking the whole UI
-function ScreenContent({ posterUrl }: { posterUrl: string }) {
-    // This hook might suspend if the image is loading
-    const texture = useTexture(posterUrl);
-    
-    return (
-        <mesh position={[0, 0, 0]}>
-            <planeGeometry args={[24, 10]} />
-            <meshBasicMaterial 
-                map={texture} 
-                color="#ffffff"
-                toneMapped={false} 
-            />
-        </mesh>
-    );
-}
-
-// 4. Main Screen Wrapper (Handles Loading Fallback)
+// 3. Screen Component (Safe Loader Version)
+// This avoids "Suspense" crashes entirely by using a safe state-based loader.
 function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: string }) {
+  const [texture, setTexture] = useState<THREE.Texture | null>(null);
+
+  useEffect(() => {
+    // 1. Reset texture when url changes so we don't show old poster
+    // setTexture(null); 
+
+    // 2. Manual Loader - This doesn't crash the app if it fails
+    const loader = new THREE.TextureLoader();
+    loader.crossOrigin = "Anonymous"; // Fixes some CORS issues
+    loader.load(
+        posterUrl,
+        (loadedTexture) => {
+            loadedTexture.encoding = THREE.sRGBEncoding;
+            setTexture(loadedTexture);
+        },
+        undefined, // onProgress
+        (err) => {
+            console.error("Error loading poster:", err);
+            // If it fails, we just don't set the texture. 
+            // The screen remains white. No crash.
+        }
+    );
+  }, [posterUrl]);
+
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen Mesh Wrapper with local Suspense */}
-      <Suspense fallback={
-         // While image loads, show a white screen instead of crashing
-         <mesh position={[0, 0, 0]}>
-            <planeGeometry args={[24, 10]} />
-            <meshBasicMaterial color="#ffffff" />
-         </mesh>
-      }>
-         <ScreenContent posterUrl={posterUrl} />
-      </Suspense>
+      {/* Screen Mesh */}
+      <mesh position={[0, 0, 0]}>
+        <planeGeometry args={[24, 10]} />
+        <meshBasicMaterial 
+          // If texture is loaded, use it. If not, map is null (white screen).
+          map={texture} 
+          color="#ffffff"
+          toneMapped={false} 
+        />
+      </mesh>
       
-      {/* Screen Glow */}
+      {/* Glow */}
       <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
 
       {/* Curtains */}
@@ -252,13 +252,10 @@ function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: st
       {/* Frame */}
       <mesh position={[0, 0, -0.6]}>
         <planeGeometry args={[32, 18]} />
-        <meshStandardMaterial 
-          color="#020617"
-          roughness={0.9}
-        />
+        <meshStandardMaterial color="#020617" roughness={0.9} />
       </mesh>
       
-      {/* Title Label */}
+      {/* Title */}
       <Text
         position={[0, -6.5, 0.1]}
         fontSize={0.8}
@@ -272,7 +269,7 @@ function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: st
   );
 }
 
-// 5. Stadium Steps
+// 4. Stadium Steps
 function StadiumSteps() {
   const steps = useMemo(() => {
     return Array.from({ length: 8 }, (_, i) => ({
@@ -300,7 +297,7 @@ function StadiumSteps() {
   );
 }
 
-// 6. Environment
+// 5. Environment
 function TheaterEnvironment() {
   return (
     <group>
@@ -495,11 +492,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           castShadow={false}
         />
 
-        {/* IMPORTANT FIX: 
-          We removed the outer Suspense here. 
-          The Suspense is now INSIDE Screen3D. 
-          This prevents the whole theater from going blank if an image lags.
-        */}
         <Screen3D 
           posterUrl={MOVIES[selectedMovieKey].poster} 
           movieTitle={MOVIES[selectedMovieKey].title}
