@@ -1,7 +1,10 @@
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Text } from '@react-three/drei';
-import { useState, useMemo, Suspense, lazy } from 'react';
+import { Canvas, useThree, useFrame } from '@react-three/fiber';
+import { OrbitControls, Text, RoundedBox } from '@react-three/drei';
+import { useState, useMemo, Suspense, lazy, useRef, useEffect } from 'react';
 import type { Seat } from '@/contexts/BookingContext';
+import { Button } from '@/components/ui/button';
+import { RotateCcw, Eye } from 'lucide-react';
+import * as THREE from 'three';
 
 // Lazy load postprocessing to avoid SSR issues
 const EffectComposer = lazy(() => 
@@ -16,7 +19,53 @@ interface Theater3DProps {
   onSeatClick: (seat: Seat) => void;
 }
 
-// Simple 3D Seat Component
+interface CameraTarget {
+  position: THREE.Vector3;
+  lookAt: THREE.Vector3;
+}
+
+const DEFAULT_CAMERA: CameraTarget = {
+  position: new THREE.Vector3(0, 8, 18),
+  lookAt: new THREE.Vector3(0, 1, -5)
+};
+
+// Animated camera controller
+function CameraController({ target, isAnimating, onAnimationComplete }: { 
+  target: CameraTarget; 
+  isAnimating: boolean;
+  onAnimationComplete: () => void;
+}) {
+  const { camera } = useThree();
+  const progressRef = useRef(0);
+
+  useFrame((_, delta) => {
+    if (!isAnimating) return;
+    
+    progressRef.current = Math.min(progressRef.current + delta * 1.5, 1);
+    const t = easeInOutCubic(progressRef.current);
+    
+    camera.position.lerp(target.position, t * 0.1);
+    
+    const currentLookAt = new THREE.Vector3();
+    camera.getWorldDirection(currentLookAt);
+    currentLookAt.add(camera.position);
+    currentLookAt.lerp(target.lookAt, t * 0.1);
+    camera.lookAt(currentLookAt);
+    
+    if (progressRef.current >= 1) {
+      progressRef.current = 0;
+      onAnimationComplete();
+    }
+  });
+
+  return null;
+}
+
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// Simple 3D Seat Component with cushioned look
 function Seat3D({ 
   seat, 
   position, 
@@ -39,33 +88,47 @@ function Seat3D({
 
   return (
     <group position={position} rotation={[0, 0, 0]}>
-      {/* Seat base */}
-      <mesh
+      {/* Seat cushion (base) - RoundedBox for soft look */}
+      <RoundedBox
+        args={[0.8, 0.15, 0.7]}
+        radius={0.05}
+        smoothness={4}
         onClick={() => !seat.isBooked && onClick(seat)}
         onPointerEnter={() => !seat.isBooked && setHovered(true)}
         onPointerLeave={() => setHovered(false)}
-        position={[0, 0, 0]}
+        position={[0, 0.05, 0]}
         scale={hovered && !seat.isBooked ? 1.1 : 1}
       >
-        <boxGeometry args={[0.8, 0.1, 0.8]} />
         <meshStandardMaterial 
           color={getSeatColor()} 
-          roughness={0.7}
+          roughness={0.85}
         />
-      </mesh>
+      </RoundedBox>
       
-      {/* Seat back - positioned toward positive Z so seat faces negative Z (toward screen) */}
-      <mesh position={[0, 0.3, 0.3]}>
-        <boxGeometry args={[0.8, 0.6, 0.1]} />
+      {/* Seat back cushion - RoundedBox for soft look */}
+      <RoundedBox
+        args={[0.8, 0.55, 0.12]}
+        radius={0.05}
+        smoothness={4}
+        position={[0, 0.35, 0.32]}
+      >
         <meshStandardMaterial 
           color={getSeatColor()} 
-          roughness={0.7}
+          roughness={0.85}
         />
-      </mesh>
+      </RoundedBox>
+      
+      {/* Armrests */}
+      <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[-0.4, 0.15, 0.1]}>
+        <meshStandardMaterial color="#1f2937" roughness={0.6} />
+      </RoundedBox>
+      <RoundedBox args={[0.08, 0.15, 0.5]} radius={0.02} smoothness={2} position={[0.4, 0.15, 0.1]}>
+        <meshStandardMaterial color="#1f2937" roughness={0.6} />
+      </RoundedBox>
       
       {/* Seat number - on top of seat */}
       <Text
-        position={[0, 0.15, 0]}
+        position={[0, 0.2, 0]}
         fontSize={0.15}
         color="#ffffff"
         anchorX="center"
@@ -143,6 +206,11 @@ function TheaterEnvironment() {
 
 // Main Theater3D Component
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget>(DEFAULT_CAMERA);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [viewingFromSeat, setViewingFromSeat] = useState<string | null>(null);
+  const controlsRef = useRef<any>(null);
+
   // Group seats by row for positioning
   const seatsByRow = useMemo(() => {
     return seats.reduce((acc, seat) => {
@@ -158,10 +226,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     
     rows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
-      // Row A (index 0) is closest to screen (negative Z), last row is furthest (positive Z)
-      // Seats positioned at positive Z, screen at negative Z
       const rowZ = rowIndex * 1.2 + 2;
-      // Add slight elevation for stadium seating effect (back rows higher)
       const rowY = rowIndex * 0.15;
       
       rowSeats.forEach((seat, seatIndex) => {
@@ -176,8 +241,60 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     return positions;
   }, [seatsByRow]);
 
+  const handleSeatClick = (seat: Seat) => {
+    // Find the seat position
+    const seatData = seatPositions.find(s => s.seat.id === seat.id);
+    if (!seatData) return;
+
+    // Animate camera to seat's eye level
+    const [x, y, z] = seatData.position;
+    setCameraTarget({
+      position: new THREE.Vector3(x, y + 1.2, z),
+      lookAt: new THREE.Vector3(0, 3, -12) // Look at the screen
+    });
+    setIsAnimating(true);
+    setViewingFromSeat(`${seat.row}${seat.number}`);
+
+    // Also trigger the original onSeatClick for selection logic
+    onSeatClick(seat);
+  };
+
+  const handleResetView = () => {
+    setCameraTarget(DEFAULT_CAMERA);
+    setIsAnimating(true);
+    setViewingFromSeat(null);
+    
+    // Reset OrbitControls target
+    if (controlsRef.current) {
+      controlsRef.current.target.set(0, 1, -5);
+    }
+  };
+
+  const handleAnimationComplete = () => {
+    setIsAnimating(false);
+  };
+
   return (
-    <div className="w-full h-[700px] bg-gradient-to-b from-slate-900 via-slate-800 to-black rounded-2xl overflow-hidden shadow-2xl">
+    <div className="relative w-full h-[700px] bg-gradient-to-b from-slate-900 via-slate-800 to-black rounded-2xl overflow-hidden shadow-2xl">
+      {/* View controls overlay */}
+      <div className="absolute top-4 right-4 z-10 flex flex-col gap-2">
+        {viewingFromSeat && (
+          <div className="bg-black/70 backdrop-blur-sm text-white px-3 py-2 rounded-lg flex items-center gap-2">
+            <Eye className="w-4 h-4 text-cinema-gold" />
+            <span className="text-sm">Viewing from seat {viewingFromSeat}</span>
+          </div>
+        )}
+        <Button 
+          onClick={handleResetView}
+          variant="outline"
+          size="sm"
+          className="bg-black/70 backdrop-blur-sm border-white/20 text-white hover:bg-white/20"
+        >
+          <RotateCcw className="w-4 h-4 mr-2" />
+          Reset View
+        </Button>
+      </div>
+
       <Suspense fallback={
         <div className="w-full h-full flex items-center justify-center">
           <div className="text-center">
@@ -187,53 +304,61 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       }>
         <Canvas
-        camera={{ position: [0, 8, 18], fov: 50 }}
-        style={{ background: '#0f172a' }}
-      >
-        {/* Simple Lighting Setup */}
-        <ambientLight intensity={0.6} />
-        <directionalLight position={[0, 10, 5]} intensity={1} />
-        <pointLight position={[0, 5, -10]} intensity={0.8} color="#3b82f6" />
-
-        {/* 3D Components */}
-        <Screen3D />
-        <TheaterEnvironment />
-        
-        {/* Render all seats */}
-        {seatPositions.map(({ seat, position }) => (
-          <Seat3D
-            key={seat.id}
-            seat={seat}
-            position={position}
-            onClick={onSeatClick}
+          camera={{ position: [0, 8, 18], fov: 50 }}
+          style={{ background: '#0f172a' }}
+        >
+          {/* Camera animation controller */}
+          <CameraController 
+            target={cameraTarget} 
+            isAnimating={isAnimating}
+            onAnimationComplete={handleAnimationComplete}
           />
-        ))}
 
-        {/* Camera Controls - positioned behind seats looking toward screen */}
-        <OrbitControls
-          enablePan={true}
-          enableZoom={true}
-          enableRotate={true}
-          minDistance={8}
-          maxDistance={30}
-          minPolarAngle={Math.PI / 8}
-          maxPolarAngle={Math.PI / 2.2}
-          target={[0, 1, -5]}
-          enableDamping={true}
-          dampingFactor={0.05}
-        />
+          {/* Simple Lighting Setup */}
+          <ambientLight intensity={0.6} />
+          <directionalLight position={[0, 10, 5]} intensity={1} />
+          <pointLight position={[0, 5, -10]} intensity={0.8} color="#3b82f6" />
 
-        {/* Post-processing bloom effect - wrapped in Suspense for lazy loading */}
-        <Suspense fallback={null}>
-          <EffectComposer>
-            <Bloom
-              intensity={0.6}
-              luminanceThreshold={0.8}
-              luminanceSmoothing={0.3}
+          {/* 3D Components */}
+          <Screen3D />
+          <TheaterEnvironment />
+          
+          {/* Render all seats */}
+          {seatPositions.map(({ seat, position }) => (
+            <Seat3D
+              key={seat.id}
+              seat={seat}
+              position={position}
+              onClick={handleSeatClick}
             />
-          </EffectComposer>
-        </Suspense>
-      </Canvas>
+          ))}
+
+          {/* Camera Controls */}
+          <OrbitControls
+            ref={controlsRef}
+            enablePan={true}
+            enableZoom={true}
+            enableRotate={true}
+            minDistance={3}
+            maxDistance={30}
+            minPolarAngle={Math.PI / 8}
+            maxPolarAngle={Math.PI / 2.2}
+            target={[0, 1, -5]}
+            enableDamping={true}
+            dampingFactor={0.05}
+          />
+
+          {/* Post-processing bloom effect */}
+          <Suspense fallback={null}>
+            <EffectComposer>
+              <Bloom
+                intensity={0.6}
+                luminanceThreshold={0.8}
+                luminanceSmoothing={0.3}
+              />
+            </EffectComposer>
+          </Suspense>
+        </Canvas>
       </Suspense>
     </div>
   );
