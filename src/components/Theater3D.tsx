@@ -133,13 +133,13 @@ function Seat3D({
   );
 }
 
-// Screen Wall at Z = -12.5 (Size: 30x20)
+// Screen at Z = -15, Y = 6 (Size: 24x10) - Vertical
 function Screen3D() {
   return (
-    <group position={[0, 5, -12.5]}>
-      {/* Screen - bright emissive material */}
-      <mesh position={[0, 0, 0]}>
-        <planeGeometry args={[20, 12]} />
+    <group position={[0, 6, -15]} rotation={[0, 0, 0]}>
+      {/* Screen - bright emissive material (24x10) */}
+      <mesh>
+        <planeGeometry args={[24, 10]} />
         <meshBasicMaterial 
           color="#4a90d9"
           toneMapped={false}
@@ -147,13 +147,13 @@ function Screen3D() {
       </mesh>
       
       {/* Screen glow lights */}
-      <pointLight position={[0, 0, 2]} intensity={3} distance={15} color="#60a5fa" />
-      <pointLight position={[-8, 0, 2]} intensity={1.5} distance={10} color="#3b82f6" />
-      <pointLight position={[8, 0, 2]} intensity={1.5} distance={10} color="#3b82f6" />
+      <pointLight position={[0, 0, 2]} intensity={3} distance={18} color="#60a5fa" />
+      <pointLight position={[-10, 0, 2]} intensity={1.5} distance={12} color="#3b82f6" />
+      <pointLight position={[10, 0, 2]} intensity={1.5} distance={12} color="#3b82f6" />
       
-      {/* Screen Wall (30x20) */}
+      {/* Screen backing frame */}
       <mesh position={[0, 0, -0.1]}>
-        <planeGeometry args={[30, 20]} />
+        <planeGeometry args={[26, 12]} />
         <meshStandardMaterial 
           color="#0a0a14"
           roughness={0.95}
@@ -162,7 +162,7 @@ function Screen3D() {
       
       {/* Screen label */}
       <Text
-        position={[0, -8, 0.01]}
+        position={[0, -6.5, 0.01]}
         fontSize={1}
         color="#9ca3af"
         anchorX="center"
@@ -208,8 +208,12 @@ function StadiumSteps() {
   );
 }
 
-// Projector Light Beam
+// Projector Light Beam - pointing at screen center [0, 6, -15]
 function ProjectorBeam() {
+  // Calculate angle from projector at [0, 8, 20] to screen at [0, 6, -15]
+  // Distance Z: 35, Height diff: -2
+  const angleToScreen = Math.atan2(-2, -35); // pointing downward and forward
+  
   return (
     <group position={[0, 8, 20]}>
       {/* Projector housing */}
@@ -218,29 +222,29 @@ function ProjectorBeam() {
         <meshStandardMaterial color="#0a0a0a" roughness={0.3} metalness={0.8} />
       </mesh>
       {/* Projector lens */}
-      <mesh position={[0, -0.1, -0.5]}>
+      <mesh position={[0, -0.1, -0.5]} rotation={[angleToScreen, 0, 0]}>
         <cylinderGeometry args={[0.2, 0.25, 0.3, 16]} />
         <meshStandardMaterial color="#1e3a5f" emissive="#3b82f6" emissiveIntensity={0.5} />
       </mesh>
       
-      {/* Spotlight for actual light */}
+      {/* Spotlight for actual light - pointing at screen center */}
       <spotLight
         position={[0, 0, 0]}
-        target-position={[0, 5, -12.5]}
-        angle={0.15}
+        target-position={[0, 6, -15]}
+        angle={0.12}
         penumbra={0.3}
         intensity={2}
         distance={50}
         color="#e8e8ff"
       />
       
-      {/* Visible light cone (dusty beam effect) */}
-      <mesh position={[0, -1.5, -16]} rotation={[Math.PI / 14, 0, 0]}>
-        <coneGeometry args={[5, 38, 32, 1, true]} />
+      {/* Visible light cone (dusty beam effect) - angled upward toward screen */}
+      <mesh position={[0, -1, -17.5]} rotation={[angleToScreen + 0.05, 0, 0]}>
+        <coneGeometry args={[4.5, 40, 32, 1, true]} />
         <meshBasicMaterial
           color="#8899cc"
           transparent
-          opacity={0.03}
+          opacity={0.025}
           side={THREE.DoubleSide}
           depthWrite={false}
         />
@@ -275,11 +279,17 @@ function AisleLighting() {
   );
 }
 
-// Open Stadium Environment (no walls, floor, ceiling)
+// Open Stadium Environment with base floor
 function TheaterEnvironment() {
   return (
     <group>
-      {/* Stadium steps only */}
+      {/* Main Base Floor - huge ground at Y = -1 */}
+      <mesh position={[0, -1, 0]}>
+        <boxGeometry args={[100, 0.1, 100]} />
+        <meshStandardMaterial color="#020617" roughness={1} metalness={0} />
+      </mesh>
+      
+      {/* Stadium steps */}
       <StadiumSteps />
       
       {/* Projector beam */}
@@ -339,7 +349,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     const [x, y, z] = seatData.position;
     setCameraTarget({
       position: new THREE.Vector3(x, y + 1.0, z),
-      lookAt: new THREE.Vector3(0, 5, -12.5) // Look at the screen
+      lookAt: new THREE.Vector3(0, 6, -15) // Look at the screen
     });
     setIsAnimating(true);
     setViewingFromSeat(`${seat.row}${seat.number}`);
