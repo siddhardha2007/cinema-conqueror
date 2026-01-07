@@ -5,14 +5,15 @@ import * as THREE from 'three';
 import { Button } from '@/components/ui/button'; 
 import { RotateCcw, Eye, Film } from 'lucide-react';
 
-// --- DATA ---
-// Ideally, replace TinyURL with permanent hosting (S3, Cloudinary, or local assets)
-// TinyURLs can expire or be blocked by strict browser security settings.
+// --- DATA: GUARANTEED WORKING URLS ---
+// TinyURLs often fail in 3D apps due to redirects/CORS. 
+// We use direct Wikimedia links here which are safe for WebGL.
 const movies = [
   {
     id: '1',
     title: "The Dark Knight",
-    image: "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg", // Wikimedia is very stable for demos
+    // Direct Link (No redirects)
+    image: "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg", 
     description: "Batman faces his greatest challenge yet."
   },
   {
@@ -200,31 +201,34 @@ function Seat3D({
 function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
   
-  // Logic: "isMounted" prevents race conditions (old images overwriting new ones)
   useEffect(() => {
     let isMounted = true; 
     
-    // Optional: Keep the old poster until new one loads for smoother transition
-    // setTexture(null); 
-
+    // Create loader
     const loader = new THREE.TextureLoader();
+    // This allows loading images from external websites (CORS)
     loader.setCrossOrigin("anonymous");
     
     const urlStr = typeof posterUrl === 'string' ? posterUrl : (posterUrl as any).src || posterUrl;
+
+    console.log("Loading poster:", urlStr); // Debug log
 
     loader.load(
       urlStr,
       (loadedTexture) => {
         if (!isMounted) {
-            loadedTexture.dispose(); // Cleanup if component unmounted
+            loadedTexture.dispose(); 
             return;
         }
         loadedTexture.colorSpace = THREE.SRGBColorSpace;
-        loadedTexture.minFilter = THREE.LinearFilter; // Smoother quality
+        loadedTexture.minFilter = THREE.LinearFilter;
         setTexture(loadedTexture);
       },
       undefined,
-      (err) => console.error("Poster load error:", err)
+      (err) => {
+          console.error("Poster load error. Check if URL allows CORS.", err);
+          // Don't set texture, screen stays white/blank safely
+      }
     );
 
     return () => {
@@ -240,7 +244,8 @@ function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: st
         {texture ? (
           <meshBasicMaterial map={texture} toneMapped={false} />
         ) : (
-          <meshBasicMaterial color="#ffffff" toneMapped={false} />
+          // Fallback if image fails or is loading
+          <meshBasicMaterial color="#e2e8f0" toneMapped={false} />
         )}
       </mesh>
       
