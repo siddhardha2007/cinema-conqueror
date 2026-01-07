@@ -1,168 +1,132 @@
 import React, { useState, useMemo, useEffect, useRef, Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Html } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { Button } from '@/components/ui/button'; 
 import { RotateCcw, Eye, Film } from 'lucide-react';
 
-// ... (Keep your existing Data, Types, and Constants) ...
-// PASTE THE PREVIOUS DATA/CONSTANTS HERE IF NEEDED, OR KEEP YOUR EXISTING ONES
+// ... (KEEP YOUR EXISTING DATA & TYPES HERE: movies, Seat, etc.) ...
 
-// --- NEW COMPONENT: Detailed Premium Seat ---
-function Seat3D({ 
-  seat, 
-  position, 
-  onClick 
-}: { 
-  seat: Seat; 
-  position: [number, number, number]; 
-  onClick: (seat: Seat) => void;
-}) {
-  const [hovered, setHovered] = useState(false);
-  // Animation state for "Pop" effect
-  const targetY = useRef(position[1]); 
-  const currentY = useRef(position[1]);
-  const meshRef = useRef<THREE.Group>(null);
+// --- [PASTE YOUR EXISTING MOVIES ARRAY AND INTERFACES HERE] ---
+// For brevity, I am assuming you kept the 'movies', 'Seat', 'Theater3DProps' etc.
+// If you need them again, let me know!
 
-  const isBooked = seat.status === 'booked' || seat.isBooked;
-  const isSelected = seat.status === 'selected' || seat.isSelected;
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 8, 18);
+const DEFAULT_LOOK_AT = new THREE.Vector3(0, 1, -5);
+const SCREEN_Z = -15; 
+const SCREEN_Y = 6;   
 
-  // Animation Logic: Smooth bounce when selected
-  useFrame((state, delta) => {
-    if (!meshRef.current) return;
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+// ... (KEEP CameraController, Seat3D, Screen3D, StadiumSteps AS IS) ...
+// ... (I will only provide the NEW/UPDATED components below) ...
+
+// --- NEW COMPONENT: Side Walls with Sconces ---
+function SideWalls() {
+    const wallLength = 40;
+    const wallHeight = 12;
+    const zPos = 0; // Center Z
     
-    // If selected or hovered, lift up slightly
-    const hoverLift = hovered && !isBooked ? 0.1 : 0;
-    const selectedLift = isSelected ? 0.2 : 0;
-    const targetHeight = position[1] + hoverLift + selectedLift;
+    // Create positions for lights (Sconces)
+    const lightPositions = [-5, 5, 15]; // Z positions for lights
 
-    // Smooth lerp to target height
-    currentY.current = THREE.MathUtils.lerp(currentY.current, targetHeight, delta * 10);
-    meshRef.current.position.y = currentY.current;
-  });
+    return (
+        <group>
+            {/* Left Wall */}
+            <mesh position={[-20, 4, zPos]} receiveShadow>
+                <boxGeometry args={[1, wallHeight, wallLength]} />
+                <meshStandardMaterial color="#1e1b4b" roughness={0.9} />
+            </mesh>
+            
+            {/* Right Wall */}
+            <mesh position={[20, 4, zPos]} receiveShadow>
+                <boxGeometry args={[1, wallHeight, wallLength]} />
+                <meshStandardMaterial color="#1e1b4b" roughness={0.9} />
+            </mesh>
 
-  const getSeatColor = () => {
-    if (isBooked) return '#475569'; // Slate for booked
-    if (isSelected) return '#ef4444'; // Red for selected
-    if (hovered) return '#f59e0b';    // Gold for hover
-    if (seat.type === 'premium') return '#3b82f6'; // Blue for premium
-    return '#94a3b8'; // Light Grey for standard
-  };
+            {/* Sconces (Lights) on Walls */}
+            {lightPositions.map((z, i) => (
+                <group key={i}>
+                    {/* Left Sconce */}
+                    <mesh position={[-19.4, 6, z]}>
+                        <boxGeometry args={[0.2, 0.8, 0.4]} />
+                        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={2} />
+                    </mesh>
+                    <pointLight position={[-18, 6, z]} color="#fbbf24" distance={8} intensity={1} decay={2} />
+
+                    {/* Right Sconce */}
+                    <mesh position={[19.4, 6, z]}>
+                        <boxGeometry args={[0.2, 0.8, 0.4]} />
+                        <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={2} />
+                    </mesh>
+                    <pointLight position={[18, 6, z]} color="#fbbf24" distance={8} intensity={1} decay={2} />
+                </group>
+            ))}
+        </group>
+    );
+}
+
+// --- UPDATED COMPONENT: Projector with Dust ---
+function ProjectorEffect() {
+    return (
+        <group position={[0, 8, 18]} rotation={[0.15, 0, 0]}>
+            {/* The Light Cone */}
+            <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -10]}>
+                <cylinderGeometry args={[0.1, 4, 20, 32, 1, true]} />
+                <meshBasicMaterial 
+                    color="#bae6fd" 
+                    opacity={0.06} // Fainter for realism
+                    transparent={true} 
+                    side={THREE.DoubleSide} 
+                    depthWrite={false}
+                    blending={THREE.AdditiveBlending}
+                />
+            </mesh>
+            
+            {/* NEW: Floating Dust Particles inside the beam */}
+            {/* We position them to align with the cone */}
+            <group rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -10]}>
+                <Sparkles 
+                    count={200} 
+                    scale={[6, 20, 6]} // Shape of the particle cloud
+                    size={4} 
+                    speed={0.4} 
+                    opacity={0.5} 
+                    color="#ffffff" 
+                />
+            </group>
+        </group>
+    );
+}
+
+// --- UPDATED ENVIRONMENT ---
+function TheaterEnvironment() {
+  const { scene } = useThree();
+  useEffect(() => {
+    // Darker fog for more contrast with the new lights
+    scene.fog = new THREE.Fog('#020617', 15, 50);
+    return () => { scene.fog = null; };
+  }, [scene]);
 
   return (
-    <group 
-        ref={meshRef} 
-        position={[position[0], position[1], position[2]]}
-    >
-      {/* 1. SEAT CUSHION (Base) */}
-      <RoundedBox
-        args={[0.7, 0.15, 0.7]}
-        radius={0.05}
-        smoothness={4}
-        onClick={(e) => {
-            e.stopPropagation();
-            if (!isBooked) onClick(seat);
-        }}
-        onPointerEnter={(e) => {
-            e.stopPropagation();
-            if (!isBooked) {
-                setHovered(true);
-                document.body.style.cursor = 'pointer';
-            }
-        }}
-        onPointerLeave={() => {
-            setHovered(false);
-            document.body.style.cursor = 'auto';
-        }}
-        position={[0, 0.05, 0]}
-        castShadow 
-        receiveShadow
-      >
-        <meshStandardMaterial 
-          color={getSeatColor()} 
-          roughness={0.6}
-          metalness={0.1}
-        />
-      </RoundedBox>
+    <group>
+      {/* Floor */}
+      <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[100, 100]} />
+        {/* Carpet-like texture color (Dark Red/Purple tint) */}
+        <meshStandardMaterial color="#0f0518" roughness={0.9} />
+      </mesh>
 
-      {/* 2. SEAT BACKREST (Tilted slightly back for realism) */}
-      <RoundedBox
-        args={[0.7, 0.6, 0.12]}
-        radius={0.05}
-        smoothness={4}
-        position={[0, 0.4, 0.3]}
-        rotation={[-0.1, 0, 0]} // Slight recline
-        castShadow
-        receiveShadow
-      >
-        <meshStandardMaterial 
-          color={getSeatColor()} 
-          roughness={0.6}
-          metalness={0.1}
-        />
-      </RoundedBox>
-
-      {/* 3. HEADREST (The "Premium" look) */}
-      <RoundedBox
-        args={[0.5, 0.2, 0.1]}
-        radius={0.05}
-        smoothness={4}
-        position={[0, 0.75, 0.25]} // Sitting on top of backrest
-        rotation={[-0.1, 0, 0]}
-        castShadow
-        receiveShadow
-      >
-         <meshStandardMaterial color={isBooked ? '#334155' : '#1e293b'} /> 
-      </RoundedBox>
-
-      {/* 4. ARMRESTS with CUP HOLDERS */}
-      {/* Left Arm */}
-      <group position={[-0.4, 0.2, 0.1]}>
-          <RoundedBox args={[0.1, 0.15, 0.6]} radius={0.02} smoothness={2} castShadow>
-             <meshStandardMaterial color="#1e293b" roughness={0.5} />
-          </RoundedBox>
-          {/* Cup Holder (Cylinder subtraction look) */}
-          <mesh position={[0, 0.08, 0.2]}>
-              <cylinderGeometry args={[0.035, 0.035, 0.01, 16]} />
-              <meshStandardMaterial color="#0f172a" />
-          </mesh>
-      </group>
-
-      {/* Right Arm */}
-      <group position={[0.4, 0.2, 0.1]}>
-          <RoundedBox args={[0.1, 0.15, 0.6]} radius={0.02} smoothness={2} castShadow>
-             <meshStandardMaterial color="#1e293b" roughness={0.5} />
-          </RoundedBox>
-          <mesh position={[0, 0.08, 0.2]}>
-              <cylinderGeometry args={[0.035, 0.035, 0.01, 16]} />
-              <meshStandardMaterial color="#0f172a" />
-          </mesh>
-      </group>
+      <StadiumSteps />
       
-      {/* 5. FLOATING TOOLTIP (Only visible on hover) */}
-      {hovered && !isBooked && (
-        <Html position={[0, 1.2, 0]} center distanceFactor={10}>
-          <div className="bg-black/80 text-white text-xs px-2 py-1 rounded border border-white/20 whitespace-nowrap backdrop-blur-md">
-            <span className="font-bold">{seat.row}{seat.number}</span>
-            <span className="mx-1">|</span>
-            <span className="text-yellow-400">₹{seat.price}</span>
-          </div>
-        </Html>
-      )}
-
-      {/* Seat Number (On the headrest or back) */}
-      <Text
-        position={[0, 0.55, 0.36]}
-        fontSize={0.08}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
-        rotation={[-0.1, 0, 0]} 
-      >
-        {seat.number}
-      </Text>
+      {/* New Effects */}
+      <ProjectorEffect />
+      <SideWalls />
     </group>
   );
 }
 
-// ... (Rest of your components like Screen3D, StadiumSteps, etc. stay exactly the same) ...
+// ... (KEEP YOUR Theater3D EXPORT AS IS) ...
+// Just make sure to use the updated TheaterEnvironment in the Canvas!
