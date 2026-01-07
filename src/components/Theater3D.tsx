@@ -14,25 +14,25 @@ const movies = [
   {
     id: '1',
     title: "The Dark Knight",
-    image: "https://upload.wikimedia.org/wikipedia/en/8/8a/Dark_Knight.jpg", // Using web URL for demo, your local import works too!
+    image: "https://tinyurl.com/nexwnkxk", // Using web URL for demo, your local import works too!
     description: "Batman faces his greatest challenge yet."
   },
   {
     id: '2',
     title: "Inception",
-    image: "https://upload.wikimedia.org/wikipedia/en/2/2e/Inception_%282010%29_theatrical_poster.jpg",
+    image: "https://tinyurl.com/4jcj4ea4",
     description: "A skilled thief enters people's dreams."
   },
   {
     id: '3',
     title: "Interstellar",
-    image: "https://upload.wikimedia.org/wikipedia/en/b/bc/Interstellar_film_poster.jpg",
+    image: "https://tinyurl.com/43jfzkm6",
     description: "A team of explorers travel through a wormhole."
   },
   {
     id: '4',
     title: "Oppenheimer",
-    image: "https://upload.wikimedia.org/wikipedia/en/4/4a/Oppenheimer_%28film%29.jpg",
+    image: "https://tinyurl.com/5n733yjd",
     description: "The story of American scientist J. Robert Oppenheimer."
   }
 ];
