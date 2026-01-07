@@ -207,12 +207,15 @@ function Seat3D({
 }
 
 // 3. Screen Component (Dynamic & Safe)
+// 3. Screen Component (Dynamic & Safe)
 function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Safe Texture Loader - Won't crash your app if image fails
   useEffect(() => {
     setTexture(null); // Clear old poster immediately
+    setIsLoading(true);
 
     const loader = new THREE.TextureLoader();
     loader.setCrossOrigin("anonymous"); // Important for web images
@@ -224,64 +227,24 @@ function Screen3D({ posterUrl, movieTitle }: { posterUrl: string, movieTitle: st
       urlStr,
       (loadedTexture) => {
         loadedTexture.colorSpace = THREE.SRGBColorSpace;
+        loadedTexture.needsUpdate = true; // Force update
         setTexture(loadedTexture);
+        setIsLoading(false);
       },
       undefined,
-      (err) => console.error("Poster load error:", err)
+      (err) => {
+        console.error("Poster load error:", err);
+        setIsLoading(false);
+      }
     );
+
+    // Cleanup function to dispose old texture
+    return () => {
+      if (texture) {
+        texture.dispose();
+      }
+    };
   }, [posterUrl]);
-
-  return (
-    <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen Mesh */}
-      <mesh position={[0, 0, 0]}>
-        <planeGeometry args={[24, 10]} />
-        {texture ? (
-            <meshBasicMaterial map={texture} toneMapped={false} />
-        ) : (
-            <meshBasicMaterial color="#ffffff" toneMapped={false} />
-        )}
-      </mesh>
-      
-      {/* Glow */}
-      <pointLight position={[0, 0, 2]} intensity={2} distance={25} color="#bfdbfe" />
-
-      {/* Curtains */}
-      <group>
-          <mesh position={[-13.5, 0, -0.5]} receiveShadow>
-              <boxGeometry args={[3, 14, 1]} />
-              <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
-          </mesh>
-          <mesh position={[13.5, 0, -0.5]} receiveShadow>
-              <boxGeometry args={[3, 14, 1]} />
-              <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
-          </mesh>
-           <mesh position={[0, 6, -0.5]} receiveShadow>
-              <boxGeometry args={[30, 2, 1]} />
-              <meshStandardMaterial color="#7f1d1d" roughness={0.8} />
-          </mesh>
-      </group>
-      
-      {/* Frame */}
-      <mesh position={[0, 0, -0.6]}>
-        <planeGeometry args={[32, 18]} />
-        <meshStandardMaterial color="#020617" roughness={0.9} />
-      </mesh>
-      
-      {/* Title Label */}
-      <Text
-        position={[0, -6.5, 0.1]}
-        fontSize={0.8}
-        color="#94a3b8"
-        anchorX="center"
-        anchorY="middle"
-      >
-        NOW SHOWING: {movieTitle ? movieTitle.toUpperCase() : "SELECT A MOVIE"}
-      </Text>
-    </group>
-  );
-}
-
 // 4. Stadium Steps
 function StadiumSteps() {
   const steps = useMemo(() => {
