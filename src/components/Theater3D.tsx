@@ -424,14 +424,14 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   );
 }
 
-// --- SCREEN COMPONENT ---
-// --- SCREEN COMPONENT (FIXED SCALING) ---
+// --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
-  // Math: The screen geometry is 24 units wide.
-  // We want a high-res HTML container of 1280px wide.
-  // Scale = 24 / 1280 = 0.01875
+  // Scale Calculation:
+  // Screen Geometry = 24 units wide
+  // Desired HTML Width = 1280px (Standard 720p width for crisp text)
+  // Scale Factor = 24 / 1280 = 0.01875
   const scaleFactor = 0.01875;
 
   return (
@@ -442,14 +442,14 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0.05]} // Moved slightly forward to prevent flickering
+          position={[0, 0, 0.05]} // Slight offset to avoid z-fighting with the black mesh
           occlude="blending"
           scale={scaleFactor} 
         >
-          {/* Container matches the Aspect Ratio of the Screen Geometry (24x10) */}
+          {/* Container size matches the 3D aspect ratio (24x10) -> 1280x533.33px */}
           <div style={{ 
             width: '1280px', 
-            height: '533px', // 1280 * (10/24) ≈ 533px to match screen aspect ratio
+            height: '533px', 
             background: 'black',
             display: 'flex',
             alignItems: 'center',
@@ -462,7 +462,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              style={{ pointerEvents: 'auto' }} 
+              style={{ pointerEvents: 'auto' }} // Allows clicking play/pause/volume
             />
           </div>
         </Html>
