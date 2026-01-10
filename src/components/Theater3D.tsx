@@ -451,47 +451,60 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 }
 
 // --- SCREEN COMPONENT (FIXED: PAPER EFFECT REMOVED) ---
+// --- SCREEN COMPONENT (FIXED: PROPER SCALING FOR YOUTUBE) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
-  // Math: 24 units / 1280 pixels = 0.01875 scale
-  const scaleFactor = 0.01875;
+  // Screen dimensions in 3D units
+  const screenWidth = 24;
+  const screenHeight = 10;
+
+  // For YouTube: Use smaller pixel dimensions with larger scale for better rendering
+  // This gives us: 960 * 0.025 = 24 units width, 400 * 0.025 = 10 units height
+  const iframeWidth = 960;
+  const iframeHeight = 400;
+  const scale = screenWidth / iframeWidth; // 0.025
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
       
+      {/* Black background mesh - always render this */}
+      <mesh position={[0, 0, 0]}>
+        <planeGeometry args={[screenWidth, screenHeight]} />
+        <meshBasicMaterial color="#000000" />
+      </mesh>
+
       {/* CASE 1: YOUTUBE VIDEO */}
       {youtubeId ? (
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0.1]} // Slight offset to avoid z-fighting with black mesh
-          scale={scaleFactor} 
-          occlude="blending" // FIX: Added occlusion so it hides behind chairs/walls!
+          position={[0, 0, 0.1]}
+          scale={scale}
+          style={{
+            width: `${iframeWidth}px`,
+            height: `${iframeHeight}px`,
+          }}
         >
-          <div style={{ 
-            width: '1280px', 
-            height: '533px', 
-            background: 'black',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-            <iframe
-              width="100%"
-              height="100%"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              style={{ pointerEvents: 'auto' }} 
-            />
-          </div>
+          <iframe
+            width={iframeWidth}
+            height={iframeHeight}
+            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+            style={{ 
+              pointerEvents: 'auto',
+              border: 'none',
+              display: 'block',
+            }} 
+          />
         </Html>
       ) : (
         /* CASE 2: MP4 VIDEO FILE */
-        <mesh position={[0, 0, 0.05]}>
-          <planeGeometry args={[24, 10]} />
+        <mesh position={[0, 0, 0.01]}>
+          <planeGeometry args={[screenWidth, screenHeight]} />
           <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
             <MovieScreenMaterial videoUrl={videoUrl} />
           </Suspense>
@@ -542,7 +555,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
     </group>
   );
 }
-
 // FIX: Removed <Float> to stop letters from "roaming"/floating away
 function RowLabels({ rows }: { rows: string[] }) {
   return (
