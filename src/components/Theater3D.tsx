@@ -1,13 +1,36 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Stars, Float, Html, useVideoTexture } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Stars, Html, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import { Button } from '@/components/ui/button';
 import { 
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
   Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info, 
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
+
+// --- UI COMPONENT (Replaces external import) ---
+const Button = ({ className, variant = "default", size = "default", children, ...props }: any) => {
+  const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
+  const variants = {
+    default: "bg-blue-600 text-white hover:bg-blue-700",
+    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+    ghost: "hover:bg-accent hover:text-accent-foreground"
+  };
+  const sizes = {
+    default: "h-10 px-4 py-2",
+    sm: "h-9 rounded-md px-3",
+    icon: "h-10 w-10"
+  };
+  
+  // Quick hack to handle tailwind classes merger
+  const combinedClass = `${baseStyles} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className || ""}`;
+  
+  return (
+    <button className={combinedClass} {...props}>
+      {children}
+    </button>
+  );
+};
 
 // --- DATA ---
 const movies = [
@@ -15,7 +38,7 @@ const movies = [
     id: '1',
     title: "The Dark Knight",
     image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=800&q=80",
-    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", // YouTube Link
+    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", 
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
     rating: "PG-13",
@@ -64,6 +87,7 @@ const showtimes = [
 
 // --- HELPER TO GET YOUTUBE ID ---
 function getYouTubeId(url: string) {
+  if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
@@ -114,9 +138,11 @@ const useAudio = () => {
     }
     const ctx = audioContextRef.current;
     
-    if (ctx.state === 'suspended') {
+    if (ctx && ctx.state === 'suspended') {
         ctx.resume();
     }
+
+    if (!ctx) return;
 
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
@@ -369,8 +395,8 @@ function SeatTooltip({
   };
 
   return (
-    <Html position={[position[0], position[1] + 1.2, position[2]]} center>
-      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+    <Html position={[position[0], position[1] + 1.2, position[2]]} center style={{ pointerEvents: 'none' }}>
+      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-lg">Row {seat.row} - Seat {seat.number}</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColors[seat.type]}`}>
@@ -424,9 +450,7 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   );
 }
 
-// --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
-// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & FORCED AUTOPLAY) ---
-// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & ADJUSTED DEPTH) ---
+// --- SCREEN COMPONENT (FIXED: PAPER EFFECT REMOVED) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
@@ -441,9 +465,9 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0.15]} // Increased Z-offset (0.15) to prevent it from clipping "behind" the black mesh
+          position={[0, 0, 0.1]} // Slight offset to avoid z-fighting with black mesh
           scale={scaleFactor} 
-          // REMOVED "occlude" prop entirely. This fixes the "tiny/hidden" issue caused by dust particles.
+          occlude="blending" // FIX: Added occlusion so it hides behind chairs/walls!
         >
           <div style={{ 
             width: '1280px', 
@@ -456,7 +480,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             <iframe
               width="100%"
               height="100%"
-              // Added "mute=1" to ensure autoplay works (browsers block unmuted autoplay)
               src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
@@ -467,7 +490,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         </Html>
       ) : (
         /* CASE 2: MP4 VIDEO FILE */
-        <mesh position={[0, 0, 0]}>
+        <mesh position={[0, 0, 0.05]}>
           <planeGeometry args={[24, 10]} />
           <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
             <MovieScreenMaterial videoUrl={videoUrl} />
@@ -519,6 +542,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
     </group>
   );
 }
+
+// FIX: Removed <Float> to stop letters from "roaming"/floating away
 function RowLabels({ rows }: { rows: string[] }) {
   return (
     <group>
@@ -527,7 +552,6 @@ function RowLabels({ rows }: { rows: string[] }) {
         const y = index * 0.3 + 0.5;
         return (
           <group key={row}>
-            <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
               <Text
                 position={[-14, y, z]}
                 fontSize={0.5}
@@ -538,8 +562,6 @@ function RowLabels({ rows }: { rows: string[] }) {
               >
                 {row}
               </Text>
-            </Float>
-            <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
               <Text
                 position={[14, y, z]}
                 fontSize={0.5}
@@ -550,7 +572,6 @@ function RowLabels({ rows }: { rows: string[] }) {
               >
                 {row}
               </Text>
-            </Float>
           </group>
         );
       })}
@@ -609,7 +630,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   return (
     <group ref={lightsRef}>
       {lightPositions.map((pos, index) => (
-        <group key={index} position={pos}>
+        <group key={index} position={new THREE.Vector3(...pos)}>
           <mesh>
             <cylinderGeometry args={[0.3, 0.4, 0.2, 16]} />
             <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.5} />
@@ -639,6 +660,7 @@ function ProjectorBeam() {
     }
     return [pos, vel];
   }, []);
+  
   useFrame(() => {
     if (!particlesRef.current) return;
     const posArray = particlesRef.current.geometry.attributes.position.array as Float32Array;
@@ -647,7 +669,9 @@ function ProjectorBeam() {
       posArray[i3] += velocities[i3];
       posArray[i3 + 1] += velocities[i3 + 1];
       posArray[i3 + 2] += velocities[i3 + 2];
-      if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -5) {
+      
+      // Reset logic (Keep particles inside the room to prevent "roaming" dust outside walls)
+      if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -2) {
         const t = Math.random();
         posArray[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
         posArray[i3 + 1] = 8 - t * 2;
@@ -656,6 +680,7 @@ function ProjectorBeam() {
     }
     particlesRef.current.geometry.attributes.position.needsUpdate = true;
   });
+
   return (
     <points ref={particlesRef}>
       <bufferGeometry>
@@ -715,8 +740,9 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   const { scene } = useThree();
   useEffect(() => {
     scene.fog = new THREE.Fog('#0a0a1a', 20, 60);
-    return () => { scene.fog = null; };
+    return () => { scene.fog = null as any; };
   }, [scene]);
+  
   return (
     <group>
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -1356,7 +1382,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           <spotLight position={[0, 20, 5]} angle={0.5} penumbra={1} intensity={0.4} castShadow />
 
           {/* SCREEN COMPONENT WITH VIDEO TEXTURE */}
-          <Screen3D
+          <Screen3D 
             videoUrl={selectedMovie.video}
             movieTitle={selectedMovie.title}
           />
