@@ -5,10 +5,8 @@ import * as THREE from 'three';
 import { Button } from '@/components/ui/button';
 import { 
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
-  Sparkles, MapPin, ChevronUp, ChevronDown, ChevronLeft, 
-  ChevronRight, Accessibility, Filter, X, Check, Download,
   ArrowUp, ArrowDown, Maximize2, Grid3X3, Ticket, CreditCard,
-  Star, Zap, Users, Info, AlertCircle, ThumbsUp
+  Star, Zap, Users, Info, AlertCircle, X, Check
 } from 'lucide-react';
 
 // --- DATA ---
@@ -93,64 +91,59 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// --- AUDIO CONTEXT ---
+// --- AUDIO HOOK ---
 const useAudio = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
 
   const playSound = useCallback((type: 'click' | 'select' | 'hover' | 'success' | 'error') => {
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    try {
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioContextRef.current;
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      const frequencies: Record<string, number> = {
+        click: 600,
+        select: 800,
+        hover: 400,
+        success: 1000,
+        error: 200
+      };
+
+      oscillator.frequency.value = frequencies[type];
+      oscillator.type = type === 'error' ? 'sawtooth' : 'sine';
+      gainNode.gain.value = 0.1;
+      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+
+      oscillator.start(ctx.currentTime);
+      oscillator.stop(ctx.currentTime + 0.1);
+    } catch (e) {
+      // Audio context may not be available
     }
-    const ctx = audioContextRef.current;
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    const frequencies: Record<string, number> = {
-      click: 600,
-      select: 800,
-      hover: 400,
-      success: 1000,
-      error: 200
-    };
-
-    oscillator.frequency.value = frequencies[type];
-    oscillator.type = type === 'error' ? 'sawtooth' : 'sine';
-    gainNode.gain.value = 0.1;
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.1);
   }, []);
 
   return { playSound };
 };
 
-// --- COMPONENTS ---
-
+// --- CAMERA CONTROLLER ---
 function CameraController({
   target,
   isAnimating,
   onAnimationComplete,
   controlsRef,
-  viewMode
 }: {
   target: CameraTarget;
   isAnimating: boolean;
   onAnimationComplete: () => void;
   controlsRef: React.MutableRefObject<any>;
-  viewMode: ViewMode;
 }) {
   const { camera } = useThree();
   const progressRef = useRef(0);
-
-  useEffect(() => {
-    if (viewMode !== 'default') {
-      progressRef.current = 0;
-    }
-  }, [viewMode]);
 
   useFrame((_, delta) => {
     if (!isAnimating) return;
@@ -194,22 +187,10 @@ function Seat3D({
   playSound: (type: 'click' | 'select' | 'hover' | 'success' | 'error') => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const [animationPhase, setAnimationPhase] = useState(0);
   const meshRef = useRef<THREE.Group>(null);
 
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
-
-  // Seat flip animation
-  useFrame((_, delta) => {
-    if (meshRef.current) {
-      if (isSelected && animationPhase < 1) {
-        setAnimationPhase(prev => Math.min(prev + delta * 3, 1));
-      } else if (!isSelected && animationPhase > 0) {
-        setAnimationPhase(prev => Math.max(prev - delta * 3, 0));
-      }
-    }
-  });
 
   const getSeatColor = () => {
     if (isBooked) return '#64748b';
@@ -253,7 +234,7 @@ function Seat3D({
     onHover(null);
   };
 
-  const seatRotation = animationPhase * 0.2;
+  const seatColor = getSeatColor();
 
   return (
     <group ref={meshRef} position={position}>
@@ -265,17 +246,16 @@ function Seat3D({
         onClick={handleClick}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
-        position={[0, 0.05 - seatRotation * 0.1, 0]}
-        rotation={[seatRotation, 0, 0]}
+        position={[0, 0.05, 0]}
         scale={hovered && !isBooked ? 1.05 : 1}
         castShadow
         receiveShadow
       >
         <meshStandardMaterial
-          color={getSeatColor()}
+          color={seatColor}
           roughness={0.4}
           metalness={0.1}
-          emissive={getSeatColor()}
+          emissive={seatColor}
           emissiveIntensity={getEmissiveIntensity()}
         />
       </RoundedBox>
@@ -290,10 +270,10 @@ function Seat3D({
         receiveShadow
       >
         <meshStandardMaterial
-          color={getSeatColor()}
+          color={seatColor}
           roughness={0.4}
           metalness={0.1}
-          emissive={getSeatColor()}
+          emissive={seatColor}
           emissiveIntensity={getEmissiveIntensity()}
         />
       </RoundedBox>
@@ -314,7 +294,6 @@ function Seat3D({
         anchorX="center"
         anchorY="middle"
         rotation={[-Math.PI / 2, 0, 0]}
-        font="/fonts/inter-bold.woff"
       >
         {seat.number}
       </Text>
@@ -335,12 +314,10 @@ function Seat3D({
         </mesh>
       )}
 
-      {/* Selection Glow */}
+      {/* Selection/Highlight Glow */}
       {isSelected && (
         <pointLight position={[0, 0.5, 0]} intensity={0.5} distance={2} color="#22c55e" />
       )}
-
-      {/* Highlight Glow */}
       {isHighlighted && !isSelected && (
         <pointLight position={[0, 0.5, 0]} intensity={0.3} distance={1.5} color="#f59e0b" />
       )}
@@ -375,7 +352,7 @@ function SeatTooltip({
 
   return (
     <Html position={[position[0], position[1] + 1.2, position[2]]} center>
-      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none">
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-lg">Row {seat.row} - Seat {seat.number}</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColors[seat.type]}`}>
@@ -416,7 +393,6 @@ function SeatTooltip({
 // --- SCREEN COMPONENT ---
 function Screen3D({ posterUrl, movieTitle }: { posterUrl: string; movieTitle: string }) {
   const [texture, setTexture] = useState<THREE.Texture | null>(null);
-  const screenRef = useRef<THREE.Mesh>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -441,22 +417,13 @@ function Screen3D({ posterUrl, movieTitle }: { posterUrl: string; movieTitle: st
     return () => { isMounted = false; };
   }, [posterUrl]);
 
-  // Screen flicker effect
-  useFrame(({ clock }) => {
-    if (screenRef.current) {
-      const material = screenRef.current.material as THREE.MeshBasicMaterial;
-      const flicker = 0.98 + Math.sin(clock.elapsedTime * 30) * 0.02;
-      material.opacity = flicker;
-    }
-  });
-
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
       {/* Screen */}
-      <mesh ref={screenRef} position={[0, 0, 0]}>
+      <mesh position={[0, 0, 0]}>
         <planeGeometry args={[24, 10]} />
         {texture ? (
-          <meshBasicMaterial map={texture} toneMapped={false} transparent opacity={1} />
+          <meshBasicMaterial map={texture} toneMapped={false} />
         ) : (
           <meshBasicMaterial color="#1e293b" toneMapped={false} />
         )}
@@ -516,7 +483,6 @@ function RowLabels({ rows }: { rows: string[] }) {
         const y = index * 0.3 + 0.5;
         return (
           <group key={row}>
-            {/* Left label */}
             <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
               <Text
                 position={[-14, y, z]}
@@ -529,7 +495,6 @@ function RowLabels({ rows }: { rows: string[] }) {
                 {row}
               </Text>
             </Float>
-            {/* Right label */}
             <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
               <Text
                 position={[14, y, z]}
@@ -553,7 +518,6 @@ function RowLabels({ rows }: { rows: string[] }) {
 function ExitSigns() {
   return (
     <group>
-      {/* Left Exit */}
       <group position={[-14, 4, 8]}>
         <mesh>
           <boxGeometry args={[1.5, 0.5, 0.1]} />
@@ -564,8 +528,6 @@ function ExitSigns() {
         </Text>
         <pointLight position={[0, 0, 0.5]} intensity={0.5} distance={3} color="#22c55e" />
       </group>
-
-      {/* Right Exit */}
       <group position={[14, 4, 8]}>
         <mesh>
           <boxGeometry args={[1.5, 0.5, 0.1]} />
@@ -582,19 +544,6 @@ function ExitSigns() {
 
 // --- CEILING LIGHTS ---
 function CeilingLights({ dimmed }: { dimmed: boolean }) {
-  const lightsRef = useRef<THREE.Group>(null);
-
-  useFrame(() => {
-    if (lightsRef.current) {
-      lightsRef.current.children.forEach((light, index) => {
-        if (light instanceof THREE.PointLight) {
-          const targetIntensity = dimmed ? 0.1 : 0.8;
-          light.intensity = THREE.MathUtils.lerp(light.intensity, targetIntensity, 0.05);
-        }
-      });
-    }
-  });
-
   const lightPositions = useMemo(() => {
     const positions: [number, number, number][] = [];
     for (let x = -10; x <= 10; x += 5) {
@@ -606,7 +555,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   }, []);
 
   return (
-    <group ref={lightsRef}>
+    <group>
       {lightPositions.map((pos, index) => (
         <group key={index} position={pos}>
           <mesh>
@@ -620,68 +569,22 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   );
 }
 
-// --- PROJECTOR BEAM PARTICLES ---
+// --- SIMPLE PROJECTOR BEAM (Fixed) ---
 function ProjectorBeam() {
-  const particlesRef = useRef<THREE.Points>(null);
-  const particleCount = 500;
-
-  const [positions, velocities] = useMemo(() => {
-    const pos = new Float32Array(particleCount * 3);
-    const vel = new Float32Array(particleCount * 3);
-
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      const t = Math.random();
-      pos[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
-      pos[i3 + 1] = 8 - t * 15;
-      pos[i3 + 2] = 18 - t * 30;
-
-      vel[i3] = (Math.random() - 0.5) * 0.01;
-      vel[i3 + 1] = -0.02 - Math.random() * 0.02;
-      vel[i3 + 2] = -0.05 - Math.random() * 0.05;
-    }
-    return [pos, vel];
-  }, []);
-
-  useFrame(() => {
-    if (!particlesRef.current) return;
-    const posArray = particlesRef.current.geometry.attributes.position.array as Float32Array;
-
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      posArray[i3] += velocities[i3];
-      posArray[i3 + 1] += velocities[i3 + 1];
-      posArray[i3 + 2] += velocities[i3 + 2];
-
-      if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -5) {
-        const t = Math.random();
-        posArray[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
-        posArray[i3 + 1] = 8 - t * 2;
-        posArray[i3 + 2] = 18 - t * 5;
-      }
-    }
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-
   return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particleCount}
-          array={positions}
-          itemSize={3}
+    <group position={[0, 8, 18]} rotation={[0.15, 0, 0]}>
+      <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, -10]}>
+        <cylinderGeometry args={[0.1, 4, 20, 32, 1, true]} />
+        <meshBasicMaterial 
+          color="#bae6fd" 
+          opacity={0.08} 
+          transparent={true} 
+          side={THREE.DoubleSide} 
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
         />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.05}
-        color="#bfdbfe"
-        transparent
-        opacity={0.3}
-        blending={THREE.AdditiveBlending}
-        depthWrite={false}
-      />
-    </points>
+      </mesh>
+    </group>
   );
 }
 
@@ -703,7 +606,6 @@ function StadiumSteps() {
             <boxGeometry args={[28, 0.4, 1.2]} />
             <meshStandardMaterial color="#1e293b" roughness={0.9} />
           </mesh>
-          {/* Step Edge Lighting */}
           <mesh position={[0, step.y + 0.21, step.z + 0.59]}>
             <boxGeometry args={[28, 0.02, 0.03]} />
             <meshBasicMaterial color="#3b82f6" toneMapped={false} />
@@ -718,7 +620,6 @@ function StadiumSteps() {
 function AisleMarkers() {
   return (
     <group>
-      {/* Center Aisle Lights */}
       {Array.from({ length: 8 }, (_, i) => (
         <group key={i}>
           <mesh position={[-4.5, i * 0.3 + 0.35, i * 1.2 + 2]}>
@@ -784,15 +685,6 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
           <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
           <meshStandardMaterial color="#475569" roughness={0.5} metalness={0.5} />
         </mesh>
-        <spotLight
-          position={[0, -0.5, -1.5]}
-          angle={0.2}
-          penumbra={0.5}
-          intensity={2}
-          distance={50}
-          color="#bfdbfe"
-          target-position={[0, SCREEN_Y, SCREEN_Z]}
-        />
       </group>
 
       {/* Stars Background */}
@@ -804,12 +696,10 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
 // --- MINI MAP ---
 function MiniMap({
   seats,
-  seatPositions,
   selectedSeats,
   onSeatClick
 }: {
   seats: Seat[];
-  seatPositions: Array<{ seat: Seat; position: [number, number, number] }>;
   selectedSeats: string[];
   onSeatClick: (seat: Seat) => void;
 }) {
@@ -838,7 +728,6 @@ function MiniMap({
         Theater Overview
       </h4>
 
-      {/* Screen indicator */}
       <div className="w-full h-2 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-full mb-4 relative">
         <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-gray-500">SCREEN</span>
       </div>
@@ -867,7 +756,7 @@ function MiniMap({
   );
 }
 
-// --- BOOKING CONFIRMATION MODAL ---
+// --- BOOKING MODAL ---
 function BookingModal({
   isOpen,
   onClose,
@@ -888,8 +777,8 @@ function BookingModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-in zoom-in-95">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xl font-bold text-white flex items-center gap-2">
             <Ticket className="w-5 h-5 text-blue-400" />
@@ -901,7 +790,6 @@ function BookingModal({
         </div>
 
         <div className="space-y-4">
-          {/* Movie Info */}
           <div className="bg-slate-800/50 rounded-lg p-3">
             <div className="flex gap-3">
               <img src={movie.image} alt={movie.title} className="w-16 h-24 object-cover rounded" />
@@ -913,13 +801,11 @@ function BookingModal({
             </div>
           </div>
 
-          {/* Showtime */}
           <div className="flex items-center gap-2 text-gray-300">
             <Clock className="w-4 h-4 text-blue-400" />
             <span>{showtime.time}</span>
           </div>
 
-          {/* Seats */}
           <div className="bg-slate-800/50 rounded-lg p-3">
             <h5 className="text-sm text-gray-400 mb-2">Selected Seats</h5>
             <div className="flex flex-wrap gap-2">
@@ -938,7 +824,6 @@ function BookingModal({
             </div>
           </div>
 
-          {/* Price Summary */}
           <div className="border-t border-white/10 pt-4">
             <div className="flex justify-between text-sm text-gray-400 mb-1">
               <span>Subtotal ({selectedSeats.length} tickets)</span>
@@ -954,7 +839,6 @@ function BookingModal({
             </div>
           </div>
 
-          {/* Actions */}
           <div className="flex gap-3 mt-4">
             <Button variant="outline" onClick={onClose} className="flex-1">
               Cancel
@@ -967,6 +851,111 @@ function BookingModal({
         </div>
       </div>
     </div>
+  );
+}
+
+// --- 3D SCENE CONTENT ---
+function SceneContent({
+  seats,
+  seatPositions,
+  rows,
+  selectedMovie,
+  lightsEnabled,
+  highlightedSeats,
+  hoveredSeat,
+  soundEnabled,
+  playSound,
+  handleSeatClick,
+  handleSeatHover,
+  cameraTarget,
+  isAnimating,
+  setIsAnimating,
+  controlsRef
+}: {
+  seats: Seat[];
+  seatPositions: Array<{ seat: Seat; position: [number, number, number] }>;
+  rows: string[];
+  selectedMovie: typeof movies[0];
+  lightsEnabled: boolean;
+  highlightedSeats: string[];
+  hoveredSeat: { seat: Seat; position: [number, number, number] } | null;
+  soundEnabled: boolean;
+  playSound: (type: 'click' | 'select' | 'hover' | 'success' | 'error') => void;
+  handleSeatClick: (seat: Seat) => void;
+  handleSeatHover: (seat: Seat | null, position?: [number, number, number]) => void;
+  cameraTarget: CameraTarget;
+  isAnimating: boolean;
+  setIsAnimating: (v: boolean) => void;
+  controlsRef: React.MutableRefObject<any>;
+}) {
+  return (
+    <>
+      <CameraController
+        target={cameraTarget}
+        isAnimating={isAnimating}
+        onAnimationComplete={() => setIsAnimating(false)}
+        controlsRef={controlsRef}
+      />
+
+      {/* Lighting */}
+      <ambientLight intensity={0.3} />
+      <directionalLight
+        position={[10, 20, 10]}
+        intensity={0.8}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+      />
+      <directionalLight position={[-10, 15, 10]} intensity={0.3} />
+      <spotLight
+        position={[0, 20, 5]}
+        angle={0.5}
+        penumbra={1}
+        intensity={0.4}
+        castShadow
+      />
+
+      {/* Screen */}
+      <Screen3D
+        posterUrl={selectedMovie.image}
+        movieTitle={selectedMovie.title}
+      />
+
+      {/* Row Labels */}
+      <RowLabels rows={rows} />
+
+      {/* Environment */}
+      <TheaterEnvironment lightsEnabled={lightsEnabled} />
+
+      {/* Seats */}
+      {seatPositions.map(({ seat, position }) => (
+        <Seat3D
+          key={seat.id}
+          seat={seat}
+          position={position}
+          onClick={handleSeatClick}
+          onHover={handleSeatHover}
+          isHighlighted={highlightedSeats.includes(seat.id)}
+          soundEnabled={soundEnabled}
+          playSound={playSound}
+        />
+      ))}
+
+      {/* Seat Tooltip */}
+      {hoveredSeat && (
+        <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />
+      )}
+
+      {/* Controls */}
+      <OrbitControls
+        ref={controlsRef}
+        minDistance={3}
+        maxDistance={40}
+        maxPolarAngle={Math.PI / 2.1}
+        target={[0, 1, -5]}
+        enableDamping={true}
+        dampingFactor={0.05}
+      />
+    </>
   );
 }
 
@@ -984,14 +973,11 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showMiniMap, setShowMiniMap] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('default');
-  const [priceFilter, setPriceFilter] = useState<[number, number]>([0, 100]);
-  const [showFilters, setShowFilters] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [highlightedSeats, setHighlightedSeats] = useState<string[]>([]);
   const [lightsEnabled, setLightsEnabled] = useState(false);
 
   const controlsRef = useRef<any>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const { playSound } = useAudio();
 
   // Get selected seats
@@ -1009,7 +995,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     return [...new Set(seats.map(s => s.row))].sort();
   }, [seats]);
 
-  // Organize seats by row with aisle gaps
+  // Organize seats by row
   const seatsByRow = useMemo(() => {
     return seats.reduce((acc, seat) => {
       if (!acc[seat.row]) acc[seat.row] = [];
@@ -1029,11 +1015,10 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
       const rowY = (rowIndex * 0.3) + 0.3;
 
       rowSeats.forEach((seat, seatIndex) => {
-        // Add aisle gap in the middle
         let aisleOffset = 0;
         const middleIndex = Math.floor(rowSeats.length / 2);
         if (seatIndex >= middleIndex) {
-          aisleOffset = 1.0; // 1 unit gap for center aisle
+          aisleOffset = 1.0;
         }
 
         const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.0 + aisleOffset * 0.5 - 0.25;
@@ -1046,16 +1031,15 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     return positions;
   }, [seatsByRow]);
 
-  // Find best seats (center seats, available, good rows)
+  // Find best seats
   const findBestSeats = useCallback((count: number = 2) => {
     const availableSeats = seatPositions.filter(
       ({ seat }) => seat.status === 'available' && !seat.isBooked
     );
 
-    // Score seats based on position (center is better, middle rows are better)
     const scoredSeats = availableSeats.map(({ seat, position }) => {
-      const centerScore = 10 - Math.abs(position[0]); // Closer to center = better
-      const rowScore = 8 - Math.abs(3 - position[2] / 1.2); // Middle rows = better
+      const centerScore = 10 - Math.abs(position[0]);
+      const rowScore = 8 - Math.abs(3 - position[2] / 1.2);
       const typeBonus = seat.type === 'premium' ? 2 : seat.type === 'vip' ? 3 : 0;
       return { seat, position, score: centerScore + rowScore + typeBonus };
     });
@@ -1065,7 +1049,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   }, [seatPositions]);
 
   // Handle seat click
-  const handleSeatClick = (seat: Seat) => {
+  const handleSeatClick = useCallback((seat: Seat) => {
     if (soundEnabled) playSound('click');
     onSeatClick(seat);
 
@@ -1079,19 +1063,19 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
       setIsAnimating(true);
       setViewingSeatId(seat.id);
     }
-  };
+  }, [soundEnabled, playSound, onSeatClick, seatPositions]);
 
   // Handle seat hover
-  const handleSeatHover = (seat: Seat | null, position?: [number, number, number]) => {
+  const handleSeatHover = useCallback((seat: Seat | null, position?: [number, number, number]) => {
     if (seat && position) {
       setHoveredSeat({ seat, position });
     } else {
       setHoveredSeat(null);
     }
-  };
+  }, []);
 
   // Reset view
-  const handleResetView = () => {
+  const handleResetView = useCallback(() => {
     if (soundEnabled) playSound('click');
     setCameraTarget({
       position: DEFAULT_CAMERA_POS,
@@ -1100,10 +1084,10 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     setIsAnimating(true);
     setViewingSeatId(null);
     setViewMode('default');
-  };
+  }, [soundEnabled, playSound]);
 
   // Change view mode
-  const handleViewModeChange = (mode: ViewMode) => {
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
     if (soundEnabled) playSound('click');
     setViewMode(mode);
 
@@ -1116,21 +1100,19 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
     setCameraTarget(viewPositions[mode]);
     setIsAnimating(true);
-  };
+  }, [soundEnabled, playSound]);
 
   // Recommend best seats
-  const handleRecommendSeats = () => {
+  const handleRecommendSeats = useCallback(() => {
     if (soundEnabled) playSound('success');
     const bestSeats = findBestSeats(4);
     setHighlightedSeats(bestSeats);
     setTimeout(() => setHighlightedSeats([]), 5000);
-  };
+  }, [soundEnabled, playSound, findBestSeats]);
 
   // Screenshot
-  const handleScreenshot = async () => {
+  const handleScreenshot = useCallback(() => {
     if (soundEnabled) playSound('success');
-    
-    // Get the canvas element
     const canvas = document.querySelector('canvas');
     if (canvas) {
       const dataUrl = canvas.toDataURL('image/png');
@@ -1139,15 +1121,14 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
       link.href = dataUrl;
       link.click();
     }
-  };
+  }, [soundEnabled, playSound, viewingSeatId]);
 
   // Confirm booking
-  const handleConfirmBooking = () => {
+  const handleConfirmBooking = useCallback(() => {
     if (soundEnabled) playSound('success');
     setShowBookingModal(false);
-    // Here you would integrate with your payment system
     alert('Booking confirmed! Thank you for your purchase.');
-  };
+  }, [soundEnabled, playSound]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -1205,7 +1186,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewingSeatId, seats, seatPositions]);
+  }, [viewingSeatId, seats, seatPositions, handleSeatClick, handleResetView]);
 
   return (
     <div className="relative w-full h-[800px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
@@ -1289,7 +1270,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
       {/* TOP RIGHT: Controls */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
-        {/* View Mode & Sound */}
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -1332,7 +1312,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             { mode: 'topdown' as ViewMode, icon: ArrowDown, label: 'Top' },
             { mode: 'front' as ViewMode, icon: Maximize2, label: 'Front' },
             { mode: 'side' as ViewMode, icon: ArrowUp, label: 'Side' }
-          ].map(({ mode, icon: Icon, label }) => (
+          ].map(({ mode, icon: Icon }) => (
             <Button
               key={mode}
               variant="outline"
@@ -1347,9 +1327,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           ))}
         </div>
 
-        {/* Seat View Indicator */}
         {viewingSeatId && (
-          <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg animate-in fade-in zoom-in">
+          <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
             <Eye className="w-4 h-4 text-blue-400" />
             <span className="text-sm font-medium">
               Viewing from Seat {seats.find(s => s.id === viewingSeatId)?.row}{seats.find(s => s.id === viewingSeatId)?.number}
@@ -1357,7 +1336,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="flex gap-2">
           <Button
             onClick={handleRecommendSeats}
@@ -1379,7 +1357,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </Button>
         </div>
 
-        {/* Keyboard hints */}
         {viewingSeatId && (
           <div className="bg-black/60 backdrop-blur-md px-3 py-2 rounded-lg text-xs text-gray-400 border border-white/10">
             <span className="text-gray-500">Navigate: </span>
@@ -1486,12 +1463,11 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         )}
       </div>
 
-      {/* Mini Map (toggleable) */}
+      {/* Mini Map */}
       {showMiniMap && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
           <MiniMap
             seats={seats}
-            seatPositions={seatPositions}
             selectedSeats={selectedSeats.map(s => s.id)}
             onSeatClick={handleSeatClick}
           />
@@ -1509,76 +1485,29 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       }>
         <Canvas
-          ref={canvasRef}
           shadows
           camera={{ position: [0, 8, 18], fov: 50 }}
           gl={{ antialias: true, preserveDrawingBuffer: true }}
+          onCreated={({ gl }) => {
+            gl.setClearColor('#0a0a1a');
+          }}
         >
-          <CameraController
-            target={cameraTarget}
+          <SceneContent
+            seats={seats}
+            seatPositions={seatPositions}
+            rows={rows}
+            selectedMovie={selectedMovie}
+            lightsEnabled={lightsEnabled}
+            highlightedSeats={highlightedSeats}
+            hoveredSeat={hoveredSeat}
+            soundEnabled={soundEnabled}
+            playSound={playSound}
+            handleSeatClick={handleSeatClick}
+            handleSeatHover={handleSeatHover}
+            cameraTarget={cameraTarget}
             isAnimating={isAnimating}
-            onAnimationComplete={() => setIsAnimating(false)}
+            setIsAnimating={setIsAnimating}
             controlsRef={controlsRef}
-            viewMode={viewMode}
-          />
-
-          {/* Lighting */}
-          <ambientLight intensity={0.3} />
-          <directionalLight
-            position={[10, 20, 10]}
-            intensity={0.8}
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-          />
-          <directionalLight position={[-10, 15, 10]} intensity={0.3} />
-          <spotLight
-            position={[0, 20, 5]}
-            angle={0.5}
-            penumbra={1}
-            intensity={0.4}
-            castShadow
-          />
-
-          {/* Screen */}
-          <Screen3D
-            posterUrl={selectedMovie.image}
-            movieTitle={selectedMovie.title}
-          />
-
-          {/* Row Labels */}
-          <RowLabels rows={rows} />
-
-          {/* Environment */}
-          <TheaterEnvironment lightsEnabled={lightsEnabled} />
-
-          {/* Seats */}
-          {seatPositions.map(({ seat, position }) => (
-            <Seat3D
-              key={seat.id}
-              seat={seat}
-              position={position}
-              onClick={handleSeatClick}
-              onHover={handleSeatHover}
-              isHighlighted={highlightedSeats.includes(seat.id)}
-              soundEnabled={soundEnabled}
-              playSound={playSound}
-            />
-          ))}
-
-          {/* Seat Tooltip */}
-          {hoveredSeat && (
-            <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />
-          )}
-
-          {/* Controls */}
-          <OrbitControls
-            ref={controlsRef}
-            minDistance={3}
-            maxDistance={40}
-            maxPolarAngle={Math.PI / 2.1}
-            target={[0, 1, -5]}
-            enableDamping={true}
-            dampingFactor={0.05}
           />
         </Canvas>
       </Suspense>
