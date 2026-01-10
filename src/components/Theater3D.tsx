@@ -14,7 +14,7 @@ const movies = [
   {
     id: '1',
     title: "The Dark Knight",
-    image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=800&q=80",
+    image: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
     video: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
