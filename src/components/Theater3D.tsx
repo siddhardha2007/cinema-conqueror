@@ -459,12 +459,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
   const screenWidth = 24;
   const screenHeight = 10;
 
-  // For YouTube: Use smaller pixel dimensions with larger scale for better rendering
-  // This gives us: 960 * 0.025 = 24 units width, 400 * 0.025 = 10 units height
-  const iframeWidth = 960;
-  const iframeHeight = 400;
-  const scale = screenWidth / iframeWidth; // 0.025
-
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
       
@@ -478,28 +472,36 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
       {youtubeId ? (
         <Html 
           transform 
-          wrapperClass="htmlScreen" 
+          occlude
           position={[0, 0, 0.1]}
-          scale={scale}
           style={{
-            width: `${iframeWidth}px`,
-            height: `${iframeHeight}px`,
+            width: `${screenWidth * 100}px`,
+            height: `${screenHeight * 100}px`,
+            pointerEvents: 'auto',
           }}
         >
-          <iframe
-            width={iframeWidth}
-            height={iframeHeight}
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
-            title="YouTube video player"
-            frameBorder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-            style={{ 
-              pointerEvents: 'auto',
-              border: 'none',
-              display: 'block',
-            }} 
-          />
+          <div style={{ 
+            width: '100%', 
+            height: '100%',
+            transform: `scale(${1 / 100})`,
+            transformOrigin: 'center center',
+          }}>
+            <iframe
+              width={screenWidth * 100}
+              height={screenHeight * 100}
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              style={{ 
+                border: 'none',
+                display: 'block',
+                width: '100%',
+                height: '100%',
+              }} 
+            />
+          </div>
         </Html>
       ) : (
         /* CASE 2: MP4 VIDEO FILE */
@@ -510,51 +512,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
           </Suspense>
         </mesh>
       )}
-
-      {/* Screen Frame */}
-      <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[24.5, 10.5]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} />
-      </mesh>
-
-      {/* Screen Glow */}
-      <pointLight position={[0, 0, 3]} intensity={2} distance={25} color="#60a5fa" />
-      <pointLight position={[-8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
-      <pointLight position={[8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
-
-      {/* Curtains */}
-      <mesh position={[-13.5, 0, -0.3]} receiveShadow>
-        <boxGeometry args={[3, 14, 0.5]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
-      </mesh>
-      <mesh position={[13.5, 0, -0.3]} receiveShadow>
-        <boxGeometry args={[3, 14, 0.5]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
-      </mesh>
-      <mesh position={[0, 6.5, -0.3]} receiveShadow>
-        <boxGeometry args={[30, 3, 0.5]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
-      </mesh>
-
-      {/* Background */}
-      <mesh position={[0, 0, -0.6]}>
-        <planeGeometry args={[35, 20]} />
-        <meshStandardMaterial color="#020617" roughness={0.95} />
-      </mesh>
-
-      {/* Title */}
-      <Text
-        position={[0, -6.5, 0.1]}
-        fontSize={0.8}
-        color="#94a3b8"
-        anchorX="center"
-        anchorY="middle"
-      >
-        NOW SHOWING: {movieTitle.toUpperCase()}
-      </Text>
-    </group>
-  );
-}
 // FIX: Removed <Float> to stop letters from "roaming"/floating away
 function RowLabels({ rows }: { rows: string[] }) {
   return (
