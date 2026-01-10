@@ -512,42 +512,51 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
           </Suspense>
         </mesh>
       )}
-// FIX: Removed <Float> to stop letters from "roaming"/floating away
-function RowLabels({ rows }: { rows: string[] }) {
-  return (
-    <group>
-      {rows.map((row, index) => {
-        const z = index * 1.2 + 2;
-        const y = index * 0.3 + 0.5;
-        return (
-          <group key={row}>
-              <Text
-                position={[-14, y, z]}
-                fontSize={0.5}
-                color="#3b82f6"
-                anchorX="center"
-                anchorY="middle"
-                rotation={[0, 0.3, 0]}
-              >
-                {row}
-              </Text>
-              <Text
-                position={[14, y, z]}
-                fontSize={0.5}
-                color="#3b82f6"
-                anchorX="center"
-                anchorY="middle"
-                rotation={[0, -0.3, 0]}
-              >
-                {row}
-              </Text>
-          </group>
-        );
-      })}
+
+      {/* Screen Frame */}
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[24.5, 10.5]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.9} />
+      </mesh>
+
+      {/* Screen Glow */}
+      <pointLight position={[0, 0, 3]} intensity={2} distance={25} color="#60a5fa" />
+      <pointLight position={[-8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
+      <pointLight position={[8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
+
+      {/* Curtains */}
+      <mesh position={[-13.5, 0, -0.3]} receiveShadow>
+        <boxGeometry args={[3, 14, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+      <mesh position={[13.5, 0, -0.3]} receiveShadow>
+        <boxGeometry args={[3, 14, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 6.5, -0.3]} receiveShadow>
+        <boxGeometry args={[30, 3, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+
+      {/* Background */}
+      <mesh position={[0, 0, -0.6]}>
+        <planeGeometry args={[35, 20]} />
+        <meshStandardMaterial color="#020617" roughness={0.95} />
+      </mesh>
+
+      {/* Title */}
+      <Text
+        position={[0, -6.5, 0.1]}
+        fontSize={0.8}
+        color="#94a3b8"
+        anchorX="center"
+        anchorY="middle"
+      >
+        NOW SHOWING: {movieTitle.toUpperCase()}
+      </Text>
     </group>
   );
 }
-
 function ExitSigns() {
   return (
     <group>
