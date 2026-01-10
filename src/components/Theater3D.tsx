@@ -425,13 +425,11 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 }
 
 // --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
+// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & FORCED AUTOPLAY) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
-  // Scale Calculation:
-  // Screen Geometry = 24 units wide
-  // Desired HTML Width = 1280px (Standard 720p width for crisp text)
-  // Scale Factor = 24 / 1280 = 0.01875
+  // Math: 24 units / 1280 pixels = 0.01875 scale
   const scaleFactor = 0.01875;
 
   return (
@@ -442,27 +440,28 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0.05]} // Slight offset to avoid z-fighting with the black mesh
-          occlude="blending"
+          position={[0, 0, 0.1]} // Moved slightly more forward (z=0.1) to avoid flickering
           scale={scaleFactor} 
+          // REMOVED "occlude" prop here so particles don't hide the screen
         >
-          {/* Container size matches the 3D aspect ratio (24x10) -> 1280x533.33px */}
           <div style={{ 
             width: '1280px', 
             height: '533px', 
             background: 'black',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            pointerEvents: 'none' // Prevent selecting the black background
           }}>
             <iframe
               width="100%"
               height="100%"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
+              // ADDED: mute=1 is required for reliable autoplay on Chrome/Edge
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              style={{ pointerEvents: 'auto' }} // Allows clicking play/pause/volume
+              style={{ pointerEvents: 'auto' }} 
             />
           </div>
         </Html>
@@ -520,7 +519,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
     </group>
   );
 }
-
 function RowLabels({ rows }: { rows: string[] }) {
   return (
     <group>
