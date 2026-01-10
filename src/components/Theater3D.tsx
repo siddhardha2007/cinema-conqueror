@@ -15,6 +15,7 @@ const movies = [
     id: '1',
     title: "The Dark Knight",
     image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=800&q=80",
+    video: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // Placeholder
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
     rating: "PG-13",
@@ -24,6 +25,7 @@ const movies = [
     id: '2',
     title: "Inception",
     image: "https://images.unsplash.com/photo-1518066000714-58c45f1a2c0a?auto=format&fit=crop&w=800&q=80",
+    video: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4", // Placeholder
     description: "A skilled thief enters people's dreams to steal their secrets.",
     duration: "2h 28m",
     rating: "PG-13",
@@ -33,6 +35,7 @@ const movies = [
     id: '3',
     title: "Interstellar",
     image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80",
+    video: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4", // Placeholder
     description: "A team of explorers travel through a wormhole in space.",
     duration: "2h 49m",
     rating: "PG-13",
@@ -42,13 +45,13 @@ const movies = [
     id: '4',
     title: "Oppenheimer",
     image: "https://images.unsplash.com/photo-1614726365723-49cfae927827?auto=format&fit=crop&w=800&q=80",
+    video: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4", // Placeholder
     description: "The story of American scientist J. Robert Oppenheimer.",
     duration: "3h 0m",
     rating: "R",
     genre: "Biography, Drama, History"
   }
 ];
-
 const showtimes = [
   { id: '1', time: '10:00 AM', period: 'morning' },
   { id: '2', time: '1:30 PM', period: 'afternoon' },
@@ -89,6 +92,82 @@ const SCREEN_Y = 6;
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+// --- NEW SCREEN COMPONENT ---
+function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
+  // This hook creates a video texture from the URL
+  const texture = useVideoTexture(videoUrl, {
+    unsuspend: 'canplay', // Wait until video can play before showing
+    muted: false,         // Attempt to play with sound
+    loop: true,
+    start: true,
+    crossOrigin: 'Anonymous'
+  });
+  
+  return (
+    <meshBasicMaterial 
+      map={texture} 
+      toneMapped={false} 
+      side={THREE.DoubleSide} 
+    />
+  );
+}
+
+function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
+  return (
+    <group position={[0, SCREEN_Y, SCREEN_Z]}>
+      {/* Screen Mesh */}
+      <mesh position={[0, 0, 0]}>
+        <planeGeometry args={[24, 10]} />
+        {/* We wrap the material in Suspense so the video loading doesn't freeze the whole UI */}
+        <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
+          <MovieScreenMaterial videoUrl={videoUrl} />
+        </Suspense>
+      </mesh>
+
+      {/* Screen Frame */}
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[24.5, 10.5]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.9} />
+      </mesh>
+
+      {/* Screen Glow (Ambiance) */}
+      <pointLight position={[0, 0, 3]} intensity={2} distance={20} color="#60a5fa" />
+      <pointLight position={[-8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
+      <pointLight position={[8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
+
+      {/* Curtains */}
+      <mesh position={[-13.5, 0, -0.3]} receiveShadow>
+        <boxGeometry args={[3, 14, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+      <mesh position={[13.5, 0, -0.3]} receiveShadow>
+        <boxGeometry args={[3, 14, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 6.5, -0.3]} receiveShadow>
+        <boxGeometry args={[30, 3, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+
+      {/* Background backing */}
+      <mesh position={[0, 0, -0.6]}>
+        <planeGeometry args={[35, 20]} />
+        <meshStandardMaterial color="#020617" roughness={0.95} />
+      </mesh>
+
+      {/* Title Text */}
+      <Text
+        position={[0, -6.5, 0.1]}
+        fontSize={0.8}
+        color="#94a3b8"
+        anchorX="center"
+        anchorY="middle"
+      >
+        NOW SHOWING: {movieTitle.toUpperCase()}
+      </Text>
+    </group>
+  );
 }
 
 // --- AUDIO CONTEXT ---
