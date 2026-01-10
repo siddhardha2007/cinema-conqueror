@@ -425,8 +425,14 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 }
 
 // --- SCREEN COMPONENT ---
+// --- SCREEN COMPONENT (FIXED SCALING) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
+
+  // Math: The screen geometry is 24 units wide.
+  // We want a high-res HTML container of 1280px wide.
+  // Scale = 24 / 1280 = 0.01875
+  const scaleFactor = 0.01875;
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
@@ -436,21 +442,26 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0]}
+          position={[0, 0, 0.05]} // Moved slightly forward to prevent flickering
           occlude="blending"
-          scale={0.02} // IMPORTANT: Scales the HTML down to 3D units (1200px * 0.02 = 24 units)
+          scale={scaleFactor} 
         >
-          {/* High Resolution Div for crisp text/video */}
-          <div style={{ width: '1200px', height: '500px', background: 'black' }}>
+          {/* Container matches the Aspect Ratio of the Screen Geometry (24x10) */}
+          <div style={{ 
+            width: '1280px', 
+            height: '533px', // 1280 * (10/24) ≈ 533px to match screen aspect ratio
+            background: 'black',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
             <iframe
               width="100%"
               height="100%"
-              // Added mute=1 to try to force autoplay, but user can unmute
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&loop=1&playlist=${youtubeId}`}
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              // FIXED: Changed to 'auto' so you can click the Play/Volume buttons
               style={{ pointerEvents: 'auto' }} 
             />
           </div>
