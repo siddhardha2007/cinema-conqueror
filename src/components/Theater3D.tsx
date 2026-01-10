@@ -15,7 +15,7 @@ const movies = [
     id: '1',
     title: "The Dark Knight",
     image: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
-    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
     rating: "PG-13",
