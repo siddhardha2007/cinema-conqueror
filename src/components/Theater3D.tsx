@@ -14,13 +14,14 @@ const movies = [
   {
     id: '1',
     title: "The Dark Knight",
-    image: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
-    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
+    image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=800&q=80",
+    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", // Your YouTube Link
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
     rating: "PG-13",
     genre: "Action, Crime, Drama"
   },
+  // ... keep the others as they were (mp4 links)
   {
     id: '2',
     title: "Inception",
@@ -31,27 +32,97 @@ const movies = [
     rating: "PG-13",
     genre: "Sci-Fi, Action, Thriller"
   },
-  {
-    id: '3',
-    title: "Interstellar",
-    image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80",
-    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-    description: "A team of explorers travel through a wormhole in space.",
-    duration: "2h 49m",
-    rating: "PG-13",
-    genre: "Sci-Fi, Adventure, Drama"
-  },
-  {
-    id: '4',
-    title: "Oppenheimer",
-    image: "https://images.unsplash.com/photo-1614726365723-49cfae927827?auto=format&fit=crop&w=800&q=80",
-    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-    description: "The story of American scientist J. Robert Oppenheimer.",
-    duration: "3h 0m",
-    rating: "R",
-    genre: "Biography, Drama, History"
-  }
+  // ... rest of movies
 ];
+// --- HELPER TO GET YOUTUBE ID ---
+function getYouTubeId(url: string) {
+  const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
+
+// --- SCREEN COMPONENT ---
+function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
+  const youtubeId = getYouTubeId(videoUrl);
+
+  return (
+    <group position={[0, SCREEN_Y, SCREEN_Z]}>
+      
+      {/* CASE 1: YOUTUBE VIDEO */}
+      {youtubeId ? (
+        <Html 
+          transform 
+          wrapperClass="htmlScreen" 
+          distanceFactor={10}
+          position={[0, 0, 0]}
+          occlude="blending" // Hides screen behind seats if blocked
+        >
+          <div style={{ width: '240px', height: '100px', background: 'black' }}>
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=0&rel=0&loop=1&playlist=${youtubeId}`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              style={{ pointerEvents: 'none' }} // Lets orbit controls work over the screen
+            />
+          </div>
+        </Html>
+      ) : (
+        /* CASE 2: MP4 VIDEO FILE */
+        <mesh position={[0, 0, 0]}>
+          <planeGeometry args={[24, 10]} />
+          <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
+            <MovieScreenMaterial videoUrl={videoUrl} />
+          </Suspense>
+        </mesh>
+      )}
+
+      {/* Screen Frame */}
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[24.5, 10.5]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.9} />
+      </mesh>
+
+      {/* Screen Glow */}
+      <pointLight position={[0, 0, 3]} intensity={2} distance={25} color="#60a5fa" />
+      <pointLight position={[-8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
+      <pointLight position={[8, 0, 2]} intensity={1} distance={15} color="#818cf8" />
+
+      {/* Curtains */}
+      <mesh position={[-13.5, 0, -0.3]} receiveShadow>
+        <boxGeometry args={[3, 14, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+      <mesh position={[13.5, 0, -0.3]} receiveShadow>
+        <boxGeometry args={[3, 14, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+      <mesh position={[0, 6.5, -0.3]} receiveShadow>
+        <boxGeometry args={[30, 3, 0.5]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} />
+      </mesh>
+
+      {/* Background */}
+      <mesh position={[0, 0, -0.6]}>
+        <planeGeometry args={[35, 20]} />
+        <meshStandardMaterial color="#020617" roughness={0.95} />
+      </mesh>
+
+      {/* Title */}
+      <Text
+        position={[0, -6.5, 0.1]}
+        fontSize={0.8}
+        color="#94a3b8"
+        anchorX="center"
+        anchorY="middle"
+      >
+        NOW SHOWING: {movieTitle.toUpperCase()}
+      </Text>
+    </group>
+  );
+}
 
 const showtimes = [
   { id: '1', time: '10:00 AM', period: 'morning' },
