@@ -426,6 +426,7 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 
 // --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
 // --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & FORCED AUTOPLAY) ---
+// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & ADJUSTED DEPTH) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
@@ -440,9 +441,9 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0.1]} // Moved slightly more forward (z=0.1) to avoid flickering
+          position={[0, 0, 0.15]} // Increased Z-offset (0.15) to prevent it from clipping "behind" the black mesh
           scale={scaleFactor} 
-          // REMOVED "occlude" prop here so particles don't hide the screen
+          // REMOVED "occlude" prop entirely. This fixes the "tiny/hidden" issue caused by dust particles.
         >
           <div style={{ 
             width: '1280px', 
@@ -451,12 +452,11 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            pointerEvents: 'none' // Prevent selecting the black background
           }}>
             <iframe
               width="100%"
               height="100%"
-              // ADDED: mute=1 is required for reliable autoplay on Chrome/Edge
+              // Added "mute=1" to ensure autoplay works (browsers block unmuted autoplay)
               src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
