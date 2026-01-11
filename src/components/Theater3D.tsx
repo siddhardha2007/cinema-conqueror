@@ -80,26 +80,6 @@ export interface Seat {
   isBooked?: boolean;
   isSelected?: boolean;
 }
-const [userInteracted, setUserInteracted] = useState(false);
-
-useEffect(() => {
-  const unlock = () => {
-    setUserInteracted(true);
-    window.removeEventListener('click', unlock);
-    window.removeEventListener('keydown', unlock);
-    window.removeEventListener('touchstart', unlock);
-  };
-
-  window.addEventListener('click', unlock);
-  window.addEventListener('keydown', unlock);
-  window.addEventListener('touchstart', unlock);
-
-  return () => {
-    window.removeEventListener('click', unlock);
-    window.removeEventListener('keydown', unlock);
-    window.removeEventListener('touchstart', unlock);
-  };
-}, []);
 
 interface Theater3DProps {
   seats: Seat[];
@@ -447,20 +427,11 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 // --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
 // --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & FORCED AUTOPLAY) ---
 // --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & ADJUSTED DEPTH) ---
-function Screen3D({
-  videoUrl,
-  movieTitle,
-  userInteracted
-}: {
-  videoUrl: string;
-  movieTitle: string;
-  userInteracted: boolean;
-}) {
+function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
   // Math: 24 units / 1280 pixels = 0.01875 scale
   const scaleFactor = 0.01875;
-
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
@@ -471,7 +442,7 @@ function Screen3D({
           transform 
           wrapperClass="htmlScreen" 
           position={[0, 0, 0.15]} // Increased Z-offset (0.15) to prevent it from clipping "behind" the black mesh
-          
+          scale={scaleFactor} 
           // REMOVED "occlude" prop entirely. This fixes the "tiny/hidden" issue caused by dust particles.
         >
           <div style={{ 
@@ -486,7 +457,7 @@ function Screen3D({
               width="100%"
               height="100%"
               // Added "mute=1" to ensure autoplay works (browsers block unmuted autoplay)
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=${userInteracted ? 1 : 0}&mute=1&controls=1&playsinline=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
