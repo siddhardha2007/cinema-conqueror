@@ -1,36 +1,13 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Stars, Html, useVideoTexture } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Stars, Float, Html, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import {
-  RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera,
-  Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info,
+import { Button } from '@/components/ui/button';
+import { 
+  RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
+  Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info, 
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
-
-// --- UI COMPONENT ---
-const Button = ({ className, variant = "default", size = "default", children, ...props }: any) => {
-  const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
-  const variants = {
-    default: "bg-blue-600 text-white hover:bg-blue-700",
-    outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
-    ghost: "hover:bg-accent hover:text-accent-foreground"
-  };
-  const sizes = {
-    default: "h-10 px-4 py-2",
-    sm: "h-9 rounded-md px-3",
-    icon: "h-10 w-10"
-  };
-  
-  // Quick hack to handle tailwind classes merger
-  const combinedClass = `${baseStyles} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className || ""}`;
-  
-  return (
-    <button className={combinedClass} {...props}>
-      {children}
-    </button>
-  );
-};
 
 // --- DATA ---
 const movies = [
@@ -38,7 +15,7 @@ const movies = [
     id: '1',
     title: "The Dark Knight",
     image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=800&q=80",
-    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
+    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", // YouTube Link
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
     rating: "PG-13",
@@ -87,7 +64,6 @@ const showtimes = [
 
 // --- HELPER TO GET YOUTUBE ID ---
 function getYouTubeId(url: string) {
-  if (!url) return null;
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
@@ -138,11 +114,9 @@ const useAudio = () => {
     }
     const ctx = audioContextRef.current;
     
-    if (ctx && ctx.state === 'suspended') {
+    if (ctx.state === 'suspended') {
         ctx.resume();
     }
-
-    if (!ctx) return;
 
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
@@ -395,8 +369,8 @@ function SeatTooltip({
   };
 
   return (
-    <Html position={[position[0], position[1] + 1.2, position[2]]} center style={{ pointerEvents: 'none' }}>
-      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] animate-in fade-in zoom-in-95 duration-200">
+    <Html position={[position[0], position[1] + 1.2, position[2]]} center>
+      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-lg">Row {seat.row} - Seat {seat.number}</span>
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColors[seat.type]}`}>
@@ -435,77 +409,66 @@ function SeatTooltip({
 function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   const texture = useVideoTexture(videoUrl, {
     unsuspend: 'canplay',
-    muted: false,
+    muted: false, 
     loop: true,
     start: true,
     crossOrigin: 'Anonymous'
   });
   
   return (
-    <meshBasicMaterial
-      map={texture}
-      toneMapped={false}
-      side={THREE.DoubleSide}
+    <meshBasicMaterial 
+      map={texture} 
+      toneMapped={false} 
+      side={THREE.DoubleSide} 
     />
   );
 }
 
-// --- SCREEN COMPONENT ---
+// --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
+// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & FORCED AUTOPLAY) ---
+// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & ADJUSTED DEPTH) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
-  // Screen dimensions in 3D units
-  const screenWidth = 24;
-  const screenHeight = 10;
+  // Math: 24 units / 1280 pixels = 0.01875 scale
+  const scaleFactor = 0.01875;
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
       
-      {/* Black background mesh - always render this */}
-      <mesh position={[0, 0, 0]}>
-        <planeGeometry args={[screenWidth, screenHeight]} />
-        <meshBasicMaterial color="#000000" />
-      </mesh>
-
       {/* CASE 1: YOUTUBE VIDEO */}
       {youtubeId ? (
-        <Html
-          transform
-          occlude
-          position={[0, 0, 0.1]}
-          style={{
-            width: `${screenWidth * 100}px`,
-            height: `${screenHeight * 100}px`,
-            pointerEvents: 'auto',
-          }}
+        <Html 
+          transform 
+          wrapperClass="htmlScreen" 
+          position={[0, 0, 0.15]} // Increased Z-offset (0.15) to prevent it from clipping "behind" the black mesh
+          scale={scaleFactor} 
+          // REMOVED "occlude" prop entirely. This fixes the "tiny/hidden" issue caused by dust particles.
         >
-          <div style={{
-            width: '100%',
-            height: '100%',
-            transform: `scale(${1 / 100})`,
-            transformOrigin: 'center center',
+          <div style={{ 
+            width: '1280px', 
+            height: '533px', 
+            background: 'black',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}>
             <iframe
-              width={screenWidth * 100}
-              height={screenHeight * 100}
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
+              width="100%"
+              height="100%"
+              // Added "mute=1" to ensure autoplay works (browsers block unmuted autoplay)
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              style={{
-                border: 'none',
-                display: 'block',
-                width: '100%',
-                height: '100%',
-              }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              style={{ pointerEvents: 'auto' }} 
             />
           </div>
         </Html>
       ) : (
         /* CASE 2: MP4 VIDEO FILE */
-        <mesh position={[0, 0, 0.01]}>
-          <planeGeometry args={[screenWidth, screenHeight]} />
+        <mesh position={[0, 0, 0]}>
+          <planeGeometry args={[24, 10]} />
           <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
             <MovieScreenMaterial videoUrl={videoUrl} />
           </Suspense>
@@ -556,6 +519,44 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
     </group>
   );
 }
+function RowLabels({ rows }: { rows: string[] }) {
+  return (
+    <group>
+      {rows.map((row, index) => {
+        const z = index * 1.2 + 2;
+        const y = index * 0.3 + 0.5;
+        return (
+          <group key={row}>
+            <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
+              <Text
+                position={[-14, y, z]}
+                fontSize={0.5}
+                color="#3b82f6"
+                anchorX="center"
+                anchorY="middle"
+                rotation={[0, 0.3, 0]}
+              >
+                {row}
+              </Text>
+            </Float>
+            <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
+              <Text
+                position={[14, y, z]}
+                fontSize={0.5}
+                color="#3b82f6"
+                anchorX="center"
+                anchorY="middle"
+                rotation={[0, -0.3, 0]}
+              >
+                {row}
+              </Text>
+            </Float>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
 
 function ExitSigns() {
   return (
@@ -588,7 +589,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   const lightsRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (lightsRef.current) {
-      lightsRef.current.children.forEach((light) => {
+      lightsRef.current.children.forEach((light, index) => {
         if (light instanceof THREE.PointLight) {
           const targetIntensity = dimmed ? 0.1 : 0.8;
           light.intensity = THREE.MathUtils.lerp(light.intensity, targetIntensity, 0.05);
@@ -608,7 +609,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   return (
     <group ref={lightsRef}>
       {lightPositions.map((pos, index) => (
-        <group key={index} position={new THREE.Vector3(...pos)}>
+        <group key={index} position={pos}>
           <mesh>
             <cylinderGeometry args={[0.3, 0.4, 0.2, 16]} />
             <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.5} />
@@ -638,7 +639,6 @@ function ProjectorBeam() {
     }
     return [pos, vel];
   }, []);
-  
   useFrame(() => {
     if (!particlesRef.current) return;
     const posArray = particlesRef.current.geometry.attributes.position.array as Float32Array;
@@ -647,9 +647,7 @@ function ProjectorBeam() {
       posArray[i3] += velocities[i3];
       posArray[i3 + 1] += velocities[i3 + 1];
       posArray[i3 + 2] += velocities[i3 + 2];
-      
-      // Reset logic
-      if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -2) {
+      if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -5) {
         const t = Math.random();
         posArray[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
         posArray[i3 + 1] = 8 - t * 2;
@@ -658,7 +656,6 @@ function ProjectorBeam() {
     }
     particlesRef.current.geometry.attributes.position.needsUpdate = true;
   });
-
   return (
     <points ref={particlesRef}>
       <bufferGeometry>
@@ -695,28 +692,6 @@ function StadiumSteps() {
   );
 }
 
-// --- MISSING COMPONENT ADDED ---
-function RowLabels({ rows }: { rows: string[] }) {
-    return (
-        <group>
-            {rows.map((row, index) => {
-                const z = index * 1.2 + 2;
-                const y = index * 0.3 + 0.5;
-                return (
-                    <group key={row} position={[0, y, z]}>
-                        <Text position={[-13.5, 0, 0]} fontSize={0.5} color="#94a3b8" rotation={[-Math.PI / 2, 0, 0]}>
-                            {row}
-                        </Text>
-                        <Text position={[13.5, 0, 0]} fontSize={0.5} color="#94a3b8" rotation={[-Math.PI / 2, 0, 0]}>
-                            {row}
-                        </Text>
-                    </group>
-                );
-            })}
-        </group>
-    );
-}
-
 function AisleMarkers() {
   return (
     <group>
@@ -738,20 +713,10 @@ function AisleMarkers() {
 
 function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   const { scene } = useThree();
-  const spotlightTargetRef = useRef<THREE.Object3D>(null);
-  const spotLightRef = useRef<THREE.SpotLight>(null);
-
   useEffect(() => {
     scene.fog = new THREE.Fog('#0a0a1a', 20, 60);
-    return () => { scene.fog = null as any; };
+    return () => { scene.fog = null; };
   }, [scene]);
-
-  useFrame(() => {
-    if (spotLightRef.current && spotlightTargetRef.current) {
-        spotLightRef.current.target = spotlightTargetRef.current;
-    }
-  });
-  
   return (
     <group>
       <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
@@ -775,8 +740,6 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
       <CeilingLights dimmed={!lightsEnabled} />
       <AisleMarkers />
       <ProjectorBeam />
-      
-      {/* Projector Mesh & Light */}
       <group position={[0, 10, 20]}>
         <mesh>
           <boxGeometry args={[3, 2, 3]} />
@@ -786,20 +749,8 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
           <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
           <meshStandardMaterial color="#475569" roughness={0.5} metalness={0.5} />
         </mesh>
-        <spotLight 
-            ref={spotLightRef}
-            position={[0, -0.5, -1.5]} 
-            angle={0.2} 
-            penumbra={0.5} 
-            intensity={2} 
-            distance={50} 
-            color="#bfdbfe" 
-        />
+        <spotLight position={[0, -0.5, -1.5]} angle={0.2} penumbra={0.5} intensity={2} distance={50} color="#bfdbfe" target-position={[0, SCREEN_Y, SCREEN_Z]} />
       </group>
-      
-      {/* Invisible target for spotlight */}
-      <primitive object={new THREE.Object3D()} position={[0, SCREEN_Y, SCREEN_Z]} ref={spotlightTargetRef} />
-
       <Stars radius={100} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
     </group>
   );
@@ -1405,7 +1356,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           <spotLight position={[0, 20, 5]} angle={0.5} penumbra={1} intensity={0.4} castShadow />
 
           {/* SCREEN COMPONENT WITH VIDEO TEXTURE */}
-          <Screen3D 
+          <Screen3D
             videoUrl={selectedMovie.video}
             movieTitle={selectedMovie.title}
           />
