@@ -2,13 +2,13 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } fr
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, RoundedBox, Stars, Html, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import { 
-  RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
-  Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info, 
+import {
+  RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera,
+  Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info,
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
 
-// --- UI COMPONENT (Replaces external import) ---
+// --- UI COMPONENT ---
 const Button = ({ className, variant = "default", size = "default", children, ...props }: any) => {
   const baseStyles = "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50";
   const variants = {
@@ -38,7 +38,7 @@ const movies = [
     id: '1',
     title: "The Dark Knight",
     image: "https://images.unsplash.com/photo-1531259683007-016a7b628fc3?auto=format&fit=crop&w=800&q=80",
-    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", 
+    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
     description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
     duration: "2h 32m",
     rating: "PG-13",
@@ -435,23 +435,22 @@ function SeatTooltip({
 function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   const texture = useVideoTexture(videoUrl, {
     unsuspend: 'canplay',
-    muted: false, 
+    muted: false,
     loop: true,
     start: true,
     crossOrigin: 'Anonymous'
   });
   
   return (
-    <meshBasicMaterial 
-      map={texture} 
-      toneMapped={false} 
-      side={THREE.DoubleSide} 
+    <meshBasicMaterial
+      map={texture}
+      toneMapped={false}
+      side={THREE.DoubleSide}
     />
   );
 }
 
-// --- SCREEN COMPONENT (FIXED: PAPER EFFECT REMOVED) ---
-// --- SCREEN COMPONENT (FIXED: PROPER SCALING FOR YOUTUBE) ---
+// --- SCREEN COMPONENT ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
@@ -470,8 +469,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
 
       {/* CASE 1: YOUTUBE VIDEO */}
       {youtubeId ? (
-        <Html 
-          transform 
+        <Html
+          transform
           occlude
           position={[0, 0, 0.1]}
           style={{
@@ -480,8 +479,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             pointerEvents: 'auto',
           }}
         >
-          <div style={{ 
-            width: '100%', 
+          <div style={{
+            width: '100%',
             height: '100%',
             transform: `scale(${1 / 100})`,
             transformOrigin: 'center center',
@@ -494,12 +493,12 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
-              style={{ 
+              style={{
                 border: 'none',
                 display: 'block',
                 width: '100%',
                 height: '100%',
-              }} 
+              }}
             />
           </div>
         </Html>
@@ -557,6 +556,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
     </group>
   );
 }
+
 function ExitSigns() {
   return (
     <group>
@@ -588,7 +588,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   const lightsRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (lightsRef.current) {
-      lightsRef.current.children.forEach((light, index) => {
+      lightsRef.current.children.forEach((light) => {
         if (light instanceof THREE.PointLight) {
           const targetIntensity = dimmed ? 0.1 : 0.8;
           light.intensity = THREE.MathUtils.lerp(light.intensity, targetIntensity, 0.05);
@@ -648,7 +648,7 @@ function ProjectorBeam() {
       posArray[i3 + 1] += velocities[i3 + 1];
       posArray[i3 + 2] += velocities[i3 + 2];
       
-      // Reset logic (Keep particles inside the room to prevent "roaming" dust outside walls)
+      // Reset logic
       if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -2) {
         const t = Math.random();
         posArray[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
@@ -695,6 +695,28 @@ function StadiumSteps() {
   );
 }
 
+// --- MISSING COMPONENT ADDED ---
+function RowLabels({ rows }: { rows: string[] }) {
+    return (
+        <group>
+            {rows.map((row, index) => {
+                const z = index * 1.2 + 2;
+                const y = index * 0.3 + 0.5;
+                return (
+                    <group key={row} position={[0, y, z]}>
+                        <Text position={[-13.5, 0, 0]} fontSize={0.5} color="#94a3b8" rotation={[-Math.PI / 2, 0, 0]}>
+                            {row}
+                        </Text>
+                        <Text position={[13.5, 0, 0]} fontSize={0.5} color="#94a3b8" rotation={[-Math.PI / 2, 0, 0]}>
+                            {row}
+                        </Text>
+                    </group>
+                );
+            })}
+        </group>
+    );
+}
+
 function AisleMarkers() {
   return (
     <group>
@@ -716,10 +738,19 @@ function AisleMarkers() {
 
 function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   const { scene } = useThree();
+  const spotlightTargetRef = useRef<THREE.Object3D>(null);
+  const spotLightRef = useRef<THREE.SpotLight>(null);
+
   useEffect(() => {
     scene.fog = new THREE.Fog('#0a0a1a', 20, 60);
     return () => { scene.fog = null as any; };
   }, [scene]);
+
+  useFrame(() => {
+    if (spotLightRef.current && spotlightTargetRef.current) {
+        spotLightRef.current.target = spotlightTargetRef.current;
+    }
+  });
   
   return (
     <group>
@@ -744,6 +775,8 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
       <CeilingLights dimmed={!lightsEnabled} />
       <AisleMarkers />
       <ProjectorBeam />
+      
+      {/* Projector Mesh & Light */}
       <group position={[0, 10, 20]}>
         <mesh>
           <boxGeometry args={[3, 2, 3]} />
@@ -753,8 +786,20 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
           <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
           <meshStandardMaterial color="#475569" roughness={0.5} metalness={0.5} />
         </mesh>
-        <spotLight position={[0, -0.5, -1.5]} angle={0.2} penumbra={0.5} intensity={2} distance={50} color="#bfdbfe" target-position={[0, SCREEN_Y, SCREEN_Z]} />
+        <spotLight 
+            ref={spotLightRef}
+            position={[0, -0.5, -1.5]} 
+            angle={0.2} 
+            penumbra={0.5} 
+            intensity={2} 
+            distance={50} 
+            color="#bfdbfe" 
+        />
       </group>
+      
+      {/* Invisible target for spotlight */}
+      <primitive object={new THREE.Object3D()} position={[0, SCREEN_Y, SCREEN_Z]} ref={spotlightTargetRef} />
+
       <Stars radius={100} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
     </group>
   );
