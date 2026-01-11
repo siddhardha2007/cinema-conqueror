@@ -461,6 +461,7 @@ function Screen3D({
   // Math: 24 units / 1280 pixels = 0.01875 scale
   const scaleFactor = 0.01875;
 
+
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
       
@@ -470,7 +471,7 @@ function Screen3D({
           transform 
           wrapperClass="htmlScreen" 
           position={[0, 0, 0.15]} // Increased Z-offset (0.15) to prevent it from clipping "behind" the black mesh
-          scale={scaleFactor} 
+          
           // REMOVED "occlude" prop entirely. This fixes the "tiny/hidden" issue caused by dust particles.
         >
           <div style={{ 
