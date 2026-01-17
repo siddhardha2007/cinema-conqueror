@@ -2,12 +2,35 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } fr
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, RoundedBox, Stars, Float, Html, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import { Button } from '@/components/ui/button';
 import { 
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
   Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info, 
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
+
+// --- MOCK BUTTON COMPONENT (Replaces @/components/ui/button) ---
+const Button = ({ children, onClick, className, variant = 'default', size = 'default', disabled }: any) => {
+  const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+  const variants = {
+    default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
+    outline: "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
+    ghost: "hover:bg-accent hover:text-accent-foreground"
+  };
+  const sizes = {
+    default: "h-9 px-4 py-2 text-sm",
+    sm: "h-8 rounded-md px-3 text-xs",
+    icon: "h-9 w-9"
+  };
+  return (
+    <button 
+      onClick={onClick} 
+      disabled={disabled}
+      className={`${baseStyle} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className || ''}`}
+    >
+      {children}
+    </button>
+  );
+};
 
 // --- DATA ---
 const movies = [
@@ -23,33 +46,33 @@ const movies = [
   },
   {
     id: '2',
-    title: "Inception",
+    title: "Big Buck Bunny",
     image: "https://images.unsplash.com/photo-1518066000714-58c45f1a2c0a?auto=format&fit=crop&w=800&q=80",
-    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-    description: "A skilled thief enters people's dreams to steal their secrets.",
-    duration: "2h 28m",
-    rating: "PG-13",
-    genre: "Sci-Fi, Action, Thriller"
+    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", // MP4 Link
+    description: "A giant rabbit meets three bullying rodents.",
+    duration: "9m 56s",
+    rating: "PG",
+    genre: "Animation, Comedy"
   },
   {
     id: '3',
-    title: "Interstellar",
+    title: "Elephants Dream",
     image: "https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?auto=format&fit=crop&w=800&q=80",
-    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
-    description: "A team of explorers travel through a wormhole in space.",
-    duration: "2h 49m",
+    video: "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+    description: "Two friends explore a strange machine world.",
+    duration: "10m 53s",
     rating: "PG-13",
-    genre: "Sci-Fi, Adventure, Drama"
+    genre: "Sci-Fi, Adventure"
   },
   {
     id: '4',
-    title: "Oppenheimer",
+    title: "Tears of Steel",
     image: "https://images.unsplash.com/photo-1614726365723-49cfae927827?auto=format&fit=crop&w=800&q=80",
     video: "https://storage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
-    description: "The story of American scientist J. Robert Oppenheimer.",
-    duration: "3h 0m",
+    description: "A group of warriors and scientists try to save the world.",
+    duration: "12m 14s",
     rating: "R",
-    genre: "Biography, Drama, History"
+    genre: "Sci-Fi, Action"
   }
 ];
 
@@ -424,12 +447,8 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   );
 }
 
-// --- SCREEN COMPONENT (FIXED SCALING & INTERACTIONS) ---
-// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & FORCED AUTOPLAY) ---
-// --- SCREEN COMPONENT (FIXED: REMOVED OCCLUSION & ADJUSTED DEPTH) ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
-
   // Math: 24 units / 1280 pixels = 0.01875 scale
   const scaleFactor = 0.01875;
 
@@ -441,9 +460,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         <Html 
           transform 
           wrapperClass="htmlScreen" 
-          position={[0, 0, 0.15]} // Increased Z-offset (0.15) to prevent it from clipping "behind" the black mesh
+          position={[0, 0, 0.15]}
           scale={scaleFactor} 
-          // REMOVED "occlude" prop entirely. This fixes the "tiny/hidden" issue caused by dust particles.
         >
           <div style={{ 
             width: '1280px', 
@@ -456,7 +474,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             <iframe
               width="100%"
               height="100%"
-              // Added "mute=1" to ensure autoplay works (browsers block unmuted autoplay)
               src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
               title="YouTube video player"
               frameBorder="0"
@@ -519,6 +536,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
     </group>
   );
 }
+
 function RowLabels({ rows }: { rows: string[] }) {
   return (
     <group>
@@ -589,7 +607,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   const lightsRef = useRef<THREE.Group>(null);
   useFrame(() => {
     if (lightsRef.current) {
-      lightsRef.current.children.forEach((light, index) => {
+      lightsRef.current.children.forEach((light) => {
         if (light instanceof THREE.PointLight) {
           const targetIntensity = dimmed ? 0.1 : 0.8;
           light.intensity = THREE.MathUtils.lerp(light.intensity, targetIntensity, 0.05);
@@ -609,7 +627,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   return (
     <group ref={lightsRef}>
       {lightPositions.map((pos, index) => (
-        <group key={index} position={pos}>
+        <group key={index} position={new THREE.Vector3(...pos)}>
           <mesh>
             <cylinderGeometry args={[0.3, 0.4, 0.2, 16]} />
             <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.5} />
@@ -749,7 +767,7 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
           <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
           <meshStandardMaterial color="#475569" roughness={0.5} metalness={0.5} />
         </mesh>
-        <spotLight position={[0, -0.5, -1.5]} angle={0.2} penumbra={0.5} intensity={2} distance={50} color="#bfdbfe" target-position={[0, SCREEN_Y, SCREEN_Z]} />
+        <spotLight position={[0, -0.5, -1.5]} angle={0.2} penumbra={0.5} intensity={2} distance={50} color="#bfdbfe" target-position={new THREE.Vector3(0, SCREEN_Y, SCREEN_Z)} />
       </group>
       <Stars radius={100} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
     </group>
