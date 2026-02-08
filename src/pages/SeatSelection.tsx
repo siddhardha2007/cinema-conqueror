@@ -7,7 +7,30 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Users, IndianRupee, Grid3X3, Box } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Seat } from "@/contexts/BookingContext";
-import Theater3D from "@/components/Theater3D";
+import Theater3D, { Seat as Theater3DSeat } from "@/components/Theater3D";
+
+// Helper to convert BookingContext Seat to Theater3D Seat format
+const convertToTheater3DSeat = (seat: Seat): Theater3DSeat => ({
+  id: seat.id,
+  row: seat.row,
+  number: seat.number,
+  status: seat.isBooked ? 'booked' : seat.isSelected ? 'selected' : 'available',
+  type: seat.type === 'regular' ? 'standard' : seat.type,
+  price: seat.price,
+  isBooked: seat.isBooked,
+  isSelected: seat.isSelected,
+});
+
+// Helper to convert Theater3D Seat back to BookingContext Seat format
+const convertFromTheater3DSeat = (seat: Theater3DSeat): Seat => ({
+  id: seat.id,
+  row: seat.row,
+  number: seat.number,
+  type: seat.type === 'standard' || seat.type === 'accessible' ? 'regular' : seat.type as 'regular' | 'premium' | 'vip',
+  price: seat.price,
+  isBooked: seat.status === 'booked' || seat.isBooked || false,
+  isSelected: seat.status === 'selected' || seat.isSelected || false,
+});
 
 const SeatSelection = () => {
   const navigate = useNavigate();
@@ -27,18 +50,17 @@ const SeatSelection = () => {
     }
   }, [state.selectedShowtime]);
 
-  // Allow access to seat selection even without full booking context for testing
-  // if (!state.selectedMovie || !state.selectedTheater || !state.selectedShowtime) {
-  //   navigate('/');
-  //   return null;
-  // }
-
   const handleSeatClick = (seat: Seat) => {
     if (seat.isBooked) return;
     
     const updatedSeat = { ...seat, isSelected: !seat.isSelected };
     setSeats(seats.map(s => s.id === seat.id ? updatedSeat : s));
     dispatch({ type: 'TOGGLE_SEAT', payload: updatedSeat });
+  };
+
+  const handleTheater3DSeatClick = (theater3dSeat: Theater3DSeat) => {
+    const convertedSeat = convertFromTheater3DSeat(theater3dSeat);
+    handleSeatClick(convertedSeat);
   };
 
   const totalAmount = state.selectedSeats.reduce((total, seat) => total + seat.price, 0);
@@ -66,6 +88,9 @@ const SeatSelection = () => {
     acc[seat.row].push(seat);
     return acc;
   }, {} as Record<string, Seat[]>);
+
+  // Convert seats for Theater3D component
+  const theater3DSeats = seats.map(convertToTheater3DSeat);
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,8 +136,8 @@ const SeatSelection = () => {
         {/* 3D Theater View */}
         {view3D ? (
           <div className="mb-8">
-            {seats.length > 0 ? (
-              <Theater3D seats={seats} onSeatClick={handleSeatClick} />
+            {theater3DSeats.length > 0 ? (
+              <Theater3D seats={theater3DSeats} onSeatClick={handleTheater3DSeatClick} />
             ) : (
               <div className="w-full h-[700px] bg-gradient-to-b from-slate-900 to-slate-800 rounded-2xl flex items-center justify-center">
                 <div className="text-center">
