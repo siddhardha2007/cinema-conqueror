@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Stars, Float, Html, useVideoTexture } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Html, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
 import { 
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
@@ -545,30 +545,26 @@ function RowLabels({ rows }: { rows: string[] }) {
         const y = index * 0.3 + 0.5;
         return (
           <group key={row}>
-            <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
-              <Text
-                position={[-14, y, z]}
-                fontSize={0.5}
-                color="#3b82f6"
-                anchorX="center"
-                anchorY="middle"
-                rotation={[0, 0.3, 0]}
-              >
-                {row}
-              </Text>
-            </Float>
-            <Float speed={2} rotationIntensity={0.1} floatIntensity={0.1}>
-              <Text
-                position={[14, y, z]}
-                fontSize={0.5}
-                color="#3b82f6"
-                anchorX="center"
-                anchorY="middle"
-                rotation={[0, -0.3, 0]}
-              >
-                {row}
-              </Text>
-            </Float>
+            <Text
+              position={[-14, y, z]}
+              fontSize={0.5}
+              color="#3b82f6"
+              anchorX="center"
+              anchorY="middle"
+              rotation={[0, 0.3, 0]}
+            >
+              {row}
+            </Text>
+            <Text
+              position={[14, y, z]}
+              fontSize={0.5}
+              color="#3b82f6"
+              anchorX="center"
+              anchorY="middle"
+              rotation={[0, -0.3, 0]}
+            >
+              {row}
+            </Text>
           </group>
         );
       })}
@@ -639,50 +635,7 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   );
 }
 
-function ProjectorBeam() {
-  const particlesRef = useRef<THREE.Points>(null);
-  const particleCount = 500;
-  const [positions, velocities] = useMemo(() => {
-    const pos = new Float32Array(particleCount * 3);
-    const vel = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      const t = Math.random();
-      pos[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
-      pos[i3 + 1] = 8 - t * 15;
-      pos[i3 + 2] = 18 - t * 30;
-      vel[i3] = (Math.random() - 0.5) * 0.01;
-      vel[i3 + 1] = -0.02 - Math.random() * 0.02;
-      vel[i3 + 2] = -0.05 - Math.random() * 0.05;
-    }
-    return [pos, vel];
-  }, []);
-  useFrame(() => {
-    if (!particlesRef.current) return;
-    const posArray = particlesRef.current.geometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < particleCount; i++) {
-      const i3 = i * 3;
-      posArray[i3] += velocities[i3];
-      posArray[i3 + 1] += velocities[i3 + 1];
-      posArray[i3 + 2] += velocities[i3 + 2];
-      if (posArray[i3 + 2] < -12 || posArray[i3 + 1] < -5) {
-        const t = Math.random();
-        posArray[i3] = (Math.random() - 0.5) * 4 * (1 - t * 0.8);
-        posArray[i3 + 1] = 8 - t * 2;
-        posArray[i3 + 2] = 18 - t * 5;
-      }
-    }
-    particlesRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-  return (
-    <points ref={particlesRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={particleCount} array={positions} itemSize={3} />
-      </bufferGeometry>
-      <pointsMaterial size={0.05} color="#bfdbfe" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
-    </points>
-  );
-}
+// ProjectorBeam removed - was causing visual artifacts
 
 function StadiumSteps() {
   const steps = useMemo(() => {
@@ -757,7 +710,7 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
       <ExitSigns />
       <CeilingLights dimmed={!lightsEnabled} />
       <AisleMarkers />
-      <ProjectorBeam />
+      {/* Projector booth - without particle beam */}
       <group position={[0, 10, 20]}>
         <mesh>
           <boxGeometry args={[3, 2, 3]} />
@@ -767,9 +720,8 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
           <cylinderGeometry args={[0.3, 0.3, 0.5, 16]} />
           <meshStandardMaterial color="#475569" roughness={0.5} metalness={0.5} />
         </mesh>
-        <spotLight position={[0, -0.5, -1.5]} angle={0.2} penumbra={0.5} intensity={2} distance={50} color="#bfdbfe" target-position={new THREE.Vector3(0, SCREEN_Y, SCREEN_Z)} />
+        <spotLight position={[0, -0.5, -1.5]} angle={0.2} penumbra={0.5} intensity={2} distance={50} color="#bfdbfe" />
       </group>
-      <Stars radius={100} depth={50} count={1000} factor={4} saturation={0} fade speed={1} />
     </group>
   );
 }
