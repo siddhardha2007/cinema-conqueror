@@ -758,6 +758,205 @@ function AisleMarkers() {
   );
 }
 
+// --- HELPER TO GET YOUTUBE ID (improved to handle more URL formats) ---
+function getYouTubeId(url: string): string | null {
+  const regExp =
+    /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=|shorts\/)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return match && match[2].length === 11 ? match[2] : null;
+}
+
+// --- VIDEO SCREEN MATERIAL COMPONENT (unchanged) ---
+function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
+  const texture = useVideoTexture(videoUrl, {
+    unsuspend: 'canplay',
+    muted: false,
+    loop: true,
+    start: true,
+    crossOrigin: 'Anonymous',
+  });
+
+  return (
+    <meshBasicMaterial
+      map={texture}
+      toneMapped={false}
+      side={THREE.DoubleSide}
+    />
+  );
+}
+
+// --- SCREEN 3D (fixed) ---
+function Screen3D({
+  videoUrl,
+  movieTitle,
+}: {
+  videoUrl: string;
+  movieTitle: string;
+}) {
+  const youtubeId = getYouTubeId(videoUrl);
+  const [iframeError, setIframeError] = useState(false);
+
+  // 24 three-js units wide ÷ 1280 CSS-px = 0.01875
+  const SCALE = 24 / 1280;
+  const IFRAME_W = 1280;
+  const IFRAME_H = 533; // ≈ 2.4 : 1 ultra-wide ratio
+
+  return (
+    <group position={[0, SCREEN_Y, SCREEN_Z]}>
+      {/* -------- CASE 1: YOUTUBE VIDEO -------- */}
+      {youtubeId && !iframeError ? (
+        <Html
+          transform
+          position={[0, 0, 0.2]}
+          scale={SCALE}
+          // FIX 1: Remove zIndexRange={[0,0]} — it pinned the iframe
+          //         behind every overlay that uses z-10 / z-20.
+          //         Let drei auto-calculate, or use a meaningful range.
+          zIndexRange={[16384, 0]}
+          // FIX 2: Allow pointer events on the wrapper so the iframe
+          //         is clickable (play / pause / full-screen).
+          pointerEvents="auto"
+          // 'htmlScreen' class can still be used for optional extra CSS
+          wrapperClass="htmlScreen"
+        >
+          <div
+            style={{
+              width: `${IFRAME_W}px`,
+              height: `${IFRAME_H}px`,
+              background: '#000',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              overflow: 'hidden',
+              borderRadius: '4px',
+            }}
+          >
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&loop=1&playlist=${youtubeId}`}
+              title={`${movieTitle} trailer`}
+              // FIX 3: Replace deprecated frameBorder with CSS
+              style={{ border: 'none', pointerEvents: 'auto' }}
+              // FIX 4: Add allowFullScreen
+              allowFullScreen
+              // FIX 5: Comprehensive allow policy
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+              // FIX 6: Handle load errors gracefully
+              onError={() => setIframeError(true)}
+            />
+          </div>
+        </Html>
+      ) : youtubeId && iframeError ? (
+        /* CASE 1b: YouTube failed — show a static fallback */
+        <Html
+          transform
+          position={[0, 0, 0.2]}
+          scale={SCALE}
+          zIndexRange={[16384, 0]}
+        >
+          <div
+            style={{
+              width: `${IFRAME_W}px`,
+              height: `${IFRAME_H}px`,
+              background: '#1e293b',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#94a3b8',
+              fontFamily: 'sans-serif',
+              borderRadius: '4px',
+            }}
+          >
+            <AlertCircle
+              style={{ width: 48, height: 48, marginBottom: 12 }}
+            />
+            <span style={{ fontSize: 20 }}>
+              Trailer unavailable
+            </span>
+            <a
+              href={videoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                marginTop: 12,
+                color: '#60a5fa',
+                textDecoration: 'underline',
+                fontSize: 14,
+                pointerEvents: 'auto',
+              }}
+            >
+              Watch on YouTube ↗
+            </a>
+          </div>
+        </Html>
+      ) : (
+        /* -------- CASE 2: MP4 / direct video -------- */
+        <mesh position={[0, 0, 0.1]}>
+          <planeGeometry args={[24, 10]} />
+          <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
+            <MovieScreenMaterial videoUrl={videoUrl} />
+          </Suspense>
+        </mesh>
+      )}
+
+      {/* Screen Frame */}
+      <mesh position={[0, 0, 0]}>
+        <planeGeometry args={[25, 10.8]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
+      </mesh>
+
+      {/* Screen Border Accent */}
+      <mesh position={[0, 0, 0.05]}>
+        <planeGeometry args={[25.3, 11.1]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
+      </mesh>
+
+      {/* Screen Glow */}
+      <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
+      <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
+      <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
+
+      {/* Left Curtain */}
+      <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
+        <boxGeometry args={[3.5, 15, 0.6]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      </mesh>
+
+      {/* Right Curtain */}
+      <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
+        <boxGeometry args={[3.5, 15, 0.6]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      </mesh>
+
+      {/* Top Curtain */}
+      <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
+        <boxGeometry args={[32, 3.5, 0.6]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      </mesh>
+
+      {/* Background Wall */}
+      <mesh position={[0, 0, -0.5]}>
+        <planeGeometry args={[40, 22]} />
+        <meshStandardMaterial color="#020617" roughness={0.95} />
+      </mesh>
+
+      {/* Movie Title */}
+      <Text
+        position={[0, -7, 0.2]}
+        fontSize={0.9}
+        color="#cbd5e1"
+        anchorX="center"
+        anchorY="middle"
+        font="/fonts/Inter-Bold.woff"
+      >
+        NOW SHOWING: {movieTitle.toUpperCase()}
+      </Text>
+    </group>
+  );
+}
+
 function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   const { scene } = useThree();
   
