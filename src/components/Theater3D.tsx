@@ -8,7 +8,7 @@ import {
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
 
-// --- MOCK BUTTON COMPONENT (Replaces @/components/ui/button) ---
+// --- MOCK BUTTON COMPONENT ---
 const Button = ({ children, onClick, className = '', variant = 'default', size = 'default', disabled = false }: any) => {
   const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
   const variants = {
@@ -138,7 +138,7 @@ const useAudio = () => {
     const ctx = audioContextRef.current;
     
     if (ctx.state === 'suspended') {
-        ctx.resume();
+      ctx.resume();
     }
 
     const oscillator = ctx.createOscillator();
@@ -295,7 +295,6 @@ function Seat3D({
 
   return (
     <group ref={meshRef} position={position}>
-      {/* Seat Base/Cushion */}
       <RoundedBox
         args={[0.9, 0.2, 0.8]}
         radius={0.08}
@@ -318,7 +317,6 @@ function Seat3D({
         />
       </RoundedBox>
 
-      {/* Seat Backrest */}
       <RoundedBox
         args={[0.9, 0.7, 0.15]}
         radius={0.08}
@@ -337,7 +335,6 @@ function Seat3D({
         />
       </RoundedBox>
 
-      {/* Left Armrest */}
       <RoundedBox 
         args={[0.1, 0.18, 0.55]} 
         radius={0.03} 
@@ -348,7 +345,6 @@ function Seat3D({
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
       </RoundedBox>
 
-      {/* Right Armrest */}
       <RoundedBox 
         args={[0.1, 0.18, 0.55]} 
         radius={0.03} 
@@ -359,7 +355,6 @@ function Seat3D({
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
       </RoundedBox>
 
-      {/* Seat Number Label */}
       <Text
         position={[0, 0.25, 0]}
         fontSize={0.15}
@@ -371,7 +366,6 @@ function Seat3D({
         {seat.number}
       </Text>
 
-      {/* VIP Crown Indicator */}
       {seat.type === 'vip' && (
         <mesh position={[0, 0.9, 0.38]}>
           <coneGeometry args={[0.1, 0.18, 6]} />
@@ -385,7 +379,6 @@ function Seat3D({
         </mesh>
       )}
 
-      {/* Accessible Indicator */}
       {seat.type === 'accessible' && (
         <mesh position={[0, 0.9, 0.38]}>
           <sphereGeometry args={[0.09, 16, 16]} />
@@ -399,12 +392,10 @@ function Seat3D({
         </mesh>
       )}
 
-      {/* Selected Glow */}
       {isSelected && (
         <pointLight position={[0, 0.6, 0]} intensity={0.8} distance={2.5} color="#10b981" />
       )}
 
-      {/* Highlighted Glow */}
       {isHighlighted && !isSelected && (
         <pointLight position={[0, 0.6, 0]} intensity={0.5} distance={2} color="#f59e0b" />
       )}
@@ -475,88 +466,116 @@ function SeatTooltip({
 function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   const texture = useVideoTexture(videoUrl, {
     unsuspend: 'canplay',
-    muted: false, 
+    muted: true,
     loop: true,
     start: true,
     crossOrigin: 'Anonymous'
   });
-  
+
+  // Ensure the texture is oriented correctly on the plane
+  useEffect(() => {
+    if (texture) {
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.flipY = true;
+      texture.needsUpdate = true;
+    }
+  }, [texture]);
+
   return (
-    <meshBasicMaterial 
-      map={texture} 
-      toneMapped={false} 
-      side={THREE.DoubleSide} 
+    <meshBasicMaterial
+      map={texture}
+      toneMapped={false}
+      side={THREE.FrontSide}
     />
   );
 }
 
+// --- FIXED SCREEN3D COMPONENT ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
+  // Screen dimensions
+  const screenWidth = 24;
+  const screenHeight = 10;
+
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      
-      {/* Video Display Area */}
+
+      {/* Background panel behind the screen */}
+      <mesh position={[0, 0, -0.1]}>
+        <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
+      </mesh>
+
+      {/* Outer frame border */}
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
+      </mesh>
+
+      {/* Video Display */}
       {youtubeId ? (
         <>
-          {/* Black screen background */}
-          <mesh position={[0, 0, 0.1]}>
-            <planeGeometry args={[24, 10]} />
+          {/* Black fallback behind the iframe */}
+          <mesh position={[0, 0, 0.01]}>
+            <planeGeometry args={[screenWidth, screenHeight]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
-          
-          {/* YouTube Embed - Now with proper 3D positioning */}
+
+          {/* 
+            KEY FIX: Use transform={true} and occlude={false} so the Html 
+            element is anchored in 3D space on the screen plane.
+            We scale it down so it fits the 3D screen dimensions.
+          */}
           <Html
-            position={[0, 0, 0.2]}
-            transform={true}
+            position={[0, 0, 0.05]}
+            transform
             occlude={false}
-            scale={0.01875}
-            zIndexRange={[100, 0]}
+            distanceFactor={1.5}
+            style={{
+              width: '1920px',
+              height: '800px',
+              overflow: 'hidden',
+            }}
+            pointerEvents="auto"
           >
             <iframe
-              width="1280"
-              height="533"
+              width="1920"
+              height="800"
               src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
+              referrerPolicy="strict-origin-when-cross-origin"
               style={{
                 border: 'none',
                 display: 'block',
                 backgroundColor: '#000',
+                width: '100%',
+                height: '100%',
               }}
             />
           </Html>
         </>
       ) : (
-        /* MP4 VIDEO FILE */
-        <Suspense fallback={
-          <mesh position={[0, 0, 0.1]}>
-            <planeGeometry args={[24, 10]} />
-            <meshBasicMaterial color="#1e293b" />
-          </mesh>
-        }>
-          <mesh position={[0, 0, 0.1]}>
-            <planeGeometry args={[24, 10]} />
+        /* MP4 VIDEO FILE - render directly as a texture on the screen mesh */
+        <Suspense
+          fallback={
+            <mesh position={[0, 0, 0.05]}>
+              <planeGeometry args={[screenWidth, screenHeight]} />
+              <meshBasicMaterial color="#1e293b" />
+            </mesh>
+          }
+        >
+          <mesh position={[0, 0, 0.05]}>
+            <planeGeometry args={[screenWidth, screenHeight]} />
             <MovieScreenMaterial videoUrl={videoUrl} />
           </mesh>
         </Suspense>
       )}
 
-      {/* Screen Frame */}
-      <mesh position={[0, 0, 0]}>
-        <planeGeometry args={[25, 10.8]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
-      </mesh>
-
-      {/* Screen Border Accent */}
-      <mesh position={[0, 0, 0.05]}>
-        <planeGeometry args={[25.3, 11.1]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
-      </mesh>
-
-      {/* Screen Glow */}
+      {/* Screen Glow Lights */}
       <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
       <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
       <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
@@ -564,8 +583,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
       {/* Left Curtain */}
       <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial 
-          color="#7f1d1d" 
+        <meshStandardMaterial
+          color="#7f1d1d"
           roughness={0.85}
           metalness={0.05}
         />
@@ -574,8 +593,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
       {/* Right Curtain */}
       <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial 
-          color="#7f1d1d" 
+        <meshStandardMaterial
+          color="#7f1d1d"
           roughness={0.85}
           metalness={0.05}
         />
@@ -584,8 +603,8 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
       {/* Top Curtain */}
       <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[32, 3.5, 0.6]} />
-        <meshStandardMaterial 
-          color="#7f1d1d" 
+        <meshStandardMaterial
+          color="#7f1d1d"
           roughness={0.85}
           metalness={0.05}
         />
@@ -675,7 +694,7 @@ function ExitSigns() {
 
 function CeilingLights({ dimmed }: { dimmed: boolean }) {
   const lightsRef = useRef<THREE.Group>(null);
-  
+
   useFrame(() => {
     if (lightsRef.current) {
       lightsRef.current.children.forEach((light) => {
@@ -725,13 +744,10 @@ function StadiumSteps() {
     <group>
       {steps.map((step) => (
         <group key={step.index}>
-          {/* Main Step Platform */}
           <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
             <boxGeometry args={[30, 0.5, 1.5]} />
             <meshStandardMaterial color="#1e293b" roughness={0.85} metalness={0.1} />
           </mesh>
-          
-          {/* LED Step Edge */}
           <mesh position={[0, step.y + 0.26, step.z + 0.74]}>
             <boxGeometry args={[30, 0.03, 0.04]} />
             <meshBasicMaterial color="#3b82f6" toneMapped={false} />
@@ -765,35 +781,31 @@ function AisleMarkers() {
 
 function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   const { scene } = useThree();
-  
+
   useEffect(() => {
     scene.fog = new THREE.Fog('#0a0a1a', 25, 70);
-    return () => { 
-      scene.fog = null; 
+    return () => {
+      scene.fog = null;
     };
   }, [scene]);
 
   return (
     <group>
-      {/* Floor */}
       <mesh position={[0, -0.5, 5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[120, 120]} />
         <meshStandardMaterial color="#0a0a1a" roughness={0.95} metalness={0.05} />
       </mesh>
 
-      {/* Left Wall */}
       <mesh position={[-18, 6, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[60, 16]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
       </mesh>
 
-      {/* Right Wall */}
       <mesh position={[18, 6, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[60, 16]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
       </mesh>
 
-      {/* Ceiling */}
       <mesh position={[0, 13, 0]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[40, 60]} />
         <meshStandardMaterial color="#020617" roughness={0.95} metalness={0.05} />
@@ -804,7 +816,6 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
       <CeilingLights dimmed={!lightsEnabled} />
       <AisleMarkers />
 
-      {/* Projector Booth */}
       <group position={[0, 11, 24]}>
         <mesh castShadow>
           <boxGeometry args={[3.5, 2.5, 3.5]} />
@@ -814,12 +825,12 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
           <cylinderGeometry args={[0.35, 0.35, 0.6, 16]} />
           <meshStandardMaterial color="#475569" roughness={0.4} metalness={0.6} />
         </mesh>
-        <spotLight 
-          position={[0, -0.6, -1.8]} 
-          angle={0.15} 
-          penumbra={0.4} 
-          intensity={2.5} 
-          distance={55} 
+        <spotLight
+          position={[0, -0.6, -1.8]}
+          angle={0.15}
+          penumbra={0.4}
+          intensity={2.5}
+          distance={55}
           color="#bfdbfe"
           target-position={[0, SCREEN_Y, SCREEN_Z]}
         />
@@ -1026,29 +1037,29 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const seatPositions = useMemo(() => {
     const positions: Array<{ seat: Seat; position: [number, number, number] }> = [];
     const sortedRows = Object.keys(seatsByRow).sort();
-    
+
     sortedRows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
       const rowZ = rowIndex * 1.5 + 3;
       const rowY = (rowIndex * 0.35) + 0.3;
-      
+
       rowSeats.forEach((seat, seatIndex) => {
         let aisleOffset = 0;
         const middleIndex = Math.floor(rowSeats.length / 2);
-        
+
         if (seatIndex >= middleIndex) {
           aisleOffset = 1.2;
         }
-        
+
         const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.1 + aisleOffset * 0.5 - 0.3;
-        
+
         positions.push({
           seat,
           position: [seatX, rowY, rowZ]
         });
       });
     });
-    
+
     return positions;
   }, [seatsByRow]);
 
@@ -1056,14 +1067,14 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     const availableSeats = seatPositions.filter(
       ({ seat }) => seat.status === 'available' && !seat.isBooked
     );
-    
+
     const scoredSeats = availableSeats.map(({ seat, position }) => {
       const centerScore = 12 - Math.abs(position[0]);
       const rowScore = 10 - Math.abs(4 - position[2] / 1.5);
       const typeBonus = seat.type === 'premium' ? 3 : seat.type === 'vip' ? 4 : 0;
       return { seat, position, score: centerScore + rowScore + typeBonus };
     });
-    
+
     scoredSeats.sort((a, b) => b.score - a.score);
     return scoredSeats.slice(0, count).map(s => s.seat.id);
   }, [seatPositions]);
@@ -1071,7 +1082,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const handleSeatClick = useCallback((seat: Seat) => {
     if (soundEnabled) playSound('click');
     onSeatClick(seat);
-    
+
     const seatData = seatPositions.find(s => s.seat.id === seat.id);
     if (seatData) {
       const [x, y, z] = seatData.position;
@@ -1106,14 +1117,14 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const handleViewModeChange = (mode: ViewMode) => {
     if (soundEnabled) playSound('click');
     setViewMode(mode);
-    
+
     const viewPositions: Record<ViewMode, CameraTarget> = {
       default: { position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT },
       topdown: { position: new THREE.Vector3(0, 28, 8), lookAt: new THREE.Vector3(0, 0, 5) },
       front: { position: new THREE.Vector3(0, 6, -14), lookAt: new THREE.Vector3(0, 6, 0) },
       side: { position: new THREE.Vector3(28, 10, 8), lookAt: new THREE.Vector3(0, 3, 5) }
     };
-    
+
     setCameraTarget(viewPositions[mode]);
     setIsAnimating(true);
   };
@@ -1146,24 +1157,24 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!viewingSeatId) return;
-      
+
       const currentSeat = seatPositions.find(s => s.seat.id === viewingSeatId);
       if (!currentSeat) return;
-      
+
       const currentRow = currentSeat.seat.row;
       const currentNumber = currentSeat.seat.number;
       let targetSeat: Seat | undefined;
-      
+
       switch (e.key) {
-        case 'ArrowLeft': 
-          targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber - 1); 
+        case 'ArrowLeft':
+          targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber - 1);
           break;
-        case 'ArrowRight': 
-          targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber + 1); 
+        case 'ArrowRight':
+          targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber + 1);
           break;
         case 'ArrowUp': {
           const prevRow = String.fromCharCode(currentRow.charCodeAt(0) - 1);
-          targetSeat = seats.find(s => s.row === prevRow && s.number === currentNumber); 
+          targetSeat = seats.find(s => s.row === prevRow && s.number === currentNumber);
           break;
         }
         case 'ArrowDown': {
@@ -1177,11 +1188,11 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             handleSeatClick(currentSeat.seat);
           }
           break;
-        case 'Escape': 
-          handleResetView(); 
+        case 'Escape':
+          handleResetView();
           break;
       }
-      
+
       if (targetSeat) {
         e.preventDefault();
         const targetData = seatPositions.find(s => s.seat.id === targetSeat!.id);
@@ -1196,7 +1207,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         }
       }
     };
-    
+
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewingSeatId, seats, seatPositions, handleSeatClick]);
@@ -1232,7 +1243,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </div>
         </div>
 
-        {/* Showtime Selection */}
         <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10">
           <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
             <Clock className="w-3 h-3 text-green-400" />
@@ -1259,7 +1269,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </div>
         </div>
 
-        {/* Movie Info */}
         <div className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10">
           <div className="flex gap-3">
             <img
@@ -1296,7 +1305,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </Button>
         </div>
 
-        {/* View Mode Controls */}
         <div className="flex gap-2">
           {[
             { mode: 'default' as ViewMode, icon: Eye, label: 'Default' },
@@ -1316,7 +1324,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           ))}
         </div>
 
-        {/* Viewing Indicator */}
         {viewingSeatId && (
           <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg animate-in fade-in zoom-in">
             <Eye className="w-4 h-4 text-blue-400" />
@@ -1326,7 +1333,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           </div>
         )}
 
-        {/* Action Buttons */}
         <div className="flex gap-2">
           <Button onClick={handleRecommendSeats} variant="outline" size="sm" className="bg-amber-600/50 hover:bg-amber-600/70 border-amber-500/50 text-white">
             <Star className="w-4 h-4 mr-2" />
@@ -1441,7 +1447,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       )}
 
-      {/* 3D Canvas - NO Suspense wrapper here! */}
+      {/* 3D Canvas */}
       <Canvas
         ref={canvasRef}
         shadows
@@ -1456,12 +1462,11 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           viewMode={viewMode}
         />
 
-        {/* Lighting */}
         <ambientLight intensity={0.35} />
-        <directionalLight 
-          position={[12, 22, 12]} 
-          intensity={1.0} 
-          castShadow 
+        <directionalLight
+          position={[12, 22, 12]}
+          intensity={1.0}
+          castShadow
           shadow-mapSize={[2048, 2048]}
           shadow-camera-left={-25}
           shadow-camera-right={25}
@@ -1471,7 +1476,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         <directionalLight position={[-12, 18, 12]} intensity={0.4} />
         <spotLight position={[0, 22, 8]} angle={0.6} penumbra={1} intensity={0.5} castShadow />
 
-        {/* Scene Components */}
         <Screen3D
           videoUrl={selectedMovie.video}
           movieTitle={selectedMovie.title}
@@ -1480,7 +1484,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         <RowLabels rows={rows} />
         <TheaterEnvironment lightsEnabled={lightsEnabled} />
 
-        {/* Seats */}
         {seatPositions.map(({ seat, position }) => (
           <Seat3D
             key={seat.id}
@@ -1494,12 +1497,10 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           />
         ))}
 
-        {/* Tooltip */}
         {hoveredSeat && (
           <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />
         )}
 
-        {/* Camera Controls */}
         <OrbitControls
           ref={controlsRef}
           minDistance={4}
@@ -1511,7 +1512,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         />
       </Canvas>
 
-      {/* Booking Modal */}
       <BookingModal
         isOpen={showBookingModal}
         onClose={() => setShowBookingModal(false)}
