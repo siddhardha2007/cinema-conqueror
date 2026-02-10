@@ -492,42 +492,47 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
+  
+  console.log('Screen3D rendered - YouTube ID:', youtubeId, 'URL:', videoUrl);
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
       
-      {/* CASE 1: YOUTUBE VIDEO */}
+      {/* Video Display Area */}
       {youtubeId ? (
-        <Html 
-          transform 
-          occlude={false}
-          position={[0, 0, 0.2]}
-          scale={0.01875} 
-          zIndexRange={[100, 0]}
-        >
-          <div style={{ 
-            width: '1280px', 
-            height: '533px', 
-            background: 'black',
-          }}>
+        <>
+          {/* Debug plane - bright color to see if positioning works */}
+          <mesh position={[0, 0, 0.15]}>
+            <planeGeometry args={[24, 10]} />
+            <meshBasicMaterial color="#ff0000" />
+          </mesh>
+          
+          {/* YouTube iframe using Html */}
+          <Html
+            position={[0, 0, 0.2]}
+            transform
+            occlude={false}
+            style={{
+              width: '1280px',
+              height: '533px',
+            }}
+            scale={0.01875}
+          >
             <iframe
-              width="1280"
-              height="533"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&controls=1&rel=0&modestbranding=1`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              style={{ 
-                pointerEvents: 'auto',
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1`}
+              style={{
+                width: '1280px',
+                height: '533px',
                 border: 'none',
-                display: 'block'
-              }} 
+                backgroundColor: 'black',
+              }}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
-          </div>
-        </Html>
+          </Html>
+        </>
       ) : (
-        /* CASE 2: MP4 VIDEO FILE - Wrapped in its own Suspense */
+        /* MP4 VIDEO FILE */
         <Suspense fallback={
           <mesh position={[0, 0, 0.1]}>
             <planeGeometry args={[24, 10]} />
