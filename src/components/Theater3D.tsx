@@ -504,7 +504,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
           wrapperClass="htmlScreen" 
           position={[0, 0, 0.2]}
           scale={scaleFactor} 
-          zIndexRange={[0, 0]}
+          zIndexRange={[10, 0]}
         >
           <div style={{ 
             width: '1280px', 
@@ -517,7 +517,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             <iframe
               width="100%"
               height="100%"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&rel=0&modestbranding=1&enablejsapi=1`}
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&enablejsapi=1`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
