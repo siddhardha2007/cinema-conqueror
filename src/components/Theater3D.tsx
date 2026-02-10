@@ -505,36 +505,28 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             <meshBasicMaterial color="#000000" />
           </mesh>
           
-          {/* YouTube Embed - Try without transform */}
+          {/* YouTube Embed - Now with proper 3D positioning */}
           <Html
-            position={[0, 0, 0.3]}
-            transform={false}
-            zIndexRange={[1000, 1001]}
-            style={{
-              pointerEvents: 'auto',
-            }}
+            position={[0, 0, 0.2]}
+            transform={true}
+            occlude={false}
+            scale={0.01875}
+            zIndexRange={[100, 0]}
           >
-            <div style={{
-              width: '960px',
-              height: '540px',
-              position: 'relative',
-            }}>
-              <iframe
-                width="960"
-                height="540"
-                src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                referrerPolicy="strict-origin-when-cross-origin"
-                style={{
-                  border: 'none',
-                  display: 'block',
-                  backgroundColor: '#000',
-                }}
-              />
-            </div>
+            <iframe
+              width="1280"
+              height="533"
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              style={{
+                border: 'none',
+                display: 'block',
+                backgroundColor: '#000',
+              }}
+            />
           </Html>
         </>
       ) : (
