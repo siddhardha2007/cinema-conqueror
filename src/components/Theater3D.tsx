@@ -527,13 +527,18 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
           </div>
         </Html>
       ) : (
-        /* CASE 2: MP4 VIDEO FILE */
-        <mesh position={[0, 0, 0.1]}>
-          <planeGeometry args={[24, 10]} />
-          <Suspense fallback={<meshBasicMaterial color="#1e293b" />}>
+        /* CASE 2: MP4 VIDEO FILE - Wrapped in its own Suspense */
+        <Suspense fallback={
+          <mesh position={[0, 0, 0.1]}>
+            <planeGeometry args={[24, 10]} />
+            <meshBasicMaterial color="#1e293b" />
+          </mesh>
+        }>
+          <mesh position={[0, 0, 0.1]}>
+            <planeGeometry args={[24, 10]} />
             <MovieScreenMaterial videoUrl={videoUrl} />
-          </Suspense>
-        </mesh>
+          </mesh>
+        </Suspense>
       )}
 
       {/* Screen Frame */}
@@ -1433,85 +1438,75 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       )}
 
-      {/* 3D Canvas */}
-      <Suspense fallback={
-        <div className="flex items-center justify-center h-full bg-slate-950">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-white text-lg">Loading Theater...</p>
-            <p className="text-gray-500 text-sm mt-2">Preparing your 3D experience</p>
-          </div>
-        </div>
-      }>
-        <Canvas
-          ref={canvasRef}
-          shadows
-          camera={{ position: [0, 10, 22], fov: 55 }}
-          gl={{ antialias: true, preserveDrawingBuffer: true }}
-        >
-          <CameraController
-            target={cameraTarget}
-            isAnimating={isAnimating}
-            onAnimationComplete={() => setIsAnimating(false)}
-            controlsRef={controlsRef}
-            viewMode={viewMode}
+      {/* 3D Canvas - NO Suspense wrapper here! */}
+      <Canvas
+        ref={canvasRef}
+        shadows
+        camera={{ position: [0, 10, 22], fov: 55 }}
+        gl={{ antialias: true, preserveDrawingBuffer: true }}
+      >
+        <CameraController
+          target={cameraTarget}
+          isAnimating={isAnimating}
+          onAnimationComplete={() => setIsAnimating(false)}
+          controlsRef={controlsRef}
+          viewMode={viewMode}
+        />
+
+        {/* Lighting */}
+        <ambientLight intensity={0.35} />
+        <directionalLight 
+          position={[12, 22, 12]} 
+          intensity={1.0} 
+          castShadow 
+          shadow-mapSize={[2048, 2048]}
+          shadow-camera-left={-25}
+          shadow-camera-right={25}
+          shadow-camera-top={25}
+          shadow-camera-bottom={-25}
+        />
+        <directionalLight position={[-12, 18, 12]} intensity={0.4} />
+        <spotLight position={[0, 22, 8]} angle={0.6} penumbra={1} intensity={0.5} castShadow />
+
+        {/* Scene Components */}
+        <Screen3D
+          videoUrl={selectedMovie.video}
+          movieTitle={selectedMovie.title}
+        />
+
+        <RowLabels rows={rows} />
+        <TheaterEnvironment lightsEnabled={lightsEnabled} />
+
+        {/* Seats */}
+        {seatPositions.map(({ seat, position }) => (
+          <Seat3D
+            key={seat.id}
+            seat={seat}
+            position={position}
+            onClick={handleSeatClick}
+            onHover={handleSeatHover}
+            isHighlighted={highlightedSeats.includes(seat.id)}
+            soundEnabled={soundEnabled}
+            playSound={playSound}
           />
+        ))}
 
-          {/* Lighting */}
-          <ambientLight intensity={0.35} />
-          <directionalLight 
-            position={[12, 22, 12]} 
-            intensity={1.0} 
-            castShadow 
-            shadow-mapSize={[2048, 2048]}
-            shadow-camera-left={-25}
-            shadow-camera-right={25}
-            shadow-camera-top={25}
-            shadow-camera-bottom={-25}
-          />
-          <directionalLight position={[-12, 18, 12]} intensity={0.4} />
-          <spotLight position={[0, 22, 8]} angle={0.6} penumbra={1} intensity={0.5} castShadow />
+        {/* Tooltip */}
+        {hoveredSeat && (
+          <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />
+        )}
 
-          {/* Scene Components */}
-          <Screen3D
-            videoUrl={selectedMovie.video}
-            movieTitle={selectedMovie.title}
-          />
-
-          <RowLabels rows={rows} />
-          <TheaterEnvironment lightsEnabled={lightsEnabled} />
-
-          {/* Seats */}
-          {seatPositions.map(({ seat, position }) => (
-            <Seat3D
-              key={seat.id}
-              seat={seat}
-              position={position}
-              onClick={handleSeatClick}
-              onHover={handleSeatHover}
-              isHighlighted={highlightedSeats.includes(seat.id)}
-              soundEnabled={soundEnabled}
-              playSound={playSound}
-            />
-          ))}
-
-          {/* Tooltip */}
-          {hoveredSeat && (
-            <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />
-          )}
-
-          {/* Camera Controls */}
-          <OrbitControls
-            ref={controlsRef}
-            minDistance={4}
-            maxDistance={45}
-            maxPolarAngle={Math.PI / 2.05}
-            target={[0, 2, 0]}
-            enableDamping={true}
-            dampingFactor={0.05}
-          />
-        </Canvas>
-      </Suspense>
+        {/* Camera Controls */}
+        <OrbitControls
+          ref={controlsRef}
+          minDistance={4}
+          maxDistance={45}
+          maxPolarAngle={Math.PI / 2.05}
+          target={[0, 2, 0]}
+          enableDamping={true}
+          dampingFactor={0.05}
+        />
+      </Canvas>
 
       {/* Booking Modal */}
       <BookingModal
