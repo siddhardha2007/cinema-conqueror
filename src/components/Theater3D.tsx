@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 // --- MOCK BUTTON COMPONENT (Replaces @/components/ui/button) ---
-const Button = ({ children, onClick, className, variant = 'default', size = 'default', disabled }: any) => {
+const Button = ({ children, onClick, className = '', variant = 'default', size = 'default', disabled = false }: any) => {
   const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
   const variants = {
     default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
@@ -25,7 +25,7 @@ const Button = ({ children, onClick, className, variant = 'default', size = 'def
     <button 
       onClick={onClick} 
       disabled={disabled}
-      className={`${baseStyle} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className || ''}`}
+      className={`${baseStyle} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className}`}
     >
       {children}
     </button>
@@ -87,7 +87,7 @@ const showtimes = [
 
 // --- HELPER TO GET YOUTUBE ID ---
 function getYouTubeId(url: string) {
-  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
   return (match && match[2].length === 11) ? match[2] : null;
 }
@@ -295,7 +295,7 @@ function Seat3D({
 
   return (
     <group ref={meshRef} position={position}>
-      {/* Seat Base/Cushion - More substantial */}
+      {/* Seat Base/Cushion */}
       <RoundedBox
         args={[0.9, 0.2, 0.8]}
         radius={0.08}
@@ -318,7 +318,7 @@ function Seat3D({
         />
       </RoundedBox>
 
-      {/* Seat Backrest - Taller and more visible */}
+      {/* Seat Backrest */}
       <RoundedBox
         args={[0.9, 0.7, 0.15]}
         radius={0.08}
@@ -367,7 +367,6 @@ function Seat3D({
         anchorX="center"
         anchorY="middle"
         rotation={[-Math.PI / 2, 0, 0]}
-        font="/fonts/Inter-Bold.woff"
       >
         {seat.number}
       </Text>
@@ -537,7 +536,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         </mesh>
       )}
 
-      {/* Screen Frame - Fixed to not float */}
+      {/* Screen Frame */}
       <mesh position={[0, 0, 0]}>
         <planeGeometry args={[25, 10.8]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
@@ -597,7 +596,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         color="#cbd5e1"
         anchorX="center"
         anchorY="middle"
-        font="/fonts/Inter-Bold.woff"
       >
         NOW SHOWING: {movieTitle.toUpperCase()}
       </Text>
@@ -620,7 +618,6 @@ function RowLabels({ rows }: { rows: string[] }) {
               anchorX="center"
               anchorY="middle"
               rotation={[0, 0.2, 0]}
-              font="/fonts/Inter-Bold.woff"
             >
               {row}
             </Text>
@@ -631,7 +628,6 @@ function RowLabels({ rows }: { rows: string[] }) {
               anchorX="center"
               anchorY="middle"
               rotation={[0, -0.2, 0]}
-              font="/fonts/Inter-Bold.woff"
             >
               {row}
             </Text>
@@ -764,7 +760,9 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   
   useEffect(() => {
     scene.fog = new THREE.Fog('#0a0a1a', 25, 70);
-    return () => { scene.fog = null; };
+    return () => { 
+      scene.fog = null; 
+    };
   }, [scene]);
 
   return (
@@ -824,7 +822,6 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
 
 function MiniMap({
   seats,
-  seatPositions,
   selectedSeats,
   onSeatClick
 }: {
@@ -1063,7 +1060,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     return scoredSeats.slice(0, count).map(s => s.seat.id);
   }, [seatPositions]);
 
-  const handleSeatClick = (seat: Seat) => {
+  const handleSeatClick = useCallback((seat: Seat) => {
     if (soundEnabled) playSound('click');
     onSeatClick(seat);
     
@@ -1077,7 +1074,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
       setIsAnimating(true);
       setViewingSeatId(seat.id);
     }
-  };
+  }, [soundEnabled, playSound, onSeatClick, seatPositions]);
 
   const handleSeatHover = (seat: Seat | null, position?: [number, number, number]) => {
     if (seat && position) {
@@ -1156,14 +1153,16 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         case 'ArrowRight': 
           targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber + 1); 
           break;
-        case 'ArrowUp': 
+        case 'ArrowUp': {
           const prevRow = String.fromCharCode(currentRow.charCodeAt(0) - 1);
           targetSeat = seats.find(s => s.row === prevRow && s.number === currentNumber); 
           break;
-        case 'ArrowDown':
+        }
+        case 'ArrowDown': {
           const nextRow = String.fromCharCode(currentRow.charCodeAt(0) + 1);
           targetSeat = seats.find(s => s.row === nextRow && s.number === currentNumber);
           break;
+        }
         case 'Enter':
         case ' ':
           if (currentSeat.seat.status !== 'booked') {
@@ -1192,7 +1191,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewingSeatId, seats, seatPositions]);
+  }, [viewingSeatId, seats, seatPositions, handleSeatClick]);
 
   return (
     <div className="relative w-full h-[800px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
@@ -1296,7 +1295,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
             { mode: 'topdown' as ViewMode, icon: ArrowDown, label: 'Top' },
             { mode: 'front' as ViewMode, icon: Maximize2, label: 'Front' },
             { mode: 'side' as ViewMode, icon: ArrowUp, label: 'Side' }
-          ].map(({ mode, icon: Icon, label }) => (
+          ].map(({ mode, icon: Icon }) => (
             <Button
               key={mode}
               variant="outline"
