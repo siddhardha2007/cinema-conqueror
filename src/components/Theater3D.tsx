@@ -492,7 +492,6 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
-  const scaleFactor = 0.01875;
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
@@ -501,28 +500,29 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
       {youtubeId ? (
         <Html 
           transform 
-          wrapperClass="htmlScreen" 
+          occlude={false}
           position={[0, 0, 0.2]}
-          scale={scaleFactor} 
-          zIndexRange={[10, 0]}
+          scale={0.01875} 
+          zIndexRange={[100, 0]}
         >
           <div style={{ 
             width: '1280px', 
             height: '533px', 
             background: 'black',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
           }}>
             <iframe
-              width="100%"
-              height="100%"
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&rel=0&modestbranding=1&enablejsapi=1`}
+              width="1280"
+              height="533"
+              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&controls=1&rel=0&modestbranding=1`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
-              style={{ pointerEvents: 'auto' }} 
+              style={{ 
+                pointerEvents: 'auto',
+                border: 'none',
+                display: 'block'
+              }} 
             />
           </div>
         </Html>
