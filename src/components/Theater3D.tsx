@@ -492,8 +492,6 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
-  
-  console.log('Screen3D rendered - YouTube ID:', youtubeId, 'URL:', videoUrl);
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
@@ -501,34 +499,42 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
       {/* Video Display Area */}
       {youtubeId ? (
         <>
-          {/* Debug plane - bright color to see if positioning works */}
-          <mesh position={[0, 0, 0.15]}>
+          {/* Black screen background */}
+          <mesh position={[0, 0, 0.1]}>
             <planeGeometry args={[24, 10]} />
-            <meshBasicMaterial color="#ff0000" />
+            <meshBasicMaterial color="#000000" />
           </mesh>
           
-          {/* YouTube iframe using Html */}
+          {/* YouTube Embed - Try without transform */}
           <Html
-            position={[0, 0, 0.2]}
-            transform
-            occlude={false}
+            position={[0, 0, 0.3]}
+            transform={false}
+            zIndexRange={[1000, 1001]}
             style={{
-              width: '1280px',
-              height: '533px',
+              pointerEvents: 'auto',
             }}
-            scale={0.01875}
           >
-            <iframe
-              src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1`}
-              style={{
-                width: '1280px',
-                height: '533px',
-                border: 'none',
-                backgroundColor: 'black',
-              }}
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+            <div style={{
+              width: '960px',
+              height: '540px',
+              position: 'relative',
+            }}>
+              <iframe
+                width="960"
+                height="540"
+                src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                referrerPolicy="strict-origin-when-cross-origin"
+                style={{
+                  border: 'none',
+                  display: 'block',
+                  backgroundColor: '#000',
+                }}
+              />
+            </div>
           </Html>
         </>
       ) : (
