@@ -2,9 +2,9 @@ import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } fr
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Text, RoundedBox, Html, useVideoTexture } from '@react-three/drei';
 import * as THREE from 'three';
-import { 
-  RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera, 
-  Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info, 
+import {
+  RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera,
+  Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info,
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
 
@@ -22,8 +22,8 @@ const Button = ({ children, onClick, className = '', variant = 'default', size =
     icon: "h-9 w-9"
   };
   return (
-    <button 
-      onClick={onClick} 
+    <button
+      onClick={onClick}
       disabled={disabled}
       className={`${baseStyle} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className}`}
     >
@@ -136,7 +136,7 @@ const useAudio = () => {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     const ctx = audioContextRef.current;
-    
+
     if (ctx.state === 'suspended') {
       ctx.resume();
     }
@@ -308,13 +308,7 @@ function Seat3D({
         castShadow
         receiveShadow
       >
-        <meshStandardMaterial
-          color={getSeatColor()}
-          roughness={0.35}
-          metalness={0.15}
-          emissive={getSeatColor()}
-          emissiveIntensity={getEmissiveIntensity()}
-        />
+        <meshStandardMaterial color={getSeatColor()} roughness={0.35} metalness={0.15} emissive={getSeatColor()} emissiveIntensity={getEmissiveIntensity()} />
       </RoundedBox>
 
       <RoundedBox
@@ -335,21 +329,21 @@ function Seat3D({
         />
       </RoundedBox>
 
-      <RoundedBox 
-        args={[0.1, 0.18, 0.55]} 
-        radius={0.03} 
-        smoothness={4} 
-        position={[-0.45, 0.2, 0.1]} 
+      <RoundedBox
+        args={[0.1, 0.18, 0.55]}
+        radius={0.03}
+        smoothness={4}
+        position={[-0.45, 0.2, 0.1]}
         castShadow
       >
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
       </RoundedBox>
 
-      <RoundedBox 
-        args={[0.1, 0.18, 0.55]} 
-        radius={0.03} 
-        smoothness={4} 
-        position={[0.45, 0.2, 0.1]} 
+      <RoundedBox
+        args={[0.1, 0.18, 0.55]}
+        radius={0.03}
+        smoothness={4}
+        position={[0.45, 0.2, 0.1]}
         castShadow
       >
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
@@ -369,9 +363,9 @@ function Seat3D({
       {seat.type === 'vip' && (
         <mesh position={[0, 0.9, 0.38]}>
           <coneGeometry args={[0.1, 0.18, 6]} />
-          <meshStandardMaterial 
-            color="#fbbf24" 
-            emissive="#fbbf24" 
+          <meshStandardMaterial
+            color="#fbbf24"
+            emissive="#fbbf24"
             emissiveIntensity={0.6}
             metalness={0.8}
             roughness={0.2}
@@ -382,9 +376,9 @@ function Seat3D({
       {seat.type === 'accessible' && (
         <mesh position={[0, 0.9, 0.38]}>
           <sphereGeometry args={[0.09, 16, 16]} />
-          <meshStandardMaterial 
-            color="#14b8a6" 
-            emissive="#14b8a6" 
+          <meshStandardMaterial
+            color="#14b8a6"
+            emissive="#14b8a6"
             emissiveIntensity={0.6}
             metalness={0.6}
             roughness={0.3}
@@ -481,29 +475,37 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   }, [texture]);
 
   return (
-    <meshBasicMaterial
-      map={texture}
-      toneMapped={false}
-      side={THREE.FrontSide}
-    />
+    <meshBasicMaterial map={texture} toneMapped={false} side={THREE.FrontSide} />
   );
 }
 
-// --- UPDATED SCREEN3D COMPONENT WITH LARGER VIDEO ---
+// --- FIXED SCREEN3D COMPONENT ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
   const screenWidth = 24;
   const screenHeight = 10;
 
+  // Fixed pixel dimensions for the iframe - these NEVER change
+  const IFRAME_WIDTH = 960;
+  const IFRAME_HEIGHT = 540;
+
+  // Calculate scale to map pixel dimensions to 3D world units
+  // We want the iframe to fill the screen plane exactly
+  const scaleX = screenWidth / IFRAME_WIDTH;
+  const scaleY = screenHeight / IFRAME_HEIGHT;
+  // Use uniform scale based on the smaller ratio to maintain aspect ratio
+  const uniformScale = Math.min(scaleX, scaleY);
+
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-
+      {/* Screen backing panel */}
       <mesh position={[0, 0, -0.1]}>
         <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
       </mesh>
 
+      {/* Screen frame */}
       <mesh position={[0, 0, -0.05]}>
         <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
         <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
@@ -511,36 +513,66 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
 
       {youtubeId ? (
         <>
+          {/* Black background behind iframe */}
           <mesh position={[0, 0, 0.01]}>
             <planeGeometry args={[screenWidth, screenHeight]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
 
+          {/* 
+            KEY FIX: Use a fixed-size container div with overflow hidden.
+            The iframe has fixed pixel dimensions that never change.
+            The Html scale maps pixels to world units consistently.
+          */}
           <Html
             position={[0, 0, 0.05]}
             transform
             occlude={false}
-            scale={0.024}
+            scale={uniformScale}
             zIndexRange={[100, 0]}
           >
-            <iframe
-              width="1000"
-              height="417"
-              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
-              title="YouTube video player"
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
+            <div
               style={{
-                border: 'none',
-                display: 'block',
+                width: `${IFRAME_WIDTH}px`,
+                height: `${IFRAME_HEIGHT}px`,
+                overflow: 'hidden',
                 backgroundColor: '#000',
+                borderRadius: '0px',
+                // Prevent any layout shifts
+                position: 'relative',
+                boxSizing: 'border-box',
+                margin: 0,
+                padding: 0,
               }}
-            />
+            >
+              <iframe
+                width={IFRAME_WIDTH}
+                height={IFRAME_HEIGHT}
+                src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&iv_load_policy=3&fs=0`}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                referrerPolicy="strict-origin-when-cross-origin"
+                style={{
+                  border: 'none',
+                  display: 'block',
+                  width: `${IFRAME_WIDTH}px`,
+                  height: `${IFRAME_HEIGHT}px`,
+                  // Lock the size absolutely
+                  minWidth: `${IFRAME_WIDTH}px`,
+                  maxWidth: `${IFRAME_WIDTH}px`,
+                  minHeight: `${IFRAME_HEIGHT}px`,
+                  maxHeight: `${IFRAME_HEIGHT}px`,
+                  backgroundColor: '#000',
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                }}
+              />
+            </div>
           </Html>
 
-          {/* Unmute hint - positioned below the screen */}
+          {/* Unmute hint */}
           <Text
             position={[0, -6, 0.2]}
             fontSize={0.5}
@@ -567,42 +599,36 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         </Suspense>
       )}
 
+      {/* Screen glow lights */}
       <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
       <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
       <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
 
+      {/* Curtains - Left */}
       <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial
-          color="#7f1d1d"
-          roughness={0.85}
-          metalness={0.05}
-        />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
       </mesh>
 
+      {/* Curtains - Right */}
       <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial
-          color="#7f1d1d"
-          roughness={0.85}
-          metalness={0.05}
-        />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
       </mesh>
 
+      {/* Curtains - Top */}
       <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[32, 3.5, 0.6]} />
-        <meshStandardMaterial
-          color="#7f1d1d"
-          roughness={0.85}
-          metalness={0.05}
-        />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
       </mesh>
 
+      {/* Wall behind screen */}
       <mesh position={[0, 0, -0.5]}>
         <planeGeometry args={[40, 22]} />
         <meshStandardMaterial color="#020617" roughness={0.95} />
       </mesh>
 
+      {/* Movie title text */}
       <Text
         position={[0, -7, 0.2]}
         fontSize={0.9}
@@ -872,9 +898,7 @@ function MiniMap({
                   key={seat.id}
                   onClick={() => onSeatClick(seat)}
                   disabled={seat.status === 'booked' || seat.isBooked}
-                  className={`w-2 h-2 rounded-[2px] transition-all hover:scale-150 ${getSeatColor(seat)} ${
-                    seat.status === 'booked' || seat.isBooked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'
-                  }`}
+                  className={`w-2 h-2 rounded-[2px] transition-all hover:scale-150 ${getSeatColor(seat)} ${seat.status === 'booked' || seat.isBooked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
                   title={`${seat.row}${seat.number} - $${seat.price}`}
                 />
               ))}
@@ -938,11 +962,10 @@ function BookingModal({
               {selectedSeats.map(seat => (
                 <span
                   key={seat.id}
-                  className={`px-2 py-1 rounded text-xs font-medium ${
-                    seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300' :
+                  className={`px-2 py-1 rounded text-xs font-medium ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300' :
                     seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300' :
-                    'bg-gray-500/20 text-gray-300'
-                  }`}
+                      'bg-gray-500/20 text-gray-300'
+                    }`}
                 >
                   {seat.row}{seat.number}
                 </span>
@@ -1215,8 +1238,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
                   setSelectedMovie(movie);
                 }}
                 className={`
-                  px-3 py-1.5 rounded-lg text-xs font-medium transition-all
-                  flex items-center gap-2 border
+                  px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border
                   ${selectedMovie.id === movie.id
                     ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
                     : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}
@@ -1377,12 +1399,11 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
               {selectedSeats.map(seat => (
                 <span
                   key={seat.id}
-                  className={`px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 ${
-                    seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                  className={`px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
                     seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                    seat.type === 'accessible' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' :
-                    'bg-gray-500/20 text-gray-300 border border-gray-500/30'
-                  }`}
+                      seat.type === 'accessible' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' :
+                        'bg-gray-500/20 text-gray-300 border border-gray-500/30'
+                    }`}
                 >
                   {seat.row}{seat.number}
                   <span className="text-gray-500">${seat.price}</span>
