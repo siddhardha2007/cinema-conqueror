@@ -466,13 +466,12 @@ function SeatTooltip({
 function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   const texture = useVideoTexture(videoUrl, {
     unsuspend: 'canplay',
-    muted: true,
+    muted: false,
     loop: true,
     start: true,
     crossOrigin: 'Anonymous'
   });
 
-  // Ensure the texture is oriented correctly on the plane
   useEffect(() => {
     if (texture) {
       texture.colorSpace = THREE.SRGBColorSpace;
@@ -494,55 +493,40 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
-  // Screen dimensions
   const screenWidth = 24;
   const screenHeight = 10;
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
 
-      {/* Background panel behind the screen */}
       <mesh position={[0, 0, -0.1]}>
         <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
       </mesh>
 
-      {/* Outer frame border */}
       <mesh position={[0, 0, -0.05]}>
         <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
         <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
       </mesh>
 
-      {/* Video Display */}
       {youtubeId ? (
         <>
-          {/* Black fallback behind the iframe */}
           <mesh position={[0, 0, 0.01]}>
             <planeGeometry args={[screenWidth, screenHeight]} />
             <meshBasicMaterial color="#000000" />
           </mesh>
 
-          {/* 
-            KEY FIX: Use transform={true} and occlude={false} so the Html 
-            element is anchored in 3D space on the screen plane.
-            We scale it down so it fits the 3D screen dimensions.
-          */}
           <Html
             position={[0, 0, 0.05]}
             transform
             occlude={false}
-            distanceFactor={1.5}
-            style={{
-              width: '1920px',
-              height: '800px',
-              overflow: 'hidden',
-            }}
-            pointerEvents="auto"
+            scale={0.01875}
+            zIndexRange={[100, 0]}
           >
             <iframe
-              width="1920"
-              height="800"
-              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
+              width="1280"
+              height="533"
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -552,14 +536,11 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
                 border: 'none',
                 display: 'block',
                 backgroundColor: '#000',
-                width: '100%',
-                height: '100%',
               }}
             />
           </Html>
         </>
       ) : (
-        /* MP4 VIDEO FILE - render directly as a texture on the screen mesh */
         <Suspense
           fallback={
             <mesh position={[0, 0, 0.05]}>
@@ -575,12 +556,10 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         </Suspense>
       )}
 
-      {/* Screen Glow Lights */}
       <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
       <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
       <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
 
-      {/* Left Curtain */}
       <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
         <meshStandardMaterial
@@ -590,7 +569,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         />
       </mesh>
 
-      {/* Right Curtain */}
       <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
         <meshStandardMaterial
@@ -600,7 +578,6 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         />
       </mesh>
 
-      {/* Top Curtain */}
       <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[32, 3.5, 0.6]} />
         <meshStandardMaterial
@@ -610,13 +587,11 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
         />
       </mesh>
 
-      {/* Background Wall */}
       <mesh position={[0, 0, -0.5]}>
         <planeGeometry args={[40, 22]} />
         <meshStandardMaterial color="#020617" roughness={0.95} />
       </mesh>
 
-      {/* Movie Title */}
       <Text
         position={[0, -7, 0.2]}
         fontSize={0.9}
@@ -1214,7 +1189,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
   return (
     <div className="relative w-full h-[800px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
-      {/* Movie Selection Panel */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-3 max-w-[420px]">
         <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10">
           <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
@@ -1288,7 +1262,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* Control Panel */}
       <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setSoundEnabled(!soundEnabled)} className="bg-black/50 hover:bg-black/70 border-white/20 text-white">
@@ -1345,7 +1318,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* Seat Guide */}
       <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
           <Info className="w-3 h-3" />
@@ -1383,7 +1355,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* Selection Summary */}
       <div className="absolute bottom-4 right-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg min-w-[280px]">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
           <Ticket className="w-3 h-3 text-green-400" />
@@ -1435,7 +1406,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         )}
       </div>
 
-      {/* Mini Map */}
       {showMiniMap && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
           <MiniMap
@@ -1447,7 +1417,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       )}
 
-      {/* 3D Canvas */}
       <Canvas
         ref={canvasRef}
         shadows
