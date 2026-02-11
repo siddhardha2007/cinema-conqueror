@@ -11,12 +11,12 @@ import {
 // --- MOCK BUTTON COMPONENT ---
 const Button = ({ children, onClick, className = '', variant = 'default', size = 'default', disabled = false }: any) => {
   const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
-  const variants = {
+  const variants: Record<string, string> = {
     default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
     outline: "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
     ghost: "hover:bg-accent hover:text-accent-foreground"
   };
-  const sizes = {
+  const sizes: Record<string, string> = {
     default: "h-9 px-4 py-2 text-sm",
     sm: "h-8 rounded-md px-3 text-xs",
     icon: "h-9 w-9"
@@ -25,7 +25,7 @@ const Button = ({ children, onClick, className = '', variant = 'default', size =
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${baseStyle} ${variants[variant as keyof typeof variants] || variants.default} ${sizes[size as keyof typeof sizes] || sizes.default} ${className}`}
+      className={`${baseStyle} ${variants[variant] || variants.default} ${sizes[size] || sizes.default} ${className}`}
     >
       {children}
     </button>
@@ -85,7 +85,7 @@ const showtimes = [
   { id: '6', time: '11:45 PM', period: 'night' },
 ];
 
-// --- HELPER TO GET YOUTUBE ID ---
+// --- HELPER ---
 function getYouTubeId(url: string) {
   const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
   const match = url.match(regExp);
@@ -125,86 +125,117 @@ function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 }
 
-// --- AUDIO CONTEXT ---
+// --- AUDIO ---
 const useAudio = () => {
   const audioContextRef = useRef<AudioContext | null>(null);
-
   const playSound = useCallback((type: 'click' | 'select' | 'hover' | 'success' | 'error') => {
     if (typeof window === 'undefined') return;
-
     if (!audioContextRef.current) {
       audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
     }
     const ctx = audioContextRef.current;
-
-    if (ctx.state === 'suspended') {
-      ctx.resume();
-    }
-
+    if (ctx.state === 'suspended') ctx.resume();
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
-
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
-
-    const frequencies: Record<string, number> = {
-      click: 600,
-      select: 800,
-      hover: 400,
-      success: 1000,
-      error: 200
-    };
-
+    const frequencies: Record<string, number> = { click: 600, select: 800, hover: 400, success: 1000, error: 200 };
     oscillator.frequency.value = frequencies[type];
     oscillator.type = type === 'error' ? 'sawtooth' : 'sine';
     gainNode.gain.value = 0.1;
     gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + 0.1);
   }, []);
-
   return { playSound };
 };
 
-// --- COMPONENTS ---
-
-function CameraController({
-  target,
-  isAnimating,
-  onAnimationComplete,
-  controlsRef,
-  viewMode
+// --- SCREEN POSITION TRACKER ---
+// This component tracks the 3D screen's position and projects it to 2D screen coordinates
+function ScreenPositionTracker({
+  onPositionUpdate
 }: {
-  target: CameraTarget;
-  isAnimating: boolean;
-  onAnimationComplete: () => void;
-  controlsRef: React.MutableRefObject<any>;
-  viewMode: ViewMode;
+  onPositionUpdate: (rect: { left: number; top: number; width: number; height: number; visible: boolean }) => void;
+}) {
+  const { camera, gl, size } = useThree();
+  const screenWidth3D = 24;
+  const screenHeight3D = 10;
+
+  useFrame(() => {
+    // Get the four corners of the screen in 3D space
+    const topLeft = new THREE.Vector3(-screenWidth3D / 2, SCREEN_Y + screenHeight3D / 2, SCREEN_Z);
+    const topRight = new THREE.Vector3(screenWidth3D / 2, SCREEN_Y + screenHeight3D / 2, SCREEN_Z);
+    const bottomLeft = new THREE.Vector3(-screenWidth3D / 2, SCREEN_Y - screenHeight3D / 2, SCREEN_Z);
+    const bottomRight = new THREE.Vector3(screenWidth3D / 2, SCREEN_Y - screenHeight3D / 2, SCREEN_Z);
+
+    // Project to NDC
+    topLeft.project(camera);
+    topRight.project(camera);
+    bottomLeft.project(camera);
+    bottomRight.project(camera);
+
+    // Check if screen is behind camera
+    const centerPoint = new THREE.Vector3(0, SCREEN_Y, SCREEN_Z);
+    const cameraDir = new THREE.Vector3();
+    camera.getWorldDirection(cameraDir);
+    const toScreen = centerPoint.clone().sub(camera.position);
+    const dotProduct = cameraDir.dot(toScreen.normalize());
+    const visible = dotProduct > 0;
+
+    // Convert NDC to pixel coordinates
+    const canvas = gl.domElement;
+    const canvasRect = canvas.getBoundingClientRect();
+
+    const ndcToPixel = (ndc: THREE.Vector3) => ({
+      x: ((ndc.x + 1) / 2) * canvasRect.width,
+      y: ((-ndc.y + 1) / 2) * canvasRect.height
+    });
+
+    const tl = ndcToPixel(topLeft);
+    const tr = ndcToPixel(topRight);
+    const bl = ndcToPixel(bottomLeft);
+
+    const left = Math.min(tl.x, bl.x);
+    const top = Math.min(tl.y, tr.y);
+    const width = Math.max(tr.x, bottomRight.x) - left;
+    const height = Math.max(bl.y, bottomRight.y) - top;
+
+    onPositionUpdate({
+      left: left + canvasRect.left,
+      top: top + canvasRect.top,
+      width,
+      height,
+      visible: visible && width > 20 && height > 10
+    });
+  });
+
+  return null;
+}
+
+// --- CAMERA CONTROLLER ---
+function CameraController({
+  target, isAnimating, onAnimationComplete, controlsRef, viewMode
+}: {
+  target: CameraTarget; isAnimating: boolean; onAnimationComplete: () => void;
+  controlsRef: React.MutableRefObject<any>; viewMode: ViewMode;
 }) {
   const { camera } = useThree();
   const progressRef = useRef(0);
 
   useEffect(() => {
-    if (viewMode !== 'default') {
-      progressRef.current = 0;
-    }
+    if (viewMode !== 'default') progressRef.current = 0;
   }, [viewMode]);
 
   useFrame((_, delta) => {
     if (!isAnimating) return;
-
     progressRef.current = Math.min(progressRef.current + delta * 1.5, 1);
     const t = easeInOutCubic(progressRef.current);
-
     camera.position.lerp(target.position, t * 0.1);
-
     if (controlsRef.current) {
       const currentTarget = controlsRef.current.target;
       currentTarget.lerp(target.lookAt, t * 0.1);
       controlsRef.current.update();
     }
-
     if (progressRef.current >= 1) {
       progressRef.current = 0;
       onAnimationComplete();
@@ -214,37 +245,25 @@ function CameraController({
   return null;
 }
 
+// --- SEAT 3D ---
 function Seat3D({
-  seat,
-  position,
-  onClick,
-  onHover,
-  isHighlighted,
-  soundEnabled,
-  playSound
+  seat, position, onClick, onHover, isHighlighted, soundEnabled, playSound
 }: {
-  seat: Seat;
-  position: [number, number, number];
-  onClick: (seat: Seat) => void;
+  seat: Seat; position: [number, number, number]; onClick: (seat: Seat) => void;
   onHover: (seat: Seat | null, position?: [number, number, number]) => void;
-  isHighlighted: boolean;
-  soundEnabled: boolean;
+  isHighlighted: boolean; soundEnabled: boolean;
   playSound: (type: 'click' | 'select' | 'hover' | 'success' | 'error') => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const [animationPhase, setAnimationPhase] = useState(0);
   const meshRef = useRef<THREE.Group>(null);
-
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
   useFrame((_, delta) => {
     if (meshRef.current) {
-      if (isSelected && animationPhase < 1) {
-        setAnimationPhase(prev => Math.min(prev + delta * 3, 1));
-      } else if (!isSelected && animationPhase > 0) {
-        setAnimationPhase(prev => Math.max(prev - delta * 3, 0));
-      }
+      if (isSelected && animationPhase < 1) setAnimationPhase(prev => Math.min(prev + delta * 3, 1));
+      else if (!isSelected && animationPhase > 0) setAnimationPhase(prev => Math.max(prev - delta * 3, 0));
     }
   });
 
@@ -268,12 +287,8 @@ function Seat3D({
 
   const handleClick = (e: any) => {
     e.stopPropagation();
-    if (!isBooked) {
-      if (soundEnabled) playSound('select');
-      onClick(seat);
-    } else {
-      if (soundEnabled) playSound('error');
-    }
+    if (!isBooked) { if (soundEnabled) playSound('select'); onClick(seat); }
+    else { if (soundEnabled) playSound('error'); }
   };
 
   const handlePointerEnter = (e: any) => {
@@ -295,353 +310,193 @@ function Seat3D({
 
   return (
     <group ref={meshRef} position={position}>
-      <RoundedBox
-        args={[0.9, 0.2, 0.8]}
-        radius={0.08}
-        smoothness={6}
-        onClick={handleClick}
-        onPointerEnter={handlePointerEnter}
-        onPointerLeave={handlePointerLeave}
-        position={[0, 0.1 - seatRotation * 0.12, 0]}
-        rotation={[seatRotation, 0, 0]}
-        scale={scaleMultiplier}
-        castShadow
-        receiveShadow
-      >
+      <RoundedBox args={[0.9, 0.2, 0.8]} radius={0.08} smoothness={6}
+        onClick={handleClick} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}
+        position={[0, 0.1 - seatRotation * 0.12, 0]} rotation={[seatRotation, 0, 0]}
+        scale={scaleMultiplier} castShadow receiveShadow>
         <meshStandardMaterial color={getSeatColor()} roughness={0.35} metalness={0.15} emissive={getSeatColor()} emissiveIntensity={getEmissiveIntensity()} />
       </RoundedBox>
-
-      <RoundedBox
-        args={[0.9, 0.7, 0.15]}
-        radius={0.08}
-        smoothness={6}
-        position={[0, 0.45, 0.38]}
-        scale={scaleMultiplier}
-        castShadow
-        receiveShadow
-      >
-        <meshStandardMaterial
-          color={getSeatColor()}
-          roughness={0.35}
-          metalness={0.15}
-          emissive={getSeatColor()}
-          emissiveIntensity={getEmissiveIntensity()}
-        />
+      <RoundedBox args={[0.9, 0.7, 0.15]} radius={0.08} smoothness={6}
+        position={[0, 0.45, 0.38]} scale={scaleMultiplier} castShadow receiveShadow>
+        <meshStandardMaterial color={getSeatColor()} roughness={0.35} metalness={0.15} emissive={getSeatColor()} emissiveIntensity={getEmissiveIntensity()} />
       </RoundedBox>
-
-      <RoundedBox
-        args={[0.1, 0.18, 0.55]}
-        radius={0.03}
-        smoothness={4}
-        position={[-0.45, 0.2, 0.1]}
-        castShadow
-      >
+      <RoundedBox args={[0.1, 0.18, 0.55]} radius={0.03} smoothness={4} position={[-0.45, 0.2, 0.1]} castShadow>
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
       </RoundedBox>
-
-      <RoundedBox
-        args={[0.1, 0.18, 0.55]}
-        radius={0.03}
-        smoothness={4}
-        position={[0.45, 0.2, 0.1]}
-        castShadow
-      >
+      <RoundedBox args={[0.1, 0.18, 0.55]} radius={0.03} smoothness={4} position={[0.45, 0.2, 0.1]} castShadow>
         <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
       </RoundedBox>
-
-      <Text
-        position={[0, 0.25, 0]}
-        fontSize={0.15}
-        color={isBooked ? '#64748b' : '#0f172a'}
-        anchorX="center"
-        anchorY="middle"
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <Text position={[0, 0.25, 0]} fontSize={0.15} color={isBooked ? '#64748b' : '#0f172a'} anchorX="center" anchorY="middle" rotation={[-Math.PI / 2, 0, 0]}>
         {seat.number}
       </Text>
-
       {seat.type === 'vip' && (
         <mesh position={[0, 0.9, 0.38]}>
           <coneGeometry args={[0.1, 0.18, 6]} />
-          <meshStandardMaterial
-            color="#fbbf24"
-            emissive="#fbbf24"
-            emissiveIntensity={0.6}
-            metalness={0.8}
-            roughness={0.2}
-          />
+          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.6} metalness={0.8} roughness={0.2} />
         </mesh>
       )}
-
       {seat.type === 'accessible' && (
         <mesh position={[0, 0.9, 0.38]}>
           <sphereGeometry args={[0.09, 16, 16]} />
-          <meshStandardMaterial
-            color="#14b8a6"
-            emissive="#14b8a6"
-            emissiveIntensity={0.6}
-            metalness={0.6}
-            roughness={0.3}
-          />
+          <meshStandardMaterial color="#14b8a6" emissive="#14b8a6" emissiveIntensity={0.6} metalness={0.6} roughness={0.3} />
         </mesh>
       )}
-
-      {isSelected && (
-        <pointLight position={[0, 0.6, 0]} intensity={0.8} distance={2.5} color="#10b981" />
-      )}
-
-      {isHighlighted && !isSelected && (
-        <pointLight position={[0, 0.6, 0]} intensity={0.5} distance={2} color="#f59e0b" />
-      )}
+      {isSelected && <pointLight position={[0, 0.6, 0]} intensity={0.8} distance={2.5} color="#10b981" />}
+      {isHighlighted && !isSelected && <pointLight position={[0, 0.6, 0]} intensity={0.5} distance={2} color="#f59e0b" />}
     </group>
   );
 }
 
-function SeatTooltip({
-  seat,
-  position
-}: {
-  seat: Seat;
-  position: [number, number, number];
-}) {
+// --- SEAT TOOLTIP ---
+function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number, number] }) {
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
-  const typeLabels: Record<string, string> = {
-    standard: 'Standard',
-    premium: 'Premium',
-    vip: 'VIP',
-    accessible: 'Accessible'
-  };
-  const typeColors: Record<string, string> = {
-    standard: 'bg-gray-500',
-    premium: 'bg-blue-500',
-    vip: 'bg-purple-500',
-    accessible: 'bg-teal-500'
-  };
+  const typeLabels: Record<string, string> = { standard: 'Standard', premium: 'Premium', vip: 'VIP', accessible: 'Accessible' };
+  const typeColors: Record<string, string> = { standard: 'bg-gray-500', premium: 'bg-blue-500', vip: 'bg-purple-500', accessible: 'bg-teal-500' };
 
   return (
     <Html position={[position[0], position[1] + 1.5, position[2]]} center>
-      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none">
         <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-lg">Row {seat.row} - Seat {seat.number}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColors[seat.type]}`}>
-            {typeLabels[seat.type]}
-          </span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColors[seat.type]}`}>{typeLabels[seat.type]}</span>
         </div>
         <div className="space-y-1 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-400">Price:</span>
-            <span className="font-semibold text-green-400">${seat.price.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-400">Status:</span>
+          <div className="flex justify-between"><span className="text-gray-400">Price:</span><span className="font-semibold text-green-400">${seat.price.toFixed(2)}</span></div>
+          <div className="flex justify-between"><span className="text-gray-400">Status:</span>
             <span className={`font-medium ${isBooked ? 'text-red-400' : isSelected ? 'text-green-400' : 'text-blue-400'}`}>
               {isBooked ? 'Booked' : isSelected ? 'Selected' : 'Available'}
             </span>
           </div>
         </div>
-        {!isBooked && (
-          <div className="mt-3 pt-2 border-t border-white/10 text-center text-xs text-gray-400">
-            Click to {isSelected ? 'deselect' : 'select'}
-          </div>
-        )}
-        {isBooked && (
-          <div className="mt-3 pt-2 border-t border-white/10 text-center text-xs text-red-400 flex items-center justify-center gap-1">
-            <AlertCircle className="w-3 h-3" />
-            This seat is unavailable
-          </div>
-        )}
+        {!isBooked && <div className="mt-3 pt-2 border-t border-white/10 text-center text-xs text-gray-400">Click to {isSelected ? 'deselect' : 'select'}</div>}
+        {isBooked && <div className="mt-3 pt-2 border-t border-white/10 text-center text-xs text-red-400 flex items-center justify-center gap-1"><AlertCircle className="w-3 h-3" />This seat is unavailable</div>}
       </div>
     </Html>
   );
 }
 
-// --- VIDEO SCREEN MATERIAL COMPONENT ---
+// --- VIDEO SCREEN MATERIAL ---
 function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
-  const texture = useVideoTexture(videoUrl, {
-    unsuspend: 'canplay',
-    muted: false,
-    loop: true,
-    start: true,
-    crossOrigin: 'Anonymous'
-  });
-
+  const texture = useVideoTexture(videoUrl, { unsuspend: 'canplay', muted: false, loop: true, start: true, crossOrigin: 'Anonymous' });
   useEffect(() => {
-    if (texture) {
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.flipY = true;
-      texture.needsUpdate = true;
-    }
+    if (texture) { texture.colorSpace = THREE.SRGBColorSpace; texture.flipY = true; texture.needsUpdate = true; }
   }, [texture]);
-
-  return (
-    <meshBasicMaterial map={texture} toneMapped={false} side={THREE.FrontSide} />
-  );
+  return <meshBasicMaterial map={texture} toneMapped={false} side={THREE.FrontSide} />;
 }
 
-// --- FIXED SCREEN3D COMPONENT ---
-function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
-  const youtubeId = getYouTubeId(videoUrl);
-
+// --- SCREEN 3D (NO IFRAME - just geometry + glow) ---
+function Screen3D({ movieTitle, isYouTube }: { movieTitle: string; isYouTube: boolean; videoUrl: string }) {
   const screenWidth = 24;
   const screenHeight = 10;
 
-  // Fixed pixel dimensions for the iframe - these NEVER change
-  const IFRAME_WIDTH = 960;
-  const IFRAME_HEIGHT = 540;
-
-  // Calculate scale to map pixel dimensions to 3D world units
-  // We want the iframe to fill the screen plane exactly
-  const scaleX = screenWidth / IFRAME_WIDTH;
-  const scaleY = screenHeight / IFRAME_HEIGHT;
-  // Use uniform scale based on the smaller ratio to maintain aspect ratio
-  const uniformScale = Math.min(scaleX, scaleY);
-
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen backing panel */}
+      {/* Screen backing */}
       <mesh position={[0, 0, -0.1]}>
         <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
         <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
       </mesh>
-
       {/* Screen frame */}
       <mesh position={[0, 0, -0.05]}>
         <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
         <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
       </mesh>
+      {/* Screen surface - always just a dark surface for YouTube, video texture for mp4 */}
+      <mesh position={[0, 0, 0.01]}>
+        <planeGeometry args={[screenWidth, screenHeight]} />
+        <meshBasicMaterial color={isYouTube ? "#111827" : "#000000"} />
+      </mesh>
 
-      {youtubeId ? (
-        <>
-          {/* Black background behind iframe */}
-          <mesh position={[0, 0, 0.01]}>
-            <planeGeometry args={[screenWidth, screenHeight]} />
-            <meshBasicMaterial color="#000000" />
-          </mesh>
-
-          {/* 
-            KEY FIX: Use a fixed-size container div with overflow hidden.
-            The iframe has fixed pixel dimensions that never change.
-            The Html scale maps pixels to world units consistently.
-          */}
-          <Html
-            position={[0, 0, 0.05]}
-            transform
-            occlude={false}
-            scale={uniformScale}
-            zIndexRange={[100, 0]}
-          >
-            <div
-              style={{
-                width: `${IFRAME_WIDTH}px`,
-                height: `${IFRAME_HEIGHT}px`,
-                overflow: 'hidden',
-                backgroundColor: '#000',
-                borderRadius: '0px',
-                // Prevent any layout shifts
-                position: 'relative',
-                boxSizing: 'border-box',
-                margin: 0,
-                padding: 0,
-              }}
-            >
-              <iframe
-                width={IFRAME_WIDTH}
-                height={IFRAME_HEIGHT}
-                src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&iv_load_policy=3&fs=0`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                referrerPolicy="strict-origin-when-cross-origin"
-                style={{
-                  border: 'none',
-                  display: 'block',
-                  width: `${IFRAME_WIDTH}px`,
-                  height: `${IFRAME_HEIGHT}px`,
-                  // Lock the size absolutely
-                  minWidth: `${IFRAME_WIDTH}px`,
-                  maxWidth: `${IFRAME_WIDTH}px`,
-                  minHeight: `${IFRAME_HEIGHT}px`,
-                  maxHeight: `${IFRAME_HEIGHT}px`,
-                  backgroundColor: '#000',
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                }}
-              />
-            </div>
-          </Html>
-
-          {/* Unmute hint */}
-          <Text
-            position={[0, -6, 0.2]}
-            fontSize={0.5}
-            color="#fbbf24"
-            anchorX="center"
-            anchorY="middle"
-          >
-            🔊 Click the video to unmute
-          </Text>
-        </>
-      ) : (
-        <Suspense
-          fallback={
-            <mesh position={[0, 0, 0.05]}>
-              <planeGeometry args={[screenWidth, screenHeight]} />
-              <meshBasicMaterial color="#1e293b" />
-            </mesh>
-          }
-        >
-          <mesh position={[0, 0, 0.05]}>
-            <planeGeometry args={[screenWidth, screenHeight]} />
-            <MovieScreenMaterial videoUrl={videoUrl} />
-          </mesh>
-        </Suspense>
-      )}
-
-      {/* Screen glow lights */}
+      {/* Screen glow */}
       <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
       <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
       <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
 
-      {/* Curtains - Left */}
+      {/* Curtains */}
       <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
         <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
       </mesh>
-
-      {/* Curtains - Right */}
       <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[3.5, 15, 0.6]} />
         <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
       </mesh>
-
-      {/* Curtains - Top */}
       <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
         <boxGeometry args={[32, 3.5, 0.6]} />
         <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
       </mesh>
 
-      {/* Wall behind screen */}
+      {/* Wall behind */}
       <mesh position={[0, 0, -0.5]}>
         <planeGeometry args={[40, 22]} />
         <meshStandardMaterial color="#020617" roughness={0.95} />
       </mesh>
 
-      {/* Movie title text */}
-      <Text
-        position={[0, -7, 0.2]}
-        fontSize={0.9}
-        color="#cbd5e1"
-        anchorX="center"
-        anchorY="middle"
-      >
+      {/* Title */}
+      <Text position={[0, -7, 0.2]} fontSize={0.9} color="#cbd5e1" anchorX="center" anchorY="middle">
         NOW SHOWING: {movieTitle.toUpperCase()}
       </Text>
     </group>
   );
 }
 
+// --- SCREEN WITH VIDEO TEXTURE (for mp4 files) ---
+function Screen3DWithVideo({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
+  const screenWidth = 24;
+  const screenHeight = 10;
+
+  return (
+    <group position={[0, SCREEN_Y, SCREEN_Z]}>
+      <mesh position={[0, 0, -0.1]}>
+        <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
+        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
+      </mesh>
+      <mesh position={[0, 0, -0.05]}>
+        <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
+        <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
+      </mesh>
+
+      <Suspense fallback={
+        <mesh position={[0, 0, 0.05]}>
+          <planeGeometry args={[screenWidth, screenHeight]} />
+          <meshBasicMaterial color="#1e293b" />
+        </mesh>
+      }>
+        <mesh position={[0, 0, 0.05]}>
+          <planeGeometry args={[screenWidth, screenHeight]} />
+          <MovieScreenMaterial videoUrl={videoUrl} />
+        </mesh>
+      </Suspense>
+
+      <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
+      <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
+      <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
+
+      <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
+        <boxGeometry args={[3.5, 15, 0.6]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      </mesh>
+      <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
+        <boxGeometry args={[3.5, 15, 0.6]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
+        <boxGeometry args={[32, 3.5, 0.6]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      </mesh>
+      <mesh position={[0, 0, -0.5]}>
+        <planeGeometry args={[40, 22]} />
+        <meshStandardMaterial color="#020617" roughness={0.95} />
+      </mesh>
+      <Text position={[0, -7, 0.2]} fontSize={0.9} color="#cbd5e1" anchorX="center" anchorY="middle">
+        NOW SHOWING: {movieTitle.toUpperCase()}
+      </Text>
+    </group>
+  );
+}
+
+// --- ROW LABELS ---
 function RowLabels({ rows }: { rows: string[] }) {
   return (
     <group>
@@ -650,26 +505,8 @@ function RowLabels({ rows }: { rows: string[] }) {
         const y = index * 0.35 + 0.5;
         return (
           <group key={row}>
-            <Text
-              position={[-15, y, z]}
-              fontSize={0.6}
-              color="#3b82f6"
-              anchorX="center"
-              anchorY="middle"
-              rotation={[0, 0.2, 0]}
-            >
-              {row}
-            </Text>
-            <Text
-              position={[15, y, z]}
-              fontSize={0.6}
-              color="#3b82f6"
-              anchorX="center"
-              anchorY="middle"
-              rotation={[0, -0.2, 0]}
-            >
-              {row}
-            </Text>
+            <Text position={[-15, y, z]} fontSize={0.6} color="#3b82f6" anchorX="center" anchorY="middle" rotation={[0, 0.2, 0]}>{row}</Text>
+            <Text position={[15, y, z]} fontSize={0.6} color="#3b82f6" anchorX="center" anchorY="middle" rotation={[0, -0.2, 0]}>{row}</Text>
           </group>
         );
       })}
@@ -677,65 +514,45 @@ function RowLabels({ rows }: { rows: string[] }) {
   );
 }
 
+// --- EXIT SIGNS ---
 function ExitSigns() {
   return (
     <group>
-      <group position={[-15, 5, 10]}>
-        <mesh>
-          <boxGeometry args={[1.8, 0.6, 0.12]} />
-          <meshBasicMaterial color="#22c55e" toneMapped={false} />
-        </mesh>
-        <Text position={[0, 0, 0.07]} fontSize={0.3} color="#ffffff" anchorX="center">
-          EXIT
-        </Text>
-        <pointLight position={[0, 0, 0.5]} intensity={0.6} distance={3.5} color="#22c55e" />
-      </group>
-      <group position={[15, 5, 10]}>
-        <mesh>
-          <boxGeometry args={[1.8, 0.6, 0.12]} />
-          <meshBasicMaterial color="#22c55e" toneMapped={false} />
-        </mesh>
-        <Text position={[0, 0, 0.07]} fontSize={0.3} color="#ffffff" anchorX="center">
-          EXIT
-        </Text>
-        <pointLight position={[0, 0, 0.5]} intensity={0.6} distance={3.5} color="#22c55e" />
-      </group>
+      {[[-15, 5, 10], [15, 5, 10]].map((pos, i) => (
+        <group key={i} position={pos as [number, number, number]}>
+          <mesh><boxGeometry args={[1.8, 0.6, 0.12]} /><meshBasicMaterial color="#22c55e" toneMapped={false} /></mesh>
+          <Text position={[0, 0, 0.07]} fontSize={0.3} color="#ffffff" anchorX="center">EXIT</Text>
+          <pointLight position={[0, 0, 0.5]} intensity={0.6} distance={3.5} color="#22c55e" />
+        </group>
+      ))}
     </group>
   );
 }
 
+// --- CEILING LIGHTS ---
 function CeilingLights({ dimmed }: { dimmed: boolean }) {
   const lightsRef = useRef<THREE.Group>(null);
-
   useFrame(() => {
     if (lightsRef.current) {
       lightsRef.current.children.forEach((light) => {
         if (light instanceof THREE.PointLight) {
-          const targetIntensity = dimmed ? 0.15 : 1.0;
-          light.intensity = THREE.MathUtils.lerp(light.intensity, targetIntensity, 0.05);
+          light.intensity = THREE.MathUtils.lerp(light.intensity, dimmed ? 0.15 : 1.0, 0.05);
         }
       });
     }
   });
 
   const lightPositions = useMemo(() => {
-    const positions: [number, number, number][] = [];
-    for (let x = -12; x <= 12; x += 6) {
-      for (let z = -8; z <= 16; z += 6) {
-        positions.push([x, 12, z]);
-      }
-    }
-    return positions;
+    const p: [number, number, number][] = [];
+    for (let x = -12; x <= 12; x += 6) for (let z = -8; z <= 16; z += 6) p.push([x, 12, z]);
+    return p;
   }, []);
 
   return (
     <group ref={lightsRef}>
-      {lightPositions.map((pos, index) => (
-        <group key={index} position={new THREE.Vector3(...pos)}>
-          <mesh>
-            <cylinderGeometry args={[0.35, 0.45, 0.25, 16]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.7} metalness={0.6} />
-          </mesh>
+      {lightPositions.map((pos, i) => (
+        <group key={i} position={new THREE.Vector3(...pos)}>
+          <mesh><cylinderGeometry args={[0.35, 0.45, 0.25, 16]} /><meshStandardMaterial color="#1e293b" roughness={0.7} metalness={0.6} /></mesh>
           <pointLight intensity={dimmed ? 0.15 : 1.0} distance={10} color="#fef3c7" />
         </group>
       ))}
@@ -743,26 +560,18 @@ function CeilingLights({ dimmed }: { dimmed: boolean }) {
   );
 }
 
+// --- STADIUM STEPS ---
 function StadiumSteps() {
-  const steps = useMemo(() => {
-    return Array.from({ length: 8 }, (_, i) => ({
-      index: i,
-      z: i * 1.5 + 3,
-      y: i * 0.35
-    }));
-  }, []);
-
+  const steps = useMemo(() => Array.from({ length: 8 }, (_, i) => ({ index: i, z: i * 1.5 + 3, y: i * 0.35 })), []);
   return (
     <group>
       {steps.map((step) => (
         <group key={step.index}>
           <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
-            <boxGeometry args={[30, 0.5, 1.5]} />
-            <meshStandardMaterial color="#1e293b" roughness={0.85} metalness={0.1} />
+            <boxGeometry args={[30, 0.5, 1.5]} /><meshStandardMaterial color="#1e293b" roughness={0.85} metalness={0.1} />
           </mesh>
           <mesh position={[0, step.y + 0.26, step.z + 0.74]}>
-            <boxGeometry args={[30, 0.03, 0.04]} />
-            <meshBasicMaterial color="#3b82f6" toneMapped={false} />
+            <boxGeometry args={[30, 0.03, 0.04]} /><meshBasicMaterial color="#3b82f6" toneMapped={false} />
           </mesh>
         </group>
       ))}
@@ -770,103 +579,64 @@ function StadiumSteps() {
   );
 }
 
+// --- AISLE MARKERS ---
 function AisleMarkers() {
   return (
     <group>
       {Array.from({ length: 8 }, (_, i) => (
         <group key={i}>
-          <mesh position={[-5, i * 0.35 + 0.4, i * 1.5 + 3]}>
-            <sphereGeometry args={[0.06, 12, 12]} />
-            <meshBasicMaterial color="#fbbf24" toneMapped={false} />
-            <pointLight position={[0, 0, 0]} intensity={0.3} distance={1} color="#fbbf24" />
-          </mesh>
-          <mesh position={[5, i * 0.35 + 0.4, i * 1.5 + 3]}>
-            <sphereGeometry args={[0.06, 12, 12]} />
-            <meshBasicMaterial color="#fbbf24" toneMapped={false} />
-            <pointLight position={[0, 0, 0]} intensity={0.3} distance={1} color="#fbbf24" />
-          </mesh>
+          {[-5, 5].map((x, j) => (
+            <mesh key={j} position={[x, i * 0.35 + 0.4, i * 1.5 + 3]}>
+              <sphereGeometry args={[0.06, 12, 12]} /><meshBasicMaterial color="#fbbf24" toneMapped={false} />
+              <pointLight intensity={0.3} distance={1} color="#fbbf24" />
+            </mesh>
+          ))}
         </group>
       ))}
     </group>
   );
 }
 
+// --- THEATER ENVIRONMENT ---
 function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
   const { scene } = useThree();
-
-  useEffect(() => {
-    scene.fog = new THREE.Fog('#0a0a1a', 25, 70);
-    return () => {
-      scene.fog = null;
-    };
-  }, [scene]);
+  useEffect(() => { scene.fog = new THREE.Fog('#0a0a1a', 25, 70); return () => { scene.fog = null; }; }, [scene]);
 
   return (
     <group>
       <mesh position={[0, -0.5, 5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[120, 120]} />
-        <meshStandardMaterial color="#0a0a1a" roughness={0.95} metalness={0.05} />
+        <planeGeometry args={[120, 120]} /><meshStandardMaterial color="#0a0a1a" roughness={0.95} metalness={0.05} />
       </mesh>
-
       <mesh position={[-18, 6, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[60, 16]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
+        <planeGeometry args={[60, 16]} /><meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
       </mesh>
-
       <mesh position={[18, 6, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[60, 16]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
+        <planeGeometry args={[60, 16]} /><meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
       </mesh>
-
       <mesh position={[0, 13, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[40, 60]} />
-        <meshStandardMaterial color="#020617" roughness={0.95} metalness={0.05} />
+        <planeGeometry args={[40, 60]} /><meshStandardMaterial color="#020617" roughness={0.95} metalness={0.05} />
       </mesh>
-
       <StadiumSteps />
       <ExitSigns />
       <CeilingLights dimmed={!lightsEnabled} />
       <AisleMarkers />
-
       <group position={[0, 11, 24]}>
-        <mesh castShadow>
-          <boxGeometry args={[3.5, 2.5, 3.5]} />
-          <meshStandardMaterial color="#1e293b" roughness={0.7} metalness={0.3} />
-        </mesh>
-        <mesh position={[0, -0.6, -1.8]}>
-          <cylinderGeometry args={[0.35, 0.35, 0.6, 16]} />
-          <meshStandardMaterial color="#475569" roughness={0.4} metalness={0.6} />
-        </mesh>
-        <spotLight
-          position={[0, -0.6, -1.8]}
-          angle={0.15}
-          penumbra={0.4}
-          intensity={2.5}
-          distance={55}
-          color="#bfdbfe"
-          target-position={[0, SCREEN_Y, SCREEN_Z]}
-        />
+        <mesh castShadow><boxGeometry args={[3.5, 2.5, 3.5]} /><meshStandardMaterial color="#1e293b" roughness={0.7} metalness={0.3} /></mesh>
+        <mesh position={[0, -0.6, -1.8]}><cylinderGeometry args={[0.35, 0.35, 0.6, 16]} /><meshStandardMaterial color="#475569" roughness={0.4} metalness={0.6} /></mesh>
+        <spotLight position={[0, -0.6, -1.8]} angle={0.15} penumbra={0.4} intensity={2.5} distance={55} color="#bfdbfe" />
       </group>
     </group>
   );
 }
 
-function MiniMap({
-  seats,
-  selectedSeats,
-  onSeatClick
-}: {
-  seats: Seat[];
-  seatPositions: Array<{ seat: Seat; position: [number, number, number] }>;
-  selectedSeats: string[];
-  onSeatClick: (seat: Seat) => void;
+// --- MINIMAP ---
+function MiniMap({ seats, selectedSeats, onSeatClick }: {
+  seats: Seat[]; seatPositions: Array<{ seat: Seat; position: [number, number, number] }>;
+  selectedSeats: string[]; onSeatClick: (seat: Seat) => void;
 }) {
   const rows = useMemo(() => {
     const rowMap: Record<string, Seat[]> = {};
-    seats.forEach(seat => {
-      if (!rowMap[seat.row]) rowMap[seat.row] = [];
-      rowMap[seat.row].push(seat);
-    });
+    seats.forEach(seat => { if (!rowMap[seat.row]) rowMap[seat.row] = []; rowMap[seat.row].push(seat); });
     return Object.entries(rowMap).sort(([a], [b]) => a.localeCompare(b));
   }, [seats]);
 
@@ -882,8 +652,7 @@ function MiniMap({
   return (
     <div className="bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-xl">
       <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-        <Grid3X3 className="w-3 h-3" />
-        Theater Overview
+        <Grid3X3 className="w-3 h-3" />Theater Overview
       </h4>
       <div className="w-full h-2 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-full mb-4 relative">
         <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-gray-500">SCREEN</span>
@@ -894,13 +663,10 @@ function MiniMap({
             <span className="text-[8px] text-gray-500 w-3">{rowLetter}</span>
             <div className="flex gap-0.5 flex-wrap">
               {rowSeats.sort((a, b) => a.number - b.number).map(seat => (
-                <button
-                  key={seat.id}
-                  onClick={() => onSeatClick(seat)}
+                <button key={seat.id} onClick={() => onSeatClick(seat)}
                   disabled={seat.status === 'booked' || seat.isBooked}
                   className={`w-2 h-2 rounded-[2px] transition-all hover:scale-150 ${getSeatColor(seat)} ${seat.status === 'booked' || seat.isBooked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  title={`${seat.row}${seat.number} - $${seat.price}`}
-                />
+                  title={`${seat.row}${seat.number} - $${seat.price}`} />
               ))}
             </div>
           </div>
@@ -910,36 +676,18 @@ function MiniMap({
   );
 }
 
-function BookingModal({
-  isOpen,
-  onClose,
-  onConfirm,
-  selectedSeats,
-  movie,
-  showtime,
-  totalPrice
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => void;
-  selectedSeats: Seat[];
-  movie: typeof movies[0];
-  showtime: typeof showtimes[0];
-  totalPrice: number;
+// --- BOOKING MODAL ---
+function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showtime, totalPrice }: {
+  isOpen: boolean; onClose: () => void; onConfirm: () => void; selectedSeats: Seat[];
+  movie: typeof movies[0]; showtime: typeof showtimes[0]; totalPrice: number;
 }) {
   if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 animate-in fade-in">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl animate-in zoom-in-95">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2">
-            <Ticket className="w-5 h-5 text-blue-400" />
-            Confirm Booking
-          </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
+          <h3 className="text-xl font-bold text-white flex items-center gap-2"><Ticket className="w-5 h-5 text-blue-400" />Confirm Booking</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
         </div>
         <div className="space-y-4">
           <div className="bg-slate-800/50 rounded-lg p-3">
@@ -952,48 +700,25 @@ function BookingModal({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-gray-300">
-            <Clock className="w-4 h-4 text-blue-400" />
-            <span>{showtime.time}</span>
-          </div>
+          <div className="flex items-center gap-2 text-gray-300"><Clock className="w-4 h-4 text-blue-400" /><span>{showtime.time}</span></div>
           <div className="bg-slate-800/50 rounded-lg p-3">
             <h5 className="text-sm text-gray-400 mb-2">Selected Seats</h5>
             <div className="flex flex-wrap gap-2">
               {selectedSeats.map(seat => (
-                <span
-                  key={seat.id}
-                  className={`px-2 py-1 rounded text-xs font-medium ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300' :
-                    seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300' :
-                      'bg-gray-500/20 text-gray-300'
-                    }`}
-                >
+                <span key={seat.id} className={`px-2 py-1 rounded text-xs font-medium ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300' : seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-500/20 text-gray-300'}`}>
                   {seat.row}{seat.number}
                 </span>
               ))}
             </div>
           </div>
           <div className="border-t border-white/10 pt-4">
-            <div className="flex justify-between text-sm text-gray-400 mb-1">
-              <span>Subtotal ({selectedSeats.length} tickets)</span>
-              <span>${totalPrice.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-400 mb-1">
-              <span>Booking Fee</span>
-              <span>$2.50</span>
-            </div>
-            <div className="flex justify-between text-lg font-bold text-white mt-2">
-              <span>Total</span>
-              <span className="text-green-400">${(totalPrice + 2.5).toFixed(2)}</span>
-            </div>
+            <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Subtotal ({selectedSeats.length} tickets)</span><span>${totalPrice.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Booking Fee</span><span>$2.50</span></div>
+            <div className="flex justify-between text-lg font-bold text-white mt-2"><span>Total</span><span className="text-green-400">${(totalPrice + 2.5).toFixed(2)}</span></div>
           </div>
           <div className="flex gap-3 mt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1">
-              Cancel
-            </Button>
-            <Button onClick={onConfirm} className="flex-1 bg-green-600 hover:bg-green-700">
-              <CreditCard className="w-4 h-4 mr-2" />
-              Pay Now
-            </Button>
+            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
+            <Button onClick={onConfirm} className="flex-1 bg-green-600 hover:bg-green-700"><CreditCard className="w-4 h-4 mr-2" />Pay Now</Button>
           </div>
         </div>
       </div>
@@ -1001,12 +726,55 @@ function BookingModal({
   );
 }
 
+// --- YOUTUBE OVERLAY COMPONENT ---
+// This renders the YouTube iframe as a fixed HTML overlay that tracks the 3D screen position
+function YouTubeOverlay({
+  videoId,
+  screenRect
+}: {
+  videoId: string;
+  screenRect: { left: number; top: number; width: number; height: number; visible: boolean };
+}) {
+  if (!screenRect.visible || screenRect.width < 50 || screenRect.height < 30) {
+    return null;
+  }
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: `${screenRect.left}px`,
+        top: `${screenRect.top}px`,
+        width: `${screenRect.width}px`,
+        height: `${screenRect.height}px`,
+        zIndex: 5,
+        pointerEvents: 'auto',
+        overflow: 'hidden',
+        borderRadius: '2px',
+        backgroundColor: '#000',
+      }}
+    >
+      <iframe
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&iv_load_policy=3&fs=0`}
+        title="YouTube video player"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerPolicy="strict-origin-when-cross-origin"
+        style={{
+          border: 'none',
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          backgroundColor: '#000',
+        }}
+      />
+    </div>
+  );
+}
+
 // --- MAIN COMPONENT ---
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
-  const [cameraTarget, setCameraTarget] = useState<CameraTarget>({
-    position: DEFAULT_CAMERA_POS,
-    lookAt: DEFAULT_LOOK_AT
-  });
+  const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
   const [isAnimating, setIsAnimating] = useState(false);
   const [viewingSeatId, setViewingSeatId] = useState<string | null>(null);
   const [selectedMovie, setSelectedMovie] = useState(movies[0]);
@@ -1018,22 +786,19 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [highlightedSeats, setHighlightedSeats] = useState<string[]>([]);
   const [lightsEnabled, setLightsEnabled] = useState(false);
+  const [screenRect, setScreenRect] = useState({ left: 0, top: 0, width: 0, height: 0, visible: false });
 
   const controlsRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { playSound } = useAudio();
 
-  const selectedSeats = useMemo(() => {
-    return seats.filter(s => s.status === 'selected' || s.isSelected);
-  }, [seats]);
+  const youtubeId = useMemo(() => getYouTubeId(selectedMovie.video), [selectedMovie.video]);
+  const isYouTube = !!youtubeId;
 
-  const totalPrice = useMemo(() => {
-    return selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-  }, [selectedSeats]);
-
-  const rows = useMemo(() => {
-    return [...new Set(seats.map(s => s.row))].sort();
-  }, [seats]);
+  const selectedSeats = useMemo(() => seats.filter(s => s.status === 'selected' || s.isSelected), [seats]);
+  const totalPrice = useMemo(() => selectedSeats.reduce((sum, seat) => sum + seat.price, 0), [selectedSeats]);
+  const rows = useMemo(() => [...new Set(seats.map(s => s.row))].sort(), [seats]);
 
   const seatsByRow = useMemo(() => {
     return seats.reduce((acc, seat) => {
@@ -1046,44 +811,29 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const seatPositions = useMemo(() => {
     const positions: Array<{ seat: Seat; position: [number, number, number] }> = [];
     const sortedRows = Object.keys(seatsByRow).sort();
-
     sortedRows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
       const rowZ = rowIndex * 1.5 + 3;
       const rowY = (rowIndex * 0.35) + 0.3;
-
       rowSeats.forEach((seat, seatIndex) => {
         let aisleOffset = 0;
         const middleIndex = Math.floor(rowSeats.length / 2);
-
-        if (seatIndex >= middleIndex) {
-          aisleOffset = 1.2;
-        }
-
+        if (seatIndex >= middleIndex) aisleOffset = 1.2;
         const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.1 + aisleOffset * 0.5 - 0.3;
-
-        positions.push({
-          seat,
-          position: [seatX, rowY, rowZ]
-        });
+        positions.push({ seat, position: [seatX, rowY, rowZ] });
       });
     });
-
     return positions;
   }, [seatsByRow]);
 
   const findBestSeats = useCallback((count: number = 2) => {
-    const availableSeats = seatPositions.filter(
-      ({ seat }) => seat.status === 'available' && !seat.isBooked
-    );
-
+    const availableSeats = seatPositions.filter(({ seat }) => seat.status === 'available' && !seat.isBooked);
     const scoredSeats = availableSeats.map(({ seat, position }) => {
       const centerScore = 12 - Math.abs(position[0]);
       const rowScore = 10 - Math.abs(4 - position[2] / 1.5);
       const typeBonus = seat.type === 'premium' ? 3 : seat.type === 'vip' ? 4 : 0;
-      return { seat, position, score: centerScore + rowScore + typeBonus };
+      return { seat, score: centerScore + rowScore + typeBonus };
     });
-
     scoredSeats.sort((a, b) => b.score - a.score);
     return scoredSeats.slice(0, count).map(s => s.seat.id);
   }, [seatPositions]);
@@ -1091,33 +841,23 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const handleSeatClick = useCallback((seat: Seat) => {
     if (soundEnabled) playSound('click');
     onSeatClick(seat);
-
     const seatData = seatPositions.find(s => s.seat.id === seat.id);
     if (seatData) {
       const [x, y, z] = seatData.position;
-      setCameraTarget({
-        position: new THREE.Vector3(x, y + 1, z + 2),
-        lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z)
-      });
+      setCameraTarget({ position: new THREE.Vector3(x, y + 1, z + 2), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
       setIsAnimating(true);
       setViewingSeatId(seat.id);
     }
   }, [soundEnabled, playSound, onSeatClick, seatPositions]);
 
   const handleSeatHover = (seat: Seat | null, position?: [number, number, number]) => {
-    if (seat && position) {
-      setHoveredSeat({ seat, position });
-    } else {
-      setHoveredSeat(null);
-    }
+    if (seat && position) setHoveredSeat({ seat, position });
+    else setHoveredSeat(null);
   };
 
   const handleResetView = () => {
     if (soundEnabled) playSound('click');
-    setCameraTarget({
-      position: DEFAULT_CAMERA_POS,
-      lookAt: DEFAULT_LOOK_AT
-    });
+    setCameraTarget({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
     setIsAnimating(true);
     setViewingSeatId(null);
     setViewMode('default');
@@ -1126,14 +866,12 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const handleViewModeChange = (mode: ViewMode) => {
     if (soundEnabled) playSound('click');
     setViewMode(mode);
-
     const viewPositions: Record<ViewMode, CameraTarget> = {
       default: { position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT },
       topdown: { position: new THREE.Vector3(0, 28, 8), lookAt: new THREE.Vector3(0, 0, 5) },
       front: { position: new THREE.Vector3(0, 6, -14), lookAt: new THREE.Vector3(0, 6, 0) },
       side: { position: new THREE.Vector3(28, 10, 8), lookAt: new THREE.Vector3(0, 3, 5) }
     };
-
     setCameraTarget(viewPositions[mode]);
     setIsAnimating(true);
   };
@@ -1163,87 +901,74 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     alert('Booking confirmed! Thank you for your purchase.');
   };
 
+  // Handle screen position updates from the tracker
+  const handleScreenPositionUpdate = useCallback((rect: { left: number; top: number; width: number; height: number; visible: boolean }) => {
+    setScreenRect(prev => {
+      // Only update if significantly changed to avoid constant re-renders
+      if (
+        Math.abs(prev.left - rect.left) > 1 ||
+        Math.abs(prev.top - rect.top) > 1 ||
+        Math.abs(prev.width - rect.width) > 1 ||
+        Math.abs(prev.height - rect.height) > 1 ||
+        prev.visible !== rect.visible
+      ) {
+        return rect;
+      }
+      return prev;
+    });
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!viewingSeatId) return;
-
       const currentSeat = seatPositions.find(s => s.seat.id === viewingSeatId);
       if (!currentSeat) return;
-
       const currentRow = currentSeat.seat.row;
       const currentNumber = currentSeat.seat.number;
       let targetSeat: Seat | undefined;
 
       switch (e.key) {
-        case 'ArrowLeft':
-          targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber - 1);
-          break;
-        case 'ArrowRight':
-          targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber + 1);
-          break;
-        case 'ArrowUp': {
-          const prevRow = String.fromCharCode(currentRow.charCodeAt(0) - 1);
-          targetSeat = seats.find(s => s.row === prevRow && s.number === currentNumber);
-          break;
-        }
-        case 'ArrowDown': {
-          const nextRow = String.fromCharCode(currentRow.charCodeAt(0) + 1);
-          targetSeat = seats.find(s => s.row === nextRow && s.number === currentNumber);
-          break;
-        }
-        case 'Enter':
-        case ' ':
-          if (currentSeat.seat.status !== 'booked') {
-            handleSeatClick(currentSeat.seat);
-          }
-          break;
-        case 'Escape':
-          handleResetView();
-          break;
+        case 'ArrowLeft': targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber - 1); break;
+        case 'ArrowRight': targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber + 1); break;
+        case 'ArrowUp': { const prevRow = String.fromCharCode(currentRow.charCodeAt(0) - 1); targetSeat = seats.find(s => s.row === prevRow && s.number === currentNumber); break; }
+        case 'ArrowDown': { const nextRow = String.fromCharCode(currentRow.charCodeAt(0) + 1); targetSeat = seats.find(s => s.row === nextRow && s.number === currentNumber); break; }
+        case 'Enter': case ' ': if (currentSeat.seat.status !== 'booked') handleSeatClick(currentSeat.seat); break;
+        case 'Escape': handleResetView(); break;
       }
-
       if (targetSeat) {
         e.preventDefault();
         const targetData = seatPositions.find(s => s.seat.id === targetSeat!.id);
         if (targetData) {
           const [x, y, z] = targetData.position;
-          setCameraTarget({
-            position: new THREE.Vector3(x, y + 1, z + 2),
-            lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z)
-          });
+          setCameraTarget({ position: new THREE.Vector3(x, y + 1, z + 2), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
           setIsAnimating(true);
           setViewingSeatId(targetSeat.id);
         }
       }
     };
-
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [viewingSeatId, seats, seatPositions, handleSeatClick]);
 
   return (
-    <div className="relative w-full h-[800px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+    <div ref={containerRef} className="relative w-full h-[800px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+
+      {/* === YouTube Overlay - renders OUTSIDE canvas, tracks 3D screen position === */}
+      {isYouTube && youtubeId && (
+        <YouTubeOverlay videoId={youtubeId} screenRect={screenRect} />
+      )}
+
+      {/* === UI PANELS === */}
       <div className="absolute top-4 left-4 z-20 flex flex-col gap-3 max-w-[420px]">
         <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10">
           <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <Film className="w-3 h-3 text-blue-400" />
-            Now Playing
+            <Film className="w-3 h-3 text-blue-400" />Now Playing
           </h3>
           <div className="flex flex-wrap gap-2">
             {movies.map((movie) => (
-              <button
-                key={movie.id}
-                onClick={() => {
-                  if (soundEnabled) playSound('click');
-                  setSelectedMovie(movie);
-                }}
-                className={`
-                  px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border
-                  ${selectedMovie.id === movie.id
-                    ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20'
-                    : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}
-                `}
-              >
+              <button key={movie.id}
+                onClick={() => { if (soundEnabled) playSound('click'); setSelectedMovie(movie); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border ${selectedMovie.id === movie.id ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}`}>
                 {movie.title}
               </button>
             ))}
@@ -1252,24 +977,13 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
         <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10">
           <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <Clock className="w-3 h-3 text-green-400" />
-            Select Showtime
+            <Clock className="w-3 h-3 text-green-400" />Select Showtime
           </h3>
           <div className="flex flex-wrap gap-2">
             {showtimes.map((showtime) => (
-              <button
-                key={showtime.id}
-                onClick={() => {
-                  if (soundEnabled) playSound('click');
-                  setSelectedShowtime(showtime);
-                }}
-                className={`
-                  px-3 py-1.5 rounded-lg text-xs font-medium transition-all border
-                  ${selectedShowtime.id === showtime.id
-                    ? 'bg-green-600 border-green-500 text-white'
-                    : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}
-                `}
-              >
+              <button key={showtime.id}
+                onClick={() => { if (soundEnabled) playSound('click'); setSelectedShowtime(showtime); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${selectedShowtime.id === showtime.id ? 'bg-green-600 border-green-500 text-white' : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}`}>
                 {showtime.time}
               </button>
             ))}
@@ -1278,14 +992,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
         <div className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10">
           <div className="flex gap-3">
-            <img
-              src={selectedMovie.image}
-              alt={selectedMovie.title}
-              className="w-12 h-16 object-cover rounded-lg"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48x64?text=Poster';
-              }}
-            />
+            <img src={selectedMovie.image} alt={selectedMovie.title} className="w-12 h-16 object-cover rounded-lg"
+              onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48x64?text=Poster'; }} />
             <div className="flex-1 min-w-0">
               <h4 className="text-blue-400 font-bold text-sm truncate">{selectedMovie.title}</h4>
               <p className="text-gray-500 text-xs">{selectedMovie.duration} • {selectedMovie.rating}</p>
@@ -1312,26 +1020,22 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
 
         <div className="flex gap-2">
-          {[
-            { mode: 'default' as ViewMode, icon: Eye, label: 'Default' },
-            { mode: 'topdown' as ViewMode, icon: ArrowDown, label: 'Top' },
-            { mode: 'front' as ViewMode, icon: Maximize2, label: 'Front' },
-            { mode: 'side' as ViewMode, icon: ArrowUp, label: 'Side' }
-          ].map(({ mode, icon: Icon }) => (
-            <Button
-              key={mode}
-              variant="outline"
-              size="sm"
+          {([
+            { mode: 'default' as ViewMode, icon: Eye },
+            { mode: 'topdown' as ViewMode, icon: ArrowDown },
+            { mode: 'front' as ViewMode, icon: Maximize2 },
+            { mode: 'side' as ViewMode, icon: ArrowUp }
+          ]).map(({ mode, icon: Icon }) => (
+            <Button key={mode} variant="outline" size="sm"
               onClick={() => handleViewModeChange(mode)}
-              className={`bg-black/50 hover:bg-black/70 border-white/20 text-white ${viewMode === mode ? 'ring-2 ring-blue-500' : ''}`}
-            >
+              className={`bg-black/50 hover:bg-black/70 border-white/20 text-white ${viewMode === mode ? 'ring-2 ring-blue-500' : ''}`}>
               <Icon className="w-4 h-4" />
             </Button>
           ))}
         </div>
 
         {viewingSeatId && (
-          <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg animate-in fade-in zoom-in">
+          <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
             <Eye className="w-4 h-4 text-blue-400" />
             <span className="text-sm font-medium">
               Viewing from Seat {seats.find(s => s.id === viewingSeatId)?.row}{seats.find(s => s.id === viewingSeatId)?.number}
@@ -1341,92 +1045,51 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
         <div className="flex gap-2">
           <Button onClick={handleRecommendSeats} variant="outline" size="sm" className="bg-amber-600/50 hover:bg-amber-600/70 border-amber-500/50 text-white">
-            <Star className="w-4 h-4 mr-2" />
-            Best Seats
+            <Star className="w-4 h-4 mr-2" />Best Seats
           </Button>
           <Button onClick={handleResetView} variant="outline" size="sm" className="bg-black/50 hover:bg-black/70 border-white/20 text-white">
-            <RotateCcw className="w-4 h-4 mr-2" />
-            Reset View
+            <RotateCcw className="w-4 h-4 mr-2" />Reset View
           </Button>
         </div>
       </div>
 
+      {/* Seat Guide */}
       <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg">
-        <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Info className="w-3 h-3" />
-          Seat Guide
-        </h3>
+        <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2"><Info className="w-3 h-3" />Seat Guide</h3>
         <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-400"></div>
-            <span className="text-gray-300 text-xs">Standard</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <span className="text-gray-300 text-xs">Premium</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <span className="text-gray-300 text-xs">VIP</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-teal-500"></div>
-            <span className="text-gray-300 text-xs">Accessible</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
-            <span className="text-gray-300 text-xs">Selected</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-slate-600"></div>
-            <span className="text-gray-300 text-xs">Booked</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-amber-500"></div>
-            <span className="text-gray-300 text-xs">Recommended</span>
-          </div>
+          {[
+            ['bg-gray-400', 'Standard'], ['bg-blue-500', 'Premium'], ['bg-purple-500', 'VIP'],
+            ['bg-teal-500', 'Accessible'], ['bg-green-500', 'Selected'], ['bg-slate-600', 'Booked'], ['bg-amber-500', 'Recommended']
+          ].map(([color, label]) => (
+            <div key={label} className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${color}`}></div>
+              <span className="text-gray-300 text-xs">{label}</span>
+            </div>
+          ))}
         </div>
       </div>
 
+      {/* Selection Panel */}
       <div className="absolute bottom-4 right-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg min-w-[280px]">
         <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Ticket className="w-3 h-3 text-green-400" />
-          Your Selection
+          <Ticket className="w-3 h-3 text-green-400" />Your Selection
         </h3>
         {selectedSeats.length > 0 ? (
           <>
             <div className="flex flex-wrap gap-2 mb-3">
               {selectedSeats.map(seat => (
-                <span
-                  key={seat.id}
-                  className={`px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
-                    seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' :
-                      seat.type === 'accessible' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' :
-                        'bg-gray-500/20 text-gray-300 border border-gray-500/30'
-                    }`}
-                >
-                  {seat.row}{seat.number}
-                  <span className="text-gray-500">${seat.price}</span>
+                <span key={seat.id} className={`px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : seat.type === 'accessible' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'}`}>
+                  {seat.row}{seat.number}<span className="text-gray-500">${seat.price}</span>
                 </span>
               ))}
             </div>
             <div className="border-t border-white/10 pt-3 space-y-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">{selectedSeats.length} ticket(s)</span>
-                <span className="text-white font-medium">${totalPrice.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-400">Booking fee</span>
-                <span className="text-white font-medium">$2.50</span>
-              </div>
-              <div className="flex justify-between text-lg font-bold border-t border-white/10 pt-2">
-                <span className="text-white">Total</span>
-                <span className="text-green-400">${(totalPrice + 2.5).toFixed(2)}</span>
-              </div>
+              <div className="flex justify-between text-sm"><span className="text-gray-400">{selectedSeats.length} ticket(s)</span><span className="text-white font-medium">${totalPrice.toFixed(2)}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-400">Booking fee</span><span className="text-white font-medium">$2.50</span></div>
+              <div className="flex justify-between text-lg font-bold border-t border-white/10 pt-2"><span className="text-white">Total</span><span className="text-green-400">${(totalPrice + 2.5).toFixed(2)}</span></div>
             </div>
             <Button onClick={() => setShowBookingModal(true)} className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white">
-              <Check className="w-4 h-4 mr-2" />
-              Proceed to Checkout
+              <Check className="w-4 h-4 mr-2" />Proceed to Checkout
             </Button>
           </>
         ) : (
@@ -1440,88 +1103,52 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
       {showMiniMap && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-          <MiniMap
-            seats={seats}
-            seatPositions={seatPositions}
-            selectedSeats={selectedSeats.map(s => s.id)}
-            onSeatClick={handleSeatClick}
-          />
+          <MiniMap seats={seats} seatPositions={seatPositions} selectedSeats={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
         </div>
       )}
 
+      {/* === 3D CANVAS === */}
       <Canvas
         ref={canvasRef}
         shadows
         camera={{ position: [0, 10, 22], fov: 55 }}
         gl={{ antialias: true, preserveDrawingBuffer: true }}
       >
-        <CameraController
-          target={cameraTarget}
-          isAnimating={isAnimating}
-          onAnimationComplete={() => setIsAnimating(false)}
-          controlsRef={controlsRef}
-          viewMode={viewMode}
-        />
+        <CameraController target={cameraTarget} isAnimating={isAnimating} onAnimationComplete={() => setIsAnimating(false)} controlsRef={controlsRef} viewMode={viewMode} />
 
         <ambientLight intensity={0.35} />
-        <directionalLight
-          position={[12, 22, 12]}
-          intensity={1.0}
-          castShadow
-          shadow-mapSize={[2048, 2048]}
-          shadow-camera-left={-25}
-          shadow-camera-right={25}
-          shadow-camera-top={25}
-          shadow-camera-bottom={-25}
-        />
+        <directionalLight position={[12, 22, 12]} intensity={1.0} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-25} shadow-camera-right={25} shadow-camera-top={25} shadow-camera-bottom={-25} />
         <directionalLight position={[-12, 18, 12]} intensity={0.4} />
         <spotLight position={[0, 22, 8]} angle={0.6} penumbra={1} intensity={0.5} castShadow />
 
-        <Screen3D
-          videoUrl={selectedMovie.video}
-          movieTitle={selectedMovie.title}
-        />
+        {/* Screen Position Tracker - updates overlay position every frame */}
+        {isYouTube && (
+          <ScreenPositionTracker onPositionUpdate={handleScreenPositionUpdate} />
+        )}
+
+        {/* 3D Screen - for YouTube shows dark surface, for mp4 shows video texture */}
+        {isYouTube ? (
+          <Screen3D videoUrl={selectedMovie.video} movieTitle={selectedMovie.title} isYouTube={true} />
+        ) : (
+          <Screen3DWithVideo videoUrl={selectedMovie.video} movieTitle={selectedMovie.title} />
+        )}
 
         <RowLabels rows={rows} />
         <TheaterEnvironment lightsEnabled={lightsEnabled} />
 
         {seatPositions.map(({ seat, position }) => (
-          <Seat3D
-            key={seat.id}
-            seat={seat}
-            position={position}
-            onClick={handleSeatClick}
-            onHover={handleSeatHover}
-            isHighlighted={highlightedSeats.includes(seat.id)}
-            soundEnabled={soundEnabled}
-            playSound={playSound}
-          />
+          <Seat3D key={seat.id} seat={seat} position={position} onClick={handleSeatClick} onHover={handleSeatHover}
+            isHighlighted={highlightedSeats.includes(seat.id)} soundEnabled={soundEnabled} playSound={playSound} />
         ))}
 
-        {hoveredSeat && (
-          <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />
-        )}
+        {hoveredSeat && <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />}
 
-        <OrbitControls
-          ref={controlsRef}
-          minDistance={4}
-          maxDistance={45}
-          maxPolarAngle={Math.PI / 2.05}
-          target={[0, 2, 0]}
-          enableDamping={true}
-          dampingFactor={0.05}
-        />
+        <OrbitControls ref={controlsRef} minDistance={4} maxDistance={45} maxPolarAngle={Math.PI / 2.05}
+          target={[0, 2, 0]} enableDamping={true} dampingFactor={0.05} />
       </Canvas>
 
-      <BookingModal
-        isOpen={showBookingModal}
-        onClose={() => setShowBookingModal(false)}
-        onConfirm={handleConfirmBooking}
-        selectedSeats={selectedSeats}
-        movie={selectedMovie}
-        showtime={selectedShowtime}
-        totalPrice={totalPrice}
-      />
+      <BookingModal isOpen={showBookingModal} onClose={() => setShowBookingModal(false)} onConfirm={handleConfirmBooking}
+        selectedSeats={selectedSeats} movie={selectedMovie} showtime={selectedShowtime} totalPrice={totalPrice} />
     </div>
   );
 }
