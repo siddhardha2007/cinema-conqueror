@@ -526,7 +526,7 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             <iframe
               width="1280"
               height="533"
-              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=0&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
+              src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
               title="YouTube video player"
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -539,6 +539,17 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
               }}
             />
           </Html>
+
+          {/* Unmute hint - positioned below the screen */}
+          <Text
+            position={[0, -6, 0.2]}
+            fontSize={0.5}
+            color="#fbbf24"
+            anchorX="center"
+            anchorY="middle"
+          >
+            🔊 Click the video to unmute
+          </Text>
         </>
       ) : (
         <Suspense
