@@ -489,7 +489,7 @@ function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
   );
 }
 
-// --- FIXED SCREEN3D COMPONENT ---
+// --- UPDATED SCREEN3D COMPONENT WITH LARGER VIDEO ---
 function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
   const youtubeId = getYouTubeId(videoUrl);
 
@@ -520,12 +520,12 @@ function Screen3D({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: stri
             position={[0, 0, 0.05]}
             transform
             occlude={false}
-            scale={0.01875}
+            scale={0.024}
             zIndexRange={[100, 0]}
           >
             <iframe
-              width="1280"
-              height="533"
+              width="1000"
+              height="417"
               src={`https://www.youtube-nocookie.com/embed/${youtubeId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1`}
               title="YouTube video player"
               frameBorder="0"
