@@ -871,8 +871,8 @@ function BookingModal({
   onClose: () => void;
   onConfirm: () => void;
   seats: Seat[];
-  movie: (typeof movies)[0];
-  showtime: (typeof showtimes)[0];
+  movie: typeof movies[0];
+  showtime: typeof showtimes[0];
   total: number;
 }) {
   if (!open) return null;
