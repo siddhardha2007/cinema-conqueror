@@ -8,90 +8,6 @@ import {
   AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
 } from 'lucide-react';
 
-// --- MOCK BUTTON COMPONENT ---
-const Button = ({ children, onClick, className = '', variant = 'default', size = 'default', disabled = false }: any) => {
-  const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
-  const variants: Record<string, string> = {
-    default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
-    outline: "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-    ghost: "hover:bg-accent hover:text-accent-foreground"
-  };
-  const sizes: Record<string, string> = {
-    default: "h-9 px-4 py-2 text-sm",
-    sm: "h-8 rounded-md px-3 text-xs",
-    icon: "h-9 w-9"
-  };
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseStyle} ${variants[variant] || variants.default} ${sizes[size] || sizes.default} ${className}`}
-    >
-      {children}
-    </button>
-  );
-};
-
-// --- DATA ---
-const movies = [
-  {
-    id: '1',
-    title: "The Dark Knight",
-    image: "https://tinyurl.com/2h8v6vs4",
-    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
-    description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
-    duration: "2h 32m",
-    rating: "PG-13",
-    genre: "Action, Crime, Drama"
-  },
-  {
-    id: '2',
-    title: "Inception",
-    image: "https://tinyurl.com/3prm5vj7",
-    video: "https://www.youtube.com/watch?v=YoHD9XEInc0",
-    description: "A giant rabbit meets three bullying rodents.",
-    duration: "9m 56s",
-    rating: "PG",
-    genre: "Animation, Comedy"
-  },
-  {
-    id: '3',
-    title: "Interstellar",
-    image: "https://tinyurl.com/3aprbm25",
-    video: "https://www.youtube.com/watch?v=zSWdZVtXT7E",
-    description: "Two friends explore a strange machine world.",
-    duration: "10m 53s",
-    rating: "PG-13",
-    genre: "Sci-Fi, Adventure"
-  },
-  {
-    id: '4',
-    title: "Oppenhimer",
-    image: "https://tinyurl.com/4m2dv8x2",
-    video: "https://www.youtube.com/watch?v=uYPbbksJxIg",
-    description: "A group of warriors and scientists try to save the world.",
-    duration: "12m 14s",
-    rating: "R",
-    genre: "Sci-Fi, Action"
-  }
-];
-
-const showtimes = [
-  { id: '1', time: '10:00 AM', period: 'morning' },
-  { id: '2', time: '1:30 PM', period: 'afternoon' },
-  { id: '3', time: '4:00 PM', period: 'afternoon' },
-  { id: '4', time: '7:00 PM', period: 'evening' },
-  { id: '5', time: '9:30 PM', period: 'night' },
-  { id: '6', time: '11:45 PM', period: 'night' },
-];
-
-// --- HELPER ---
-function getYouTubeId(url: string) {
-  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
-}
-
 // --- TYPES ---
 export interface Seat {
   id: string;
@@ -114,12 +30,109 @@ interface CameraTarget {
   lookAt: THREE.Vector3;
 }
 
+interface ButtonProps {
+  children: React.ReactNode;
+  onClick?: (e: React.MouseEvent) => void;
+  className?: string;
+  variant?: 'default' | 'outline' | 'ghost';
+  size?: 'default' | 'sm' | 'icon';
+  disabled?: boolean;
+}
+
 type ViewMode = 'default' | 'topdown' | 'front' | 'side';
 
+// --- CONSTANTS ---
 const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 10, 22);
 const DEFAULT_LOOK_AT = new THREE.Vector3(0, 2, 0);
 const SCREEN_Z = -18;
 const SCREEN_Y = 8;
+
+// --- MOCK BUTTON COMPONENT ---
+const Button = ({ children, onClick, className = '', variant = 'default', size = 'default', disabled = false }: ButtonProps) => {
+  const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
+  
+  const variants: Record<string, string> = {
+    default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
+    outline: "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
+    ghost: "hover:bg-accent hover:text-accent-foreground"
+  };
+  
+  const sizes: Record<string, string> = {
+    default: "h-9 px-4 py-2 text-sm",
+    sm: "h-8 rounded-md px-3 text-xs",
+    icon: "h-9 w-9"
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${className}`}
+    >
+      {children}
+    </button>
+  );
+};
+
+// --- DATA ---
+const movies = [
+  {
+    id: '1',
+    title: "The Dark Knight",
+    image: "https://tinyurl.com/2h8v6vs4", // Placeholder image
+    video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
+    description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
+    duration: "2h 32m",
+    rating: "PG-13",
+    genre: "Action, Crime, Drama"
+  },
+  {
+    id: '2',
+    title: "Inception",
+    image: "https://tinyurl.com/3prm5vj7",
+    video: "https://www.youtube.com/watch?v=YoHD9XEInc0",
+    description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea.",
+    duration: "2h 28m",
+    rating: "PG-13",
+    genre: "Sci-Fi, Action"
+  },
+  {
+    id: '3',
+    title: "Interstellar",
+    image: "https://tinyurl.com/3aprbm25",
+    video: "https://www.youtube.com/watch?v=zSWdZVtXT7E",
+    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+    duration: "2h 49m",
+    rating: "PG-13",
+    genre: "Sci-Fi, Adventure"
+  },
+  {
+    id: '4',
+    title: "Oppenheimer", // Corrected spelling
+    image: "https://tinyurl.com/4m2dv8x2",
+    video: "https://www.youtube.com/watch?v=uYPbbksJxIg",
+    description: "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
+    duration: "3h 00m",
+    rating: "R",
+    genre: "Biography, Drama"
+  }
+];
+
+const showtimes = [
+  { id: '1', time: '10:00 AM', period: 'morning' },
+  { id: '2', time: '1:30 PM', period: 'afternoon' },
+  { id: '3', time: '4:00 PM', period: 'afternoon' },
+  { id: '4', time: '7:00 PM', period: 'evening' },
+  { id: '5', time: '9:30 PM', period: 'night' },
+  { id: '6', time: '11:45 PM', period: 'night' },
+];
+
+// --- HELPER ---
+function getYouTubeId(url: string) {
+  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+  const match = url.match(regExp);
+  return (match && match[2].length === 11) ? match[2] : null;
+}
 
 function easeInOutCubic(t: number): number {
   return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
@@ -139,11 +152,14 @@ const useAudio = () => {
     const gainNode = ctx.createGain();
     oscillator.connect(gainNode);
     gainNode.connect(ctx.destination);
+    
     const frequencies: Record<string, number> = { click: 600, select: 800, hover: 400, success: 1000, error: 200 };
     oscillator.frequency.value = frequencies[type];
     oscillator.type = type === 'error' ? 'sawtooth' : 'sine';
+    
     gainNode.gain.value = 0.1;
     gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+    
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + 0.1);
   }, []);
@@ -151,13 +167,12 @@ const useAudio = () => {
 };
 
 // --- SCREEN POSITION TRACKER ---
-// This component tracks the 3D screen's position and projects it to 2D screen coordinates
 function ScreenPositionTracker({
   onPositionUpdate
 }: {
   onPositionUpdate: (rect: { left: number; top: number; width: number; height: number; visible: boolean }) => void;
 }) {
-  const { camera, gl, size } = useThree();
+  const { camera, gl } = useThree();
   const screenWidth3D = 24;
   const screenHeight3D = 10;
 
@@ -184,6 +199,8 @@ function ScreenPositionTracker({
 
     // Convert NDC to pixel coordinates
     const canvas = gl.domElement;
+    if (!canvas) return;
+    
     const canvasRect = canvas.getBoundingClientRect();
 
     const ndcToPixel = (ndc: THREE.Vector3) => ({
@@ -194,11 +211,12 @@ function ScreenPositionTracker({
     const tl = ndcToPixel(topLeft);
     const tr = ndcToPixel(topRight);
     const bl = ndcToPixel(bottomLeft);
+    const br = ndcToPixel(bottomRight);
 
     const left = Math.min(tl.x, bl.x);
     const top = Math.min(tl.y, tr.y);
-    const width = Math.max(tr.x, bottomRight.x) - left;
-    const height = Math.max(bl.y, bottomRight.y) - top;
+    const width = Math.max(tr.x, br.x) - left;
+    const height = Math.max(bl.y, br.y) - top;
 
     onPositionUpdate({
       left: left + canvasRect.left,
@@ -230,12 +248,15 @@ function CameraController({
     if (!isAnimating) return;
     progressRef.current = Math.min(progressRef.current + delta * 1.5, 1);
     const t = easeInOutCubic(progressRef.current);
+    
     camera.position.lerp(target.position, t * 0.1);
+    
     if (controlsRef.current) {
       const currentTarget = controlsRef.current.target;
       currentTarget.lerp(target.lookAt, t * 0.1);
       controlsRef.current.update();
     }
+    
     if (progressRef.current >= 1) {
       progressRef.current = 0;
       onAnimationComplete();
@@ -257,6 +278,7 @@ function Seat3D({
   const [hovered, setHovered] = useState(false);
   const [animationPhase, setAnimationPhase] = useState(0);
   const meshRef = useRef<THREE.Group>(null);
+  
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
 
@@ -287,8 +309,12 @@ function Seat3D({
 
   const handleClick = (e: any) => {
     e.stopPropagation();
-    if (!isBooked) { if (soundEnabled) playSound('select'); onClick(seat); }
-    else { if (soundEnabled) playSound('error'); }
+    if (!isBooked) { 
+        if (soundEnabled) playSound('select'); 
+        onClick(seat); 
+    } else { 
+        if (soundEnabled) playSound('error'); 
+    }
   };
 
   const handlePointerEnter = (e: any) => {
@@ -631,7 +657,7 @@ function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
 
 // --- MINIMAP ---
 function MiniMap({ seats, selectedSeats, onSeatClick }: {
-  seats: Seat[]; seatPositions: Array<{ seat: Seat; position: [number, number, number] }>;
+  seats: Seat[];
   selectedSeats: string[]; onSeatClick: (seat: Seat) => void;
 }) {
   const rows = useMemo(() => {
@@ -727,7 +753,6 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
 }
 
 // --- YOUTUBE OVERLAY COMPONENT ---
-// This renders the YouTube iframe as a fixed HTML overlay that tracks the 3D screen position
 function YouTubeOverlay({
   videoId,
   screenRect
@@ -827,6 +852,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   }, [seatsByRow]);
 
   const findBestSeats = useCallback((count: number = 2) => {
+    // Note: We use the memoized seatPositions here.
     const availableSeats = seatPositions.filter(({ seat }) => seat.status === 'available' && !seat.isBooked);
     const scoredSeats = availableSeats.map(({ seat, position }) => {
       const centerScore = 12 - Math.abs(position[0]);
@@ -901,10 +927,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     alert('Booking confirmed! Thank you for your purchase.');
   };
 
-  // Handle screen position updates from the tracker
   const handleScreenPositionUpdate = useCallback((rect: { left: number; top: number; width: number; height: number; visible: boolean }) => {
     setScreenRect(prev => {
-      // Only update if significantly changed to avoid constant re-renders
       if (
         Math.abs(prev.left - rect.left) > 1 ||
         Math.abs(prev.top - rect.top) > 1 ||
@@ -1103,7 +1127,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
       {showMiniMap && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-          <MiniMap seats={seats} seatPositions={seatPositions} selectedSeats={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
+          <MiniMap seats={seats} selectedSeats={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
         </div>
       )}
 
