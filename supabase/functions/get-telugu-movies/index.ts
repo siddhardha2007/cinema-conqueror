@@ -16,34 +16,56 @@ serve(async (req) => {
       throw new Error('TMDB_API_KEY not configured');
     }
 
+    console.log('TMDB key length:', TMDB_API_KEY.length, 'prefix:', TMDB_API_KEY.substring(0, 8));
+
     const today = new Date().toISOString().split('T')[0];
 
-    // Fetch latest and upcoming in parallel
+    // Determine auth method: long tokens (>40 chars) use Bearer, short ones use api_key param
+    const isBearer = TMDB_API_KEY.length > 40;
+
+    const buildUrl = (base: string) => {
+      if (!isBearer) {
+        return base + (base.includes('?') ? '&' : '?') + `api_key=${TMDB_API_KEY}`;
+      }
+      return base;
+    };
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (isBearer) {
+      headers['Authorization'] = `Bearer ${TMDB_API_KEY}`;
+    }
+
+    const latestUrl = buildUrl(
+      `https://api.themoviedb.org/3/discover/movie?with_original_language=te&sort_by=release_date.desc&region=IN&primary_release_date.lte=${today}&page=1`
+    );
+    const upcomingUrl = buildUrl(
+      `https://api.themoviedb.org/3/discover/movie?with_original_language=te&sort_by=release_date.asc&region=IN&primary_release_date.gte=${today}&page=1`
+    );
+
     const [latestRes, upcomingRes] = await Promise.all([
-      fetch(
-        `https://api.themoviedb.org/3/discover/movie?with_original_language=te&sort_by=release_date.desc&region=IN&primary_release_date.lte=${today}&page=1`,
-        {
-          headers: { Authorization: `Bearer ${TMDB_API_KEY}`, 'Content-Type': 'application/json' },
-        }
-      ),
-      fetch(
-        `https://api.themoviedb.org/3/discover/movie?with_original_language=te&sort_by=release_date.asc&region=IN&primary_release_date.gte=${today}&page=1`,
-        {
-          headers: { Authorization: `Bearer ${TMDB_API_KEY}`, 'Content-Type': 'application/json' },
-        }
-      ),
+      fetch(latestUrl, { headers }),
+      fetch(upcomingUrl, { headers }),
     ]);
 
-    if (!latestRes.ok || !upcomingRes.ok) {
-      const errText = !latestRes.ok ? await latestRes.text() : await upcomingRes.text();
-      console.error('TMDB API error:', errText);
-      throw new Error('TMDB API request failed');
+    if (!latestRes.ok) {
+      const errText = await latestRes.text();
+      console.error('TMDB latest error:', latestRes.status, errText);
+      throw new Error(`TMDB latest request failed: ${latestRes.status}`);
+    }
+    if (!upcomingRes.ok) {
+      const errText = await upcomingRes.text();
+      console.error('TMDB upcoming error:', upcomingRes.status, errText);
+      throw new Error(`TMDB upcoming request failed: ${upcomingRes.status}`);
     }
 
     const [latestData, upcomingData] = await Promise.all([
       latestRes.json(),
       upcomingRes.json(),
     ]);
+
+    console.log(`Fetched ${latestData.results?.length || 0} latest, ${upcomingData.results?.length || 0} upcoming Telugu movies`);
 
     return new Response(
       JSON.stringify({
