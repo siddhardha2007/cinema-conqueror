@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback, Suspense } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Html, useVideoTexture } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera,
   Grid3X3, Ticket, CreditCard, Star, Zap, Users, Info,
-  AlertCircle, X, Check, ArrowUp, ArrowDown, Maximize2
+  AlertCircle, X, Check, Maximize2, ChevronDown, ChevronRight,
+  Armchair, Sparkles, Sun, SunDim
 } from 'lucide-react';
 
 // --- TYPES ---
@@ -30,108 +31,67 @@ interface CameraTarget {
   lookAt: THREE.Vector3;
 }
 
-interface ButtonProps {
-  children: React.ReactNode;
-  onClick?: (e: React.MouseEvent) => void;
-  className?: string;
-  variant?: 'default' | 'outline' | 'ghost';
-  size?: 'default' | 'sm' | 'icon';
-  disabled?: boolean;
-}
-
 type ViewMode = 'default' | 'topdown' | 'front' | 'side';
 
 // --- CONSTANTS ---
-const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 10, 22);
-const DEFAULT_LOOK_AT = new THREE.Vector3(0, 2, 0);
-const SCREEN_Z = -18;
-const SCREEN_Y = 8;
+const SCREEN_Z = -14;
+const SCREEN_Y = 6.5;
+const SCREEN_WIDTH = 20;
+const SCREEN_HEIGHT = 8.5;
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 8, 20);
+const DEFAULT_LOOK_AT = new THREE.Vector3(0, 3, 0);
 
-// --- MOCK BUTTON COMPONENT ---
-const Button = ({ children, onClick, className = '', variant = 'default', size = 'default', disabled = false }: ButtonProps) => {
-  const baseStyle = "inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
-  
-  const variants: Record<string, string> = {
-    default: "bg-blue-600 text-white hover:bg-blue-700 shadow-sm",
-    outline: "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-    ghost: "hover:bg-accent hover:text-accent-foreground"
-  };
-  
-  const sizes: Record<string, string> = {
-    default: "h-9 px-4 py-2 text-sm",
-    sm: "h-8 rounded-md px-3 text-xs",
-    icon: "h-9 w-9"
-  };
-
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`${baseStyle} ${variants[variant]} ${sizes[size]} ${className}`}
-    >
-      {children}
-    </button>
-  );
+const SEAT_COLORS = {
+  standard: { base: '#6b7280', hover: '#9ca3af', selected: '#22c55e', booked: '#374151' },
+  premium: { base: '#3b82f6', hover: '#60a5fa', selected: '#22c55e', booked: '#374151' },
+  vip: { base: '#a855f7', hover: '#c084fc', selected: '#22c55e', booked: '#374151' },
+  accessible: { base: '#14b8a6', hover: '#2dd4bf', selected: '#22c55e', booked: '#374151' },
 };
 
 // --- DATA ---
 const movies = [
   {
-    id: '1',
-    title: "The Dark Knight",
-    image: "https://tinyurl.com/2h8v6vs4", // Placeholder image
+    id: '1', title: "The Dark Knight",
+    image: "https://image.tmdb.org/t/p/w300/qJ2tW6WMUDux911BTUgMe1YdBGm.jpg",
     video: "https://www.youtube.com/watch?v=EXeTwQWrcwY",
-    description: "Batman faces his greatest challenge yet as the Joker wreaks havoc on Gotham.",
-    duration: "2h 32m",
-    rating: "PG-13",
-    genre: "Action, Crime, Drama"
+    description: "Batman faces the Joker, a criminal mastermind who wants to plunge Gotham into anarchy.",
+    duration: "2h 32m", rating: "PG-13", genre: "Action • Crime • Drama"
   },
   {
-    id: '2',
-    title: "Inception",
-    image: "https://tinyurl.com/3prm5vj7",
+    id: '2', title: "Inception",
+    image: "https://image.tmdb.org/t/p/w300/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg",
     video: "https://www.youtube.com/watch?v=YoHD9XEInc0",
-    description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea.",
-    duration: "2h 28m",
-    rating: "PG-13",
-    genre: "Sci-Fi, Action"
+    description: "A thief who steals secrets through dream-sharing is given the task of planting an idea.",
+    duration: "2h 28m", rating: "PG-13", genre: "Sci-Fi • Action"
   },
   {
-    id: '3',
-    title: "Interstellar",
-    image: "https://tinyurl.com/3aprbm25",
+    id: '3', title: "Interstellar",
+    image: "https://image.tmdb.org/t/p/w300/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg",
     video: "https://www.youtube.com/watch?v=zSWdZVtXT7E",
-    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
-    duration: "2h 49m",
-    rating: "PG-13",
-    genre: "Sci-Fi, Adventure"
+    description: "Explorers travel through a wormhole in an attempt to ensure humanity's survival.",
+    duration: "2h 49m", rating: "PG-13", genre: "Sci-Fi • Adventure"
   },
   {
-    id: '4',
-    title: "Oppenheimer", // Corrected spelling
-    image: "https://tinyurl.com/4m2dv8x2",
+    id: '4', title: "Oppenheimer",
+    image: "https://image.tmdb.org/t/p/w300/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
     video: "https://www.youtube.com/watch?v=uYPbbksJxIg",
-    description: "The story of American scientist J. Robert Oppenheimer and his role in the development of the atomic bomb.",
-    duration: "3h 00m",
-    rating: "R",
-    genre: "Biography, Drama"
+    description: "The story of J. Robert Oppenheimer and his role in developing the atomic bomb.",
+    duration: "3h 00m", rating: "R", genre: "Biography • Drama"
   }
 ];
 
 const showtimes = [
-  { id: '1', time: '10:00 AM', period: 'morning' },
-  { id: '2', time: '1:30 PM', period: 'afternoon' },
-  { id: '3', time: '4:00 PM', period: 'afternoon' },
-  { id: '4', time: '7:00 PM', period: 'evening' },
-  { id: '5', time: '9:30 PM', period: 'night' },
-  { id: '6', time: '11:45 PM', period: 'night' },
+  { id: '1', time: '10:00 AM', label: 'Morning' },
+  { id: '2', time: '1:30 PM', label: 'Matinee' },
+  { id: '3', time: '4:00 PM', label: 'Afternoon' },
+  { id: '4', time: '7:00 PM', label: 'Evening' },
+  { id: '5', time: '9:30 PM', label: 'Late Night' },
 ];
 
-// --- HELPER ---
+// --- HELPERS ---
 function getYouTubeId(url: string) {
-  const regExp = /^.*(youtu\.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-  const match = url.match(regExp);
-  return (match && match[2].length === 11) ? match[2] : null;
+  const m = url.match(/(?:youtu\.be\/|v=|embed\/)([^#&?]{11})/);
+  return m ? m[1] : null;
 }
 
 function easeInOutCubic(t: number): number {
@@ -140,91 +100,105 @@ function easeInOutCubic(t: number): number {
 
 // --- AUDIO ---
 const useAudio = () => {
-  const audioContextRef = useRef<AudioContext | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
   const playSound = useCallback((type: 'click' | 'select' | 'hover' | 'success' | 'error') => {
     if (typeof window === 'undefined') return;
-    if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    const ctx = audioContextRef.current;
+    if (!ctxRef.current) ctxRef.current = new AudioContext();
+    const ctx = ctxRef.current;
     if (ctx.state === 'suspended') ctx.resume();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    
-    const frequencies: Record<string, number> = { click: 600, select: 800, hover: 400, success: 1000, error: 200 };
-    oscillator.frequency.value = frequencies[type];
-    oscillator.type = type === 'error' ? 'sawtooth' : 'sine';
-    
-    gainNode.gain.value = 0.1;
-    gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
-    
-    oscillator.start(ctx.currentTime);
-    oscillator.stop(ctx.currentTime + 0.1);
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    const freqs: Record<string, number[]> = {
+      click: [500, 700], select: [600, 900], hover: [400],
+      success: [523, 659, 784], error: [200, 150]
+    };
+    const f = freqs[type];
+    osc.frequency.value = f[0];
+    osc.type = type === 'error' ? 'sawtooth' : 'sine';
+    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.15);
+    if (f.length > 1) {
+      f.slice(1).forEach((freq, i) => {
+        const o2 = ctx.createOscillator();
+        const g2 = ctx.createGain();
+        o2.connect(g2); g2.connect(ctx.destination);
+        o2.frequency.value = freq; o2.type = 'sine';
+        g2.gain.setValueAtTime(0.06, ctx.currentTime + (i + 1) * 0.08);
+        g2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (i + 1) * 0.08 + 0.12);
+        o2.start(ctx.currentTime + (i + 1) * 0.08);
+        o2.stop(ctx.currentTime + (i + 1) * 0.08 + 0.12);
+      });
+    }
   }, []);
   return { playSound };
 };
 
 // --- SCREEN POSITION TRACKER ---
 function ScreenPositionTracker({
-  onPositionUpdate
+  onUpdate
 }: {
-  onPositionUpdate: (rect: { left: number; top: number; width: number; height: number; visible: boolean }) => void;
+  onUpdate: (r: { left: number; top: number; width: number; height: number; visible: boolean }) => void;
 }) {
   const { camera, gl } = useThree();
-  const screenWidth3D = 24;
-  const screenHeight3D = 10;
+  const lastRef = useRef({ left: 0, top: 0, width: 0, height: 0, visible: false });
 
   useFrame(() => {
-    // Get the four corners of the screen in 3D space
-    const topLeft = new THREE.Vector3(-screenWidth3D / 2, SCREEN_Y + screenHeight3D / 2, SCREEN_Z);
-    const topRight = new THREE.Vector3(screenWidth3D / 2, SCREEN_Y + screenHeight3D / 2, SCREEN_Z);
-    const bottomLeft = new THREE.Vector3(-screenWidth3D / 2, SCREEN_Y - screenHeight3D / 2, SCREEN_Z);
-    const bottomRight = new THREE.Vector3(screenWidth3D / 2, SCREEN_Y - screenHeight3D / 2, SCREEN_Z);
+    const hw = SCREEN_WIDTH / 2;
+    const hh = SCREEN_HEIGHT / 2;
+    const sz = SCREEN_Z + 0.05;
+    const corners3D = [
+      new THREE.Vector3(-hw, SCREEN_Y + hh, sz),
+      new THREE.Vector3(hw, SCREEN_Y + hh, sz),
+      new THREE.Vector3(-hw, SCREEN_Y - hh, sz),
+      new THREE.Vector3(hw, SCREEN_Y - hh, sz),
+    ];
 
-    // Project to NDC
-    topLeft.project(camera);
-    topRight.project(camera);
-    bottomLeft.project(camera);
-    bottomRight.project(camera);
+    const center3D = new THREE.Vector3(0, SCREEN_Y, sz);
+    const camDir = new THREE.Vector3();
+    camera.getWorldDirection(camDir);
+    const toScreen = center3D.clone().sub(camera.position).normalize();
+    const visible = camDir.dot(toScreen) > 0.1;
 
-    // Check if screen is behind camera
-    const centerPoint = new THREE.Vector3(0, SCREEN_Y, SCREEN_Z);
-    const cameraDir = new THREE.Vector3();
-    camera.getWorldDirection(cameraDir);
-    const toScreen = centerPoint.clone().sub(camera.position);
-    const dotProduct = cameraDir.dot(toScreen.normalize());
-    const visible = dotProduct > 0;
-
-    // Convert NDC to pixel coordinates
     const canvas = gl.domElement;
-    if (!canvas) return;
-    
-    const canvasRect = canvas.getBoundingClientRect();
+    const cRect = canvas.getBoundingClientRect();
 
-    const ndcToPixel = (ndc: THREE.Vector3) => ({
-      x: ((ndc.x + 1) / 2) * canvasRect.width,
-      y: ((-ndc.y + 1) / 2) * canvasRect.height
+    const pts = corners3D.map(c => {
+      const p = c.clone().project(camera);
+      return {
+        x: ((p.x + 1) / 2) * cRect.width,
+        y: ((-p.y + 1) / 2) * cRect.height,
+      };
     });
 
-    const tl = ndcToPixel(topLeft);
-    const tr = ndcToPixel(topRight);
-    const bl = ndcToPixel(bottomLeft);
-    const br = ndcToPixel(bottomRight);
+    const l = Math.min(...pts.map(p => p.x));
+    const t = Math.min(...pts.map(p => p.y));
+    const r = Math.max(...pts.map(p => p.x));
+    const b = Math.max(...pts.map(p => p.y));
 
-    const left = Math.min(tl.x, bl.x);
-    const top = Math.min(tl.y, tr.y);
-    const width = Math.max(tr.x, br.x) - left;
-    const height = Math.max(bl.y, br.y) - top;
+    const pad = 2;
+    const result = {
+      left: l + cRect.left + pad,
+      top: t + cRect.top + pad,
+      width: Math.max(0, r - l - pad * 2),
+      height: Math.max(0, b - t - pad * 2),
+      visible: visible && (r - l) > 40 && (b - t) > 25,
+    };
 
-    onPositionUpdate({
-      left: left + canvasRect.left,
-      top: top + canvasRect.top,
-      width,
-      height,
-      visible: visible && width > 20 && height > 10
-    });
+    const prev = lastRef.current;
+    if (
+      Math.abs(prev.left - result.left) > 0.5 ||
+      Math.abs(prev.top - result.top) > 0.5 ||
+      Math.abs(prev.width - result.width) > 0.5 ||
+      Math.abs(prev.height - result.height) > 0.5 ||
+      prev.visible !== result.visible
+    ) {
+      lastRef.current = result;
+      onUpdate(result);
+    }
   });
 
   return null;
@@ -232,143 +206,148 @@ function ScreenPositionTracker({
 
 // --- CAMERA CONTROLLER ---
 function CameraController({
-  target, isAnimating, onAnimationComplete, controlsRef, viewMode
+  target, isAnimating, onDone, controlsRef
 }: {
-  target: CameraTarget; isAnimating: boolean; onAnimationComplete: () => void;
-  controlsRef: React.MutableRefObject<any>; viewMode: ViewMode;
+  target: CameraTarget; isAnimating: boolean; onDone: () => void;
+  controlsRef: React.MutableRefObject<any>;
 }) {
   const { camera } = useThree();
   const progressRef = useRef(0);
+  const startPosRef = useRef(new THREE.Vector3());
+  const startTargetRef = useRef(new THREE.Vector3());
 
   useEffect(() => {
-    if (viewMode !== 'default') progressRef.current = 0;
-  }, [viewMode]);
+    if (isAnimating) {
+      progressRef.current = 0;
+      startPosRef.current.copy(camera.position);
+      if (controlsRef.current) startTargetRef.current.copy(controlsRef.current.target);
+    }
+  }, [isAnimating, target, camera, controlsRef]);
 
   useFrame((_, delta) => {
     if (!isAnimating) return;
-    progressRef.current = Math.min(progressRef.current + delta * 1.5, 1);
+    progressRef.current = Math.min(progressRef.current + delta * 1.2, 1);
     const t = easeInOutCubic(progressRef.current);
-    
-    camera.position.lerp(target.position, t * 0.1);
-    
+
+    camera.position.lerpVectors(startPosRef.current, target.position, t);
+
     if (controlsRef.current) {
-      const currentTarget = controlsRef.current.target;
-      currentTarget.lerp(target.lookAt, t * 0.1);
+      controlsRef.current.target.lerpVectors(startTargetRef.current, target.lookAt, t);
       controlsRef.current.update();
     }
-    
+
     if (progressRef.current >= 1) {
       progressRef.current = 0;
-      onAnimationComplete();
+      onDone();
     }
   });
 
   return null;
 }
 
-// --- SEAT 3D ---
+// --- THEATER SEAT 3D ---
 function Seat3D({
   seat, position, onClick, onHover, isHighlighted, soundEnabled, playSound
 }: {
-  seat: Seat; position: [number, number, number]; onClick: (seat: Seat) => void;
-  onHover: (seat: Seat | null, position?: [number, number, number]) => void;
+  seat: Seat; position: [number, number, number]; onClick: (s: Seat) => void;
+  onHover: (s: Seat | null, p?: [number, number, number]) => void;
   isHighlighted: boolean; soundEnabled: boolean;
-  playSound: (type: 'click' | 'select' | 'hover' | 'success' | 'error') => void;
+  playSound: (t: 'click' | 'select' | 'hover' | 'success' | 'error') => void;
 }) {
   const [hovered, setHovered] = useState(false);
-  const [animationPhase, setAnimationPhase] = useState(0);
   const meshRef = useRef<THREE.Group>(null);
-  
+  const foldRef = useRef(0);
+
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
+  const colors = SEAT_COLORS[seat.type];
 
   useFrame((_, delta) => {
+    const targetFold = isSelected ? 1 : 0;
+    foldRef.current += (targetFold - foldRef.current) * delta * 5;
     if (meshRef.current) {
-      if (isSelected && animationPhase < 1) setAnimationPhase(prev => Math.min(prev + delta * 3, 1));
-      else if (!isSelected && animationPhase > 0) setAnimationPhase(prev => Math.max(prev - delta * 3, 0));
+      const s = hovered && !isBooked ? 1.06 : 1;
+      meshRef.current.scale.lerp(new THREE.Vector3(s, s, s), delta * 8);
     }
   });
 
-  const getSeatColor = () => {
-    if (isBooked) return '#475569';
-    if (isSelected) return '#10b981';
-    if (isHighlighted) return '#f59e0b';
-    if (hovered) return '#fbbf24';
-    if (seat.type === 'vip') return '#a855f7';
-    if (seat.type === 'premium') return '#3b82f6';
-    if (seat.type === 'accessible') return '#14b8a6';
-    return '#94a3b8';
-  };
-
-  const getEmissiveIntensity = () => {
-    if (isSelected) return 0.4;
-    if (isHighlighted) return 0.25;
-    if (hovered) return 0.2;
-    return 0.08;
-  };
-
-  const handleClick = (e: any) => {
-    e.stopPropagation();
-    if (!isBooked) { 
-        if (soundEnabled) playSound('select'); 
-        onClick(seat); 
-    } else { 
-        if (soundEnabled) playSound('error'); 
-    }
-  };
-
-  const handlePointerEnter = (e: any) => {
-    e.stopPropagation();
-    if (soundEnabled && !isBooked) playSound('hover');
-    setHovered(true);
-    document.body.style.cursor = isBooked ? 'not-allowed' : 'pointer';
-    onHover(seat, position);
-  };
-
-  const handlePointerLeave = () => {
-    setHovered(false);
-    document.body.style.cursor = 'auto';
-    onHover(null);
-  };
-
-  const seatRotation = animationPhase * 0.25;
-  const scaleMultiplier = hovered && !isBooked ? 1.08 : 1;
+  const color = isBooked ? colors.booked : isSelected ? colors.selected :
+    isHighlighted ? '#f59e0b' : hovered ? colors.hover : colors.base;
+  const emissive = isSelected ? 0.35 : isHighlighted ? 0.25 : hovered && !isBooked ? 0.15 : 0.05;
 
   return (
     <group ref={meshRef} position={position}>
-      <RoundedBox args={[0.9, 0.2, 0.8]} radius={0.08} smoothness={6}
-        onClick={handleClick} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}
-        position={[0, 0.1 - seatRotation * 0.12, 0]} rotation={[seatRotation, 0, 0]}
-        scale={scaleMultiplier} castShadow receiveShadow>
-        <meshStandardMaterial color={getSeatColor()} roughness={0.35} metalness={0.15} emissive={getSeatColor()} emissiveIntensity={getEmissiveIntensity()} />
+      {/* Seat base / cushion */}
+      <RoundedBox
+        args={[0.85, 0.18, 0.7]}
+        radius={0.06}
+        smoothness={4}
+        position={[0, 0.09 - foldRef.current * 0.08, -foldRef.current * 0.05]}
+        rotation={[foldRef.current * 0.35, 0, 0]}
+        castShadow receiveShadow
+        onClick={(e) => { e.stopPropagation(); if (!isBooked) { if (soundEnabled) playSound('select'); onClick(seat); } else if (soundEnabled) playSound('error'); }}
+        onPointerEnter={(e) => { e.stopPropagation(); setHovered(true); if (soundEnabled && !isBooked) playSound('hover'); document.body.style.cursor = isBooked ? 'not-allowed' : 'pointer'; onHover(seat, position); }}
+        onPointerLeave={() => { setHovered(false); document.body.style.cursor = 'auto'; onHover(null); }}
+      >
+        <meshStandardMaterial color={color} roughness={0.55} metalness={0.1} emissive={color} emissiveIntensity={emissive} />
       </RoundedBox>
-      <RoundedBox args={[0.9, 0.7, 0.15]} radius={0.08} smoothness={6}
-        position={[0, 0.45, 0.38]} scale={scaleMultiplier} castShadow receiveShadow>
-        <meshStandardMaterial color={getSeatColor()} roughness={0.35} metalness={0.15} emissive={getSeatColor()} emissiveIntensity={getEmissiveIntensity()} />
+
+      {/* Seat back */}
+      <RoundedBox args={[0.85, 0.65, 0.12]} radius={0.05} smoothness={4}
+        position={[0, 0.42, 0.34]} castShadow receiveShadow
+        onClick={(e) => { e.stopPropagation(); if (!isBooked) { if (soundEnabled) playSound('select'); onClick(seat); } }}
+        onPointerEnter={(e) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = isBooked ? 'not-allowed' : 'pointer'; onHover(seat, position); }}
+        onPointerLeave={() => { setHovered(false); document.body.style.cursor = 'auto'; onHover(null); }}
+      >
+        <meshStandardMaterial color={color} roughness={0.55} metalness={0.1} emissive={color} emissiveIntensity={emissive} />
       </RoundedBox>
-      <RoundedBox args={[0.1, 0.18, 0.55]} radius={0.03} smoothness={4} position={[-0.45, 0.2, 0.1]} castShadow>
-        <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
-      </RoundedBox>
-      <RoundedBox args={[0.1, 0.18, 0.55]} radius={0.03} smoothness={4} position={[0.45, 0.2, 0.1]} castShadow>
-        <meshStandardMaterial color="#334155" roughness={0.5} metalness={0.4} />
-      </RoundedBox>
-      <Text position={[0, 0.25, 0]} fontSize={0.15} color={isBooked ? '#64748b' : '#0f172a'} anchorX="center" anchorY="middle" rotation={[-Math.PI / 2, 0, 0]}>
+
+      {/* Left armrest */}
+      <mesh position={[-0.48, 0.22, 0.08]} castShadow>
+        <boxGeometry args={[0.08, 0.14, 0.56]} />
+        <meshStandardMaterial color="#1e1e2e" roughness={0.4} metalness={0.6} />
+      </mesh>
+      {/* Right armrest */}
+      <mesh position={[0.48, 0.22, 0.08]} castShadow>
+        <boxGeometry args={[0.08, 0.14, 0.56]} />
+        <meshStandardMaterial color="#1e1e2e" roughness={0.4} metalness={0.6} />
+      </mesh>
+
+      {/* Cup holder */}
+      <mesh position={[0.48, 0.3, -0.22]}>
+        <cylinderGeometry args={[0.06, 0.05, 0.04, 12]} />
+        <meshStandardMaterial color="#111" roughness={0.3} metalness={0.7} />
+      </mesh>
+
+      {/* Seat number label */}
+      <Text position={[0, 0.22, -0.05]} fontSize={0.12} color={isBooked ? '#555' : '#ddd'}
+        anchorX="center" anchorY="middle" rotation={[-Math.PI / 2, 0, 0]}
+        font={undefined}
+      >
         {seat.number}
       </Text>
+
+      {/* VIP crown indicator */}
       {seat.type === 'vip' && (
-        <mesh position={[0, 0.9, 0.38]}>
-          <coneGeometry args={[0.1, 0.18, 6]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.6} metalness={0.8} roughness={0.2} />
-        </mesh>
+        <group position={[0, 0.82, 0.34]}>
+          <mesh>
+            <octahedronGeometry args={[0.08, 0]} />
+            <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={0.8} metalness={0.9} roughness={0.1} />
+          </mesh>
+        </group>
       )}
+
+      {/* Accessible indicator */}
       {seat.type === 'accessible' && (
-        <mesh position={[0, 0.9, 0.38]}>
-          <sphereGeometry args={[0.09, 16, 16]} />
-          <meshStandardMaterial color="#14b8a6" emissive="#14b8a6" emissiveIntensity={0.6} metalness={0.6} roughness={0.3} />
+        <mesh position={[0, 0.82, 0.34]}>
+          <torusGeometry args={[0.07, 0.025, 8, 16]} />
+          <meshStandardMaterial color="#14b8a6" emissive="#14b8a6" emissiveIntensity={0.6} />
         </mesh>
       )}
-      {isSelected && <pointLight position={[0, 0.6, 0]} intensity={0.8} distance={2.5} color="#10b981" />}
-      {isHighlighted && !isSelected && <pointLight position={[0, 0.6, 0]} intensity={0.5} distance={2} color="#f59e0b" />}
+
+      {/* Selection glow */}
+      {isSelected && <pointLight position={[0, 0.5, 0.1]} intensity={0.6} distance={2} color="#22c55e" />}
+      {isHighlighted && !isSelected && <pointLight position={[0, 0.5, 0.1]} intensity={0.4} distance={1.8} color="#f59e0b" />}
     </group>
   );
 }
@@ -377,162 +356,389 @@ function Seat3D({
 function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number, number] }) {
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
-  const typeLabels: Record<string, string> = { standard: 'Standard', premium: 'Premium', vip: 'VIP', accessible: 'Accessible' };
-  const typeColors: Record<string, string> = { standard: 'bg-gray-500', premium: 'bg-blue-500', vip: 'bg-purple-500', accessible: 'bg-teal-500' };
+  const typeLabel: Record<string, string> = { standard: 'Standard', premium: 'Premium', vip: 'VIP', accessible: 'Accessible' };
+  const typeBg: Record<string, string> = { standard: 'bg-gray-600', premium: 'bg-blue-600', vip: 'bg-purple-600', accessible: 'bg-teal-600' };
 
   return (
-    <Html position={[position[0], position[1] + 1.5, position[2]]} center>
-      <div className="bg-slate-900/95 backdrop-blur-md text-white px-4 py-3 rounded-xl shadow-2xl border border-white/20 min-w-[180px] pointer-events-none">
+    <Html position={[position[0], position[1] + 1.6, position[2]]} center distanceFactor={12}>
+      <div className="bg-gray-950/95 backdrop-blur-xl text-white px-4 py-3 rounded-2xl shadow-2xl border border-white/10 min-w-[190px] pointer-events-none select-none"
+        style={{ transform: 'translateY(-10px)' }}>
         <div className="flex items-center justify-between mb-2">
-          <span className="font-bold text-lg">Row {seat.row} - Seat {seat.number}</span>
-          <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${typeColors[seat.type]}`}>{typeLabels[seat.type]}</span>
+          <span className="font-bold text-base tracking-tight">
+            Row {seat.row} · Seat {seat.number}
+          </span>
+          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${typeBg[seat.type]} text-white`}>
+            {typeLabel[seat.type]}
+          </span>
         </div>
-        <div className="space-y-1 text-sm">
-          <div className="flex justify-between"><span className="text-gray-400">Price:</span><span className="font-semibold text-green-400">${seat.price.toFixed(2)}</span></div>
-          <div className="flex justify-between"><span className="text-gray-400">Status:</span>
-            <span className={`font-medium ${isBooked ? 'text-red-400' : isSelected ? 'text-green-400' : 'text-blue-400'}`}>
-              {isBooked ? 'Booked' : isSelected ? 'Selected' : 'Available'}
-            </span>
+        <div className="flex justify-between items-center text-sm mb-1">
+          <span className="text-gray-400">Price</span>
+          <span className="font-bold text-emerald-400 text-base">${seat.price.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between items-center text-sm">
+          <span className="text-gray-400">Status</span>
+          <span className={`font-semibold ${isBooked ? 'text-red-400' : isSelected ? 'text-emerald-400' : 'text-sky-400'}`}>
+            {isBooked ? '✕ Booked' : isSelected ? '✓ Selected' : '● Available'}
+          </span>
+        </div>
+        {!isBooked && (
+          <div className="mt-2 pt-2 border-t border-white/10 text-center text-[11px] text-gray-500">
+            Click to {isSelected ? 'deselect' : 'select'}
           </div>
-        </div>
-        {!isBooked && <div className="mt-3 pt-2 border-t border-white/10 text-center text-xs text-gray-400">Click to {isSelected ? 'deselect' : 'select'}</div>}
-        {isBooked && <div className="mt-3 pt-2 border-t border-white/10 text-center text-xs text-red-400 flex items-center justify-center gap-1"><AlertCircle className="w-3 h-3" />This seat is unavailable</div>}
+        )}
+        <div className="absolute left-1/2 -bottom-1.5 -translate-x-1/2 w-3 h-3 bg-gray-950/95 rotate-45 border-r border-b border-white/10" />
       </div>
     </Html>
   );
 }
 
-// --- VIDEO SCREEN MATERIAL ---
-function MovieScreenMaterial({ videoUrl }: { videoUrl: string }) {
-  const texture = useVideoTexture(videoUrl, { unsuspend: 'canplay', muted: false, loop: true, start: true, crossOrigin: 'Anonymous' });
-  useEffect(() => {
-    if (texture) { texture.colorSpace = THREE.SRGBColorSpace; texture.flipY = true; texture.needsUpdate = true; }
-  }, [texture]);
-  return <meshBasicMaterial map={texture} toneMapped={false} side={THREE.FrontSide} />;
-}
+// --- THEATER SCREEN ---
+function TheaterScreen({ movieTitle }: { movieTitle: string }) {
+  const glowRef = useRef<THREE.PointLight>(null);
 
-// --- SCREEN 3D (NO IFRAME - just geometry + glow) ---
-function Screen3D({ movieTitle, isYouTube }: { movieTitle: string; isYouTube: boolean; videoUrl: string }) {
-  const screenWidth = 24;
-  const screenHeight = 10;
+  useFrame(({ clock }) => {
+    if (glowRef.current) {
+      glowRef.current.intensity = 2 + Math.sin(clock.elapsedTime * 0.5) * 0.3;
+    }
+  });
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Screen backing */}
-      <mesh position={[0, 0, -0.1]}>
-        <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
-      </mesh>
-      {/* Screen frame */}
-      <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
-      </mesh>
-      {/* Screen surface - always just a dark surface for YouTube, video texture for mp4 */}
-      <mesh position={[0, 0, 0.01]}>
-        <planeGeometry args={[screenWidth, screenHeight]} />
-        <meshBasicMaterial color={isYouTube ? "#111827" : "#000000"} />
+      {/* Back wall behind screen */}
+      <mesh position={[0, 0, -1]}>
+        <planeGeometry args={[36, 18]} />
+        <meshStandardMaterial color="#050510" roughness={0.98} />
       </mesh>
 
-      {/* Screen glow */}
-      <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
-      <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
-      <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
-
-      {/* Curtains */}
-      <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
-        <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
-      </mesh>
-      <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
-        <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
-      </mesh>
-      <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
-        <boxGeometry args={[32, 3.5, 0.6]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
+      {/* Screen frame outer */}
+      <mesh position={[0, 0, -0.08]}>
+        <planeGeometry args={[SCREEN_WIDTH + 1.6, SCREEN_HEIGHT + 1.2]} />
+        <meshStandardMaterial color="#0a0a1f" roughness={0.7} metalness={0.4} />
       </mesh>
 
-      {/* Wall behind */}
-      <mesh position={[0, 0, -0.5]}>
-        <planeGeometry args={[40, 22]} />
-        <meshStandardMaterial color="#020617" roughness={0.95} />
+      {/* Screen frame inner bevel */}
+      <mesh position={[0, 0, -0.04]}>
+        <planeGeometry args={[SCREEN_WIDTH + 0.6, SCREEN_HEIGHT + 0.4]} />
+        <meshStandardMaterial color="#111133" roughness={0.6} metalness={0.5} />
       </mesh>
 
-      {/* Title */}
-      <Text position={[0, -7, 0.2]} fontSize={0.9} color="#cbd5e1" anchorX="center" anchorY="middle">
-        NOW SHOWING: {movieTitle.toUpperCase()}
+      {/* Screen surface - dark for YouTube overlay */}
+      <mesh position={[0, 0, 0.02]}>
+        <planeGeometry args={[SCREEN_WIDTH, SCREEN_HEIGHT]} />
+        <meshBasicMaterial color="#0a0a0f" />
+      </mesh>
+
+      {/* Screen glow lights */}
+      <pointLight ref={glowRef} position={[0, 0, 4]} intensity={2} distance={30} color="#4466cc" />
+      <pointLight position={[-8, 0, 3]} intensity={0.8} distance={14} color="#6366f1" />
+      <pointLight position={[8, 0, 3]} intensity={0.8} distance={14} color="#6366f1" />
+
+      {/* === CURTAINS === */}
+      {/* Left curtain */}
+      <group position={[-SCREEN_WIDTH / 2 - 2.5, 0, 0]}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <mesh key={`cl${i}`} position={[i * 0.7 - 1.5, 0, Math.sin(i * 0.8) * 0.15]} castShadow>
+            <boxGeometry args={[0.75, SCREEN_HEIGHT + 4, 0.35 + Math.sin(i * 1.2) * 0.1]} />
+            <meshStandardMaterial
+              color={i % 2 === 0 ? '#7f1d1d' : '#991b1b'}
+              roughness={0.92} metalness={0.02}
+            />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Right curtain */}
+      <group position={[SCREEN_WIDTH / 2 + 2.5, 0, 0]}>
+        {Array.from({ length: 6 }, (_, i) => (
+          <mesh key={`cr${i}`} position={[-i * 0.7 + 1.5, 0, Math.sin(i * 0.8) * 0.15]} castShadow>
+            <boxGeometry args={[0.75, SCREEN_HEIGHT + 4, 0.35 + Math.sin(i * 1.2) * 0.1]} />
+            <meshStandardMaterial
+              color={i % 2 === 0 ? '#7f1d1d' : '#991b1b'}
+              roughness={0.92} metalness={0.02}
+            />
+          </mesh>
+        ))}
+      </group>
+
+      {/* Top valance / pelmet */}
+      <mesh position={[0, SCREEN_HEIGHT / 2 + 1.8, 0.2]} castShadow>
+        <boxGeometry args={[SCREEN_WIDTH + 10, 2.2, 0.8]} />
+        <meshStandardMaterial color="#7f1d1d" roughness={0.9} metalness={0.02} />
+      </mesh>
+      {/* Valance bottom scallop trim */}
+      {Array.from({ length: 12 }, (_, i) => (
+        <mesh key={`sc${i}`} position={[(i - 5.5) * 2.3, SCREEN_HEIGHT / 2 + 0.6, 0.35]}>
+          <sphereGeometry args={[0.35, 8, 6, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          <meshStandardMaterial color="#991b1b" roughness={0.9} side={THREE.DoubleSide} />
+        </mesh>
+      ))}
+
+      {/* Title text */}
+      <Text position={[0, -SCREEN_HEIGHT / 2 - 1.2, 0.3]} fontSize={0.55} color="#475569"
+        anchorX="center" anchorY="middle" letterSpacing={0.15}>
+        {`NOW SHOWING — ${movieTitle.toUpperCase()}`}
       </Text>
     </group>
   );
 }
 
-// --- SCREEN WITH VIDEO TEXTURE (for mp4 files) ---
-function Screen3DWithVideo({ videoUrl, movieTitle }: { videoUrl: string; movieTitle: string }) {
-  const screenWidth = 24;
-  const screenHeight = 10;
+// --- WALL SCONCE LIGHT ---
+function WallSconce({ position, rotation }: { position: [number, number, number]; rotation?: [number, number, number] }) {
+  return (
+    <group position={position} rotation={rotation}>
+      {/* Bracket */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[0.3, 0.4, 0.15]} />
+        <meshStandardMaterial color="#b8860b" roughness={0.3} metalness={0.8} />
+      </mesh>
+      {/* Shade */}
+      <mesh position={[0, 0.15, 0.12]}>
+        <cylinderGeometry args={[0.15, 0.22, 0.3, 8, 1, true]} />
+        <meshStandardMaterial color="#f5e6d3" roughness={0.7} side={THREE.DoubleSide} transparent opacity={0.85} />
+      </mesh>
+      {/* Light */}
+      <pointLight position={[0, 0.1, 0.2]} intensity={0.5} distance={6} color="#ffcc88" />
+    </group>
+  );
+}
+
+// --- ACOUSTIC WALL PANEL ---
+function AcousticPanel({ position, size }: { position: [number, number, number]; size: [number, number] }) {
+  return (
+    <mesh position={position}>
+      <boxGeometry args={[size[0], size[1], 0.15]} />
+      <meshStandardMaterial color="#1a1a2e" roughness={0.95} metalness={0.05} />
+    </mesh>
+  );
+}
+
+// --- THEATER ENVIRONMENT ---
+function TheaterEnvironment({ lightsOn }: { lightsOn: boolean }) {
+  const { scene } = useThree();
+  const ceilingLightsRef = useRef<THREE.Group>(null);
+
+  useEffect(() => {
+    scene.fog = new THREE.FogExp2('#06060f', 0.012);
+    return () => { scene.fog = null; };
+  }, [scene]);
+
+  useFrame((_, delta) => {
+    if (ceilingLightsRef.current) {
+      ceilingLightsRef.current.children.forEach(child => {
+        child.traverse(obj => {
+          if (obj instanceof THREE.PointLight) {
+            const target = lightsOn ? 0.8 : 0.08;
+            obj.intensity += (target - obj.intensity) * delta * 3;
+          }
+        });
+      });
+    }
+  });
 
   return (
-    <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      <mesh position={[0, 0, -0.1]}>
-        <planeGeometry args={[screenWidth + 1, screenHeight + 0.8]} />
-        <meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.1} />
+    <group>
+      {/* === FLOOR === */}
+      <mesh position={[0, -0.01, 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[50, 60]} />
+        <meshStandardMaterial color="#0d0d1a" roughness={0.92} metalness={0.05} />
       </mesh>
-      <mesh position={[0, 0, -0.05]}>
-        <planeGeometry args={[screenWidth + 1.3, screenHeight + 1.1]} />
-        <meshStandardMaterial color="#1e293b" roughness={0.8} metalness={0.3} />
+      {/* Carpet strip down the aisle */}
+      <mesh position={[0, 0.001, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[2.5, 25]} />
+        <meshStandardMaterial color="#1a0a0a" roughness={0.98} />
       </mesh>
 
-      <Suspense fallback={
-        <mesh position={[0, 0, 0.05]}>
-          <planeGeometry args={[screenWidth, screenHeight]} />
-          <meshBasicMaterial color="#1e293b" />
+      {/* === WALLS === */}
+      {/* Left wall */}
+      <mesh position={[-17, 6, 2]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[50, 16]} />
+        <meshStandardMaterial color="#0e0e1e" roughness={0.9} metalness={0.05} />
+      </mesh>
+      {/* Right wall */}
+      <mesh position={[17, 6, 2]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
+        <planeGeometry args={[50, 16]} />
+        <meshStandardMaterial color="#0e0e1e" roughness={0.9} metalness={0.05} />
+      </mesh>
+      {/* Back wall */}
+      <mesh position={[0, 6, 24]} rotation={[0, Math.PI, 0]} receiveShadow>
+        <planeGeometry args={[36, 16]} />
+        <meshStandardMaterial color="#0a0a18" roughness={0.92} />
+      </mesh>
+
+      {/* === CEILING === */}
+      <mesh position={[0, 13, 5]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[36, 42]} />
+        <meshStandardMaterial color="#050510" roughness={0.98} />
+      </mesh>
+
+      {/* === ACOUSTIC PANELS ON WALLS === */}
+      {[-17, 17].map((x, wi) => (
+        <group key={`wall${wi}`}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <AcousticPanel
+              key={`ap${wi}_${i}`}
+              position={[x + (wi === 0 ? 0.1 : -0.1), 5.5, -8 + i * 7]}
+              size={[0.1, 5]}
+            />
+          ))}
+        </group>
+      ))}
+
+      {/* === WALL SCONCES === */}
+      {Array.from({ length: 5 }, (_, i) => (
+        <React.Fragment key={`sconce${i}`}>
+          <WallSconce position={[-16.8, 6, -6 + i * 7]} rotation={[0, Math.PI / 2, 0]} />
+          <WallSconce position={[16.8, 6, -6 + i * 7]} rotation={[0, -Math.PI / 2, 0]} />
+        </React.Fragment>
+      ))}
+
+      {/* === STADIUM STEPS === */}
+      {Array.from({ length: 10 }, (_, i) => {
+        const z = i * 1.8 + 1.5;
+        const y = i * 0.4;
+        return (
+          <group key={`step${i}`}>
+            {/* Step platform */}
+            <mesh position={[0, y, z]} receiveShadow castShadow>
+              <boxGeometry args={[32, 0.45, 1.8]} />
+              <meshStandardMaterial color="#12121f" roughness={0.88} metalness={0.08} />
+            </mesh>
+            {/* Step riser face */}
+            <mesh position={[0, y + 0.22, z + 0.9]} receiveShadow>
+              <boxGeometry args={[32, 0.45, 0.02]} />
+              <meshStandardMaterial color="#0e0e1a" roughness={0.9} />
+            </mesh>
+            {/* LED step light strip */}
+            <mesh position={[0, y + 0.24, z + 0.88]}>
+              <boxGeometry args={[28, 0.015, 0.02]} />
+              <meshBasicMaterial color="#1e3a5f" toneMapped={false} />
+            </mesh>
+            {/* Aisle marker lights */}
+            {[-1.2, 1.2].map((ax, j) => (
+              <group key={`am${i}_${j}`} position={[ax, y + 0.25, z + 0.6]}>
+                <mesh>
+                  <sphereGeometry args={[0.03, 8, 8]} />
+                  <meshBasicMaterial color="#3b82f6" toneMapped={false} />
+                </mesh>
+                <pointLight intensity={0.15} distance={1.2} color="#3b82f6" />
+              </group>
+            ))}
+          </group>
+        );
+      })}
+
+      {/* === EXIT SIGNS === */}
+      {[[-16, 5.5, 20], [16, 5.5, 20]].map((pos, i) => (
+        <group key={`exit${i}`} position={pos as [number, number, number]}>
+          <RoundedBox args={[1.6, 0.5, 0.08]} radius={0.05}>
+            <meshBasicMaterial color="#16a34a" toneMapped={false} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.05]} fontSize={0.22} color="#ffffff" anchorX="center" fontWeight="bold">
+            EXIT
+          </Text>
+          <pointLight position={[0, 0, 0.4]} intensity={0.3} distance={3} color="#22c55e" />
+        </group>
+      ))}
+
+      {/* === CEILING LIGHTS === */}
+      <group ref={ceilingLightsRef}>
+        {[
+          [-10, 12.8, 0], [0, 12.8, 0], [10, 12.8, 0],
+          [-10, 12.8, 8], [0, 12.8, 8], [10, 12.8, 8],
+          [-10, 12.8, 16], [0, 12.8, 16], [10, 12.8, 16],
+        ].map((pos, i) => (
+          <group key={`cl${i}`} position={pos as [number, number, number]}>
+            <mesh>
+              <cylinderGeometry args={[0.25, 0.35, 0.15, 12]} />
+              <meshStandardMaterial color="#1a1a2e" roughness={0.6} metalness={0.5} />
+            </mesh>
+            <pointLight intensity={lightsOn ? 0.8 : 0.08} distance={10} color="#ffe4b5" />
+          </group>
+        ))}
+      </group>
+
+      {/* === PROJECTOR BOOTH === */}
+      <group position={[0, 11.5, 22]}>
+        <mesh castShadow>
+          <boxGeometry args={[4, 3, 4]} />
+          <meshStandardMaterial color="#111122" roughness={0.7} metalness={0.3} />
         </mesh>
-      }>
-        <mesh position={[0, 0, 0.05]}>
-          <planeGeometry args={[screenWidth, screenHeight]} />
-          <MovieScreenMaterial videoUrl={videoUrl} />
+        {/* Projector window */}
+        <mesh position={[0, -0.5, -2.01]}>
+          <planeGeometry args={[2, 0.8]} />
+          <meshBasicMaterial color="#0a1628" />
         </mesh>
-      </Suspense>
+        {/* Projector lens */}
+        <mesh position={[0, -0.5, -2.05]}>
+          <cylinderGeometry args={[0.2, 0.2, 0.3, 16]} rotation={[Math.PI / 2, 0, 0]} />
+          <meshStandardMaterial color="#334155" roughness={0.3} metalness={0.7} />
+        </mesh>
+        {/* Projector beam */}
+        <spotLight
+          position={[0, -0.5, -2.1]}
+          angle={0.2}
+          penumbra={0.6}
+          intensity={1.5}
+          distance={40}
+          color="#c7d2fe"
+          target-position={[0, SCREEN_Y, SCREEN_Z]}
+        />
+      </group>
 
-      <pointLight position={[0, 0, 3]} intensity={2.5} distance={28} color="#60a5fa" />
-      <pointLight position={[-9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
-      <pointLight position={[9, 0, 2]} intensity={1.2} distance={16} color="#818cf8" />
+      {/* === SPEAKER GRILLS === */}
+      {[-16.5, 16.5].map((x, si) => (
+        <group key={`spk${si}`}>
+          {[SCREEN_Y - 2, SCREEN_Y + 2].map((y, yi) => (
+            <group key={`sp${si}_${yi}`} position={[x, y, SCREEN_Z + 2]}>
+              <RoundedBox args={[0.6, 1.8, 0.8]} radius={0.08}>
+                <meshStandardMaterial color="#111" roughness={0.8} metalness={0.3} />
+              </RoundedBox>
+              {/* Speaker grill dots */}
+              {Array.from({ length: 3 }, (_, di) => (
+                <mesh key={di} position={[si === 0 ? 0.31 : -0.31, -0.5 + di * 0.5, 0]}>
+                  <circleGeometry args={[0.12, 16]} />
+                  <meshStandardMaterial color="#222" roughness={0.6} metalness={0.4} side={si === 0 ? THREE.FrontSide : THREE.BackSide} />
+                </mesh>
+              ))}
+            </group>
+          ))}
+        </group>
+      ))}
 
-      <mesh position={[-14, 0, -0.2]} receiveShadow castShadow>
-        <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
-      </mesh>
-      <mesh position={[14, 0, -0.2]} receiveShadow castShadow>
-        <boxGeometry args={[3.5, 15, 0.6]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
-      </mesh>
-      <mesh position={[0, 7, -0.2]} receiveShadow castShadow>
-        <boxGeometry args={[32, 3.5, 0.6]} />
-        <meshStandardMaterial color="#7f1d1d" roughness={0.85} metalness={0.05} />
-      </mesh>
-      <mesh position={[0, 0, -0.5]}>
-        <planeGeometry args={[40, 22]} />
-        <meshStandardMaterial color="#020617" roughness={0.95} />
-      </mesh>
-      <Text position={[0, -7, 0.2]} fontSize={0.9} color="#cbd5e1" anchorX="center" anchorY="middle">
-        NOW SHOWING: {movieTitle.toUpperCase()}
-      </Text>
+      {/* === SUBTLE CEILING STARS === */}
+      {useMemo(() => Array.from({ length: 40 }, (_, i) => {
+        const x = (Math.random() - 0.5) * 30;
+        const z = (Math.random() - 0.5) * 35 + 5;
+        return (
+          <mesh key={`star${i}`} position={[x, 12.7, z]}>
+            <sphereGeometry args={[0.02, 4, 4]} />
+            <meshBasicMaterial color="#334155" toneMapped={false} />
+          </mesh>
+        );
+      }), [])}
     </group>
   );
 }
 
 // --- ROW LABELS ---
-function RowLabels({ rows }: { rows: string[] }) {
+function RowLabels({ rows, seatsByRow }: { rows: string[]; seatsByRow: Record<string, Seat[]> }) {
   return (
     <group>
       {rows.map((row, index) => {
-        const z = index * 1.5 + 3;
-        const y = index * 0.35 + 0.5;
+        const z = index * 1.8 + 1.5;
+        const y = index * 0.4 + 0.5;
         return (
           <group key={row}>
-            <Text position={[-15, y, z]} fontSize={0.6} color="#3b82f6" anchorX="center" anchorY="middle" rotation={[0, 0.2, 0]}>{row}</Text>
-            <Text position={[15, y, z]} fontSize={0.6} color="#3b82f6" anchorX="center" anchorY="middle" rotation={[0, -0.2, 0]}>{row}</Text>
+            <Text position={[-14.5, y, z]} fontSize={0.5} color="#3b82f6"
+              anchorX="center" anchorY="middle" rotation={[0, 0.15, 0]}
+            >
+              {row}
+            </Text>
+            <Text position={[14.5, y, z]} fontSize={0.5} color="#3b82f6"
+              anchorX="center" anchorY="middle" rotation={[0, -0.15, 0]}
+            >
+              {row}
+            </Text>
           </group>
         );
       })}
@@ -540,159 +746,70 @@ function RowLabels({ rows }: { rows: string[] }) {
   );
 }
 
-// --- EXIT SIGNS ---
-function ExitSigns() {
-  return (
-    <group>
-      {[[-15, 5, 10], [15, 5, 10]].map((pos, i) => (
-        <group key={i} position={pos as [number, number, number]}>
-          <mesh><boxGeometry args={[1.8, 0.6, 0.12]} /><meshBasicMaterial color="#22c55e" toneMapped={false} /></mesh>
-          <Text position={[0, 0, 0.07]} fontSize={0.3} color="#ffffff" anchorX="center">EXIT</Text>
-          <pointLight position={[0, 0, 0.5]} intensity={0.6} distance={3.5} color="#22c55e" />
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// --- CEILING LIGHTS ---
-function CeilingLights({ dimmed }: { dimmed: boolean }) {
-  const lightsRef = useRef<THREE.Group>(null);
-  useFrame(() => {
-    if (lightsRef.current) {
-      lightsRef.current.children.forEach((light) => {
-        if (light instanceof THREE.PointLight) {
-          light.intensity = THREE.MathUtils.lerp(light.intensity, dimmed ? 0.15 : 1.0, 0.05);
-        }
-      });
-    }
-  });
-
-  const lightPositions = useMemo(() => {
-    const p: [number, number, number][] = [];
-    for (let x = -12; x <= 12; x += 6) for (let z = -8; z <= 16; z += 6) p.push([x, 12, z]);
-    return p;
-  }, []);
+// --- YOUTUBE OVERLAY ---
+function YouTubeOverlay({ videoId, rect }: { videoId: string; rect: { left: number; top: number; width: number; height: number; visible: boolean } }) {
+  if (!rect.visible) return null;
 
   return (
-    <group ref={lightsRef}>
-      {lightPositions.map((pos, i) => (
-        <group key={i} position={new THREE.Vector3(...pos)}>
-          <mesh><cylinderGeometry args={[0.35, 0.45, 0.25, 16]} /><meshStandardMaterial color="#1e293b" roughness={0.7} metalness={0.6} /></mesh>
-          <pointLight intensity={dimmed ? 0.15 : 1.0} distance={10} color="#fef3c7" />
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// --- STADIUM STEPS ---
-function StadiumSteps() {
-  const steps = useMemo(() => Array.from({ length: 8 }, (_, i) => ({ index: i, z: i * 1.5 + 3, y: i * 0.35 })), []);
-  return (
-    <group>
-      {steps.map((step) => (
-        <group key={step.index}>
-          <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
-            <boxGeometry args={[30, 0.5, 1.5]} /><meshStandardMaterial color="#1e293b" roughness={0.85} metalness={0.1} />
-          </mesh>
-          <mesh position={[0, step.y + 0.26, step.z + 0.74]}>
-            <boxGeometry args={[30, 0.03, 0.04]} /><meshBasicMaterial color="#3b82f6" toneMapped={false} />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// --- AISLE MARKERS ---
-function AisleMarkers() {
-  return (
-    <group>
-      {Array.from({ length: 8 }, (_, i) => (
-        <group key={i}>
-          {[-5, 5].map((x, j) => (
-            <mesh key={j} position={[x, i * 0.35 + 0.4, i * 1.5 + 3]}>
-              <sphereGeometry args={[0.06, 12, 12]} /><meshBasicMaterial color="#fbbf24" toneMapped={false} />
-              <pointLight intensity={0.3} distance={1} color="#fbbf24" />
-            </mesh>
-          ))}
-        </group>
-      ))}
-    </group>
-  );
-}
-
-// --- THEATER ENVIRONMENT ---
-function TheaterEnvironment({ lightsEnabled }: { lightsEnabled: boolean }) {
-  const { scene } = useThree();
-  useEffect(() => { scene.fog = new THREE.Fog('#0a0a1a', 25, 70); return () => { scene.fog = null; }; }, [scene]);
-
-  return (
-    <group>
-      <mesh position={[0, -0.5, 5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[120, 120]} /><meshStandardMaterial color="#0a0a1a" roughness={0.95} metalness={0.05} />
-      </mesh>
-      <mesh position={[-18, 6, 0]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[60, 16]} /><meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
-      </mesh>
-      <mesh position={[18, 6, 0]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[60, 16]} /><meshStandardMaterial color="#0f172a" roughness={0.9} metalness={0.05} />
-      </mesh>
-      <mesh position={[0, 13, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[40, 60]} /><meshStandardMaterial color="#020617" roughness={0.95} metalness={0.05} />
-      </mesh>
-      <StadiumSteps />
-      <ExitSigns />
-      <CeilingLights dimmed={!lightsEnabled} />
-      <AisleMarkers />
-      <group position={[0, 11, 24]}>
-        <mesh castShadow><boxGeometry args={[3.5, 2.5, 3.5]} /><meshStandardMaterial color="#1e293b" roughness={0.7} metalness={0.3} /></mesh>
-        <mesh position={[0, -0.6, -1.8]}><cylinderGeometry args={[0.35, 0.35, 0.6, 16]} /><meshStandardMaterial color="#475569" roughness={0.4} metalness={0.6} /></mesh>
-        <spotLight position={[0, -0.6, -1.8]} angle={0.15} penumbra={0.4} intensity={2.5} distance={55} color="#bfdbfe" />
-      </group>
-    </group>
+    <div
+      style={{
+        position: 'fixed',
+        left: rect.left,
+        top: rect.top,
+        width: rect.width,
+        height: rect.height,
+        zIndex: 5,
+        pointerEvents: 'auto',
+        overflow: 'hidden',
+        borderRadius: 3,
+        backgroundColor: '#000',
+      }}
+    >
+      <iframe
+        src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&iv_load_policy=3&fs=0&showinfo=0`}
+        title="Movie trailer"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        style={{ border: 'none', width: '100%', height: '100%', display: 'block' }}
+      />
+    </div>
   );
 }
 
 // --- MINIMAP ---
-function MiniMap({ seats, selectedSeats, onSeatClick }: {
-  seats: Seat[];
-  selectedSeats: string[]; onSeatClick: (seat: Seat) => void;
+function MiniMap({ seats, selectedIds, onSeatClick }: {
+  seats: Seat[]; selectedIds: string[]; onSeatClick: (s: Seat) => void;
 }) {
   const rows = useMemo(() => {
-    const rowMap: Record<string, Seat[]> = {};
-    seats.forEach(seat => { if (!rowMap[seat.row]) rowMap[seat.row] = []; rowMap[seat.row].push(seat); });
-    return Object.entries(rowMap).sort(([a], [b]) => a.localeCompare(b));
+    const m: Record<string, Seat[]> = {};
+    seats.forEach(s => { if (!m[s.row]) m[s.row] = []; m[s.row].push(s); });
+    return Object.entries(m).sort(([a], [b]) => a.localeCompare(b));
   }, [seats]);
 
-  const getSeatColor = (seat: Seat) => {
-    if (seat.status === 'booked' || seat.isBooked) return 'bg-slate-600';
-    if (selectedSeats.includes(seat.id)) return 'bg-green-500';
-    if (seat.type === 'vip') return 'bg-purple-500';
-    if (seat.type === 'premium') return 'bg-blue-500';
-    if (seat.type === 'accessible') return 'bg-teal-500';
-    return 'bg-gray-400';
+  const dotColor = (s: Seat) => {
+    if (s.status === 'booked' || s.isBooked) return 'bg-slate-700';
+    if (selectedIds.includes(s.id)) return 'bg-emerald-500 ring-1 ring-emerald-300';
+    if (s.type === 'vip') return 'bg-purple-500';
+    if (s.type === 'premium') return 'bg-blue-500';
+    if (s.type === 'accessible') return 'bg-teal-500';
+    return 'bg-slate-400';
   };
 
   return (
-    <div className="bg-slate-900/90 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-xl">
-      <h4 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-        <Grid3X3 className="w-3 h-3" />Theater Overview
-      </h4>
-      <div className="w-full h-2 bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 rounded-full mb-4 relative">
-        <span className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-gray-500">SCREEN</span>
-      </div>
-      <div className="space-y-1.5 mt-6">
-        {rows.map(([rowLetter, rowSeats]) => (
-          <div key={rowLetter} className="flex items-center gap-1">
-            <span className="text-[8px] text-gray-500 w-3">{rowLetter}</span>
-            <div className="flex gap-0.5 flex-wrap">
+    <div className="bg-black/80 backdrop-blur-xl p-3 rounded-xl border border-white/10">
+      <div className="w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent rounded-full mb-3" />
+      <p className="text-[9px] text-center text-slate-500 mb-2 tracking-widest uppercase">Screen</p>
+      <div className="space-y-1">
+        {rows.map(([row, rowSeats]) => (
+          <div key={row} className="flex items-center gap-0.5">
+            <span className="text-[7px] text-slate-600 w-2.5 text-right">{row}</span>
+            <div className="flex gap-[2px]">
               {rowSeats.sort((a, b) => a.number - b.number).map(seat => (
-                <button key={seat.id} onClick={() => onSeatClick(seat)}
+                <button key={seat.id}
+                  onClick={() => !(seat.status === 'booked' || seat.isBooked) && onSeatClick(seat)}
                   disabled={seat.status === 'booked' || seat.isBooked}
-                  className={`w-2 h-2 rounded-[2px] transition-all hover:scale-150 ${getSeatColor(seat)} ${seat.status === 'booked' || seat.isBooked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
-                  title={`${seat.row}${seat.number} - $${seat.price}`} />
+                  className={`w-[6px] h-[6px] rounded-[1px] transition-all hover:scale-[2] ${dotColor(seat)} ${(seat.status === 'booked' || seat.isBooked) ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                />
               ))}
             </div>
           </div>
@@ -703,48 +820,95 @@ function MiniMap({ seats, selectedSeats, onSeatClick }: {
 }
 
 // --- BOOKING MODAL ---
-function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showtime, totalPrice }: {
+function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showtime, total }: {
   isOpen: boolean; onClose: () => void; onConfirm: () => void; selectedSeats: Seat[];
-  movie: typeof movies[0]; showtime: typeof showtimes[0]; totalPrice: number;
+  movie: typeof movies[0]; showtime: typeof showtimes[0]; total: number;
 }) {
   if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-xl font-bold text-white flex items-center gap-2"><Ticket className="w-5 h-5 text-blue-400" />Confirm Booking</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[60] p-4">
+      <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-3xl p-6 max-w-md w-full shadow-2xl shadow-black/50">
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="text-xl font-bold text-white flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <Ticket className="w-4 h-4 text-emerald-400" />
+            </div>
+            Confirm Booking
+          </h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors p-1">
+            <X className="w-5 h-5" />
+          </button>
         </div>
+
         <div className="space-y-4">
-          <div className="bg-slate-800/50 rounded-lg p-3">
-            <div className="flex gap-3">
-              <img src={movie.image} alt={movie.title} className="w-16 h-24 object-cover rounded" />
-              <div>
-                <h4 className="text-white font-semibold">{movie.title}</h4>
-                <p className="text-gray-400 text-sm">{movie.genre}</p>
-                <p className="text-gray-500 text-xs mt-1">{movie.duration} • {movie.rating}</p>
+          {/* Movie info */}
+          <div className="bg-white/5 rounded-xl p-3 flex gap-3">
+            <img src={movie.image} alt={movie.title}
+              className="w-14 h-20 object-cover rounded-lg shadow-lg"
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+            />
+            <div className="flex-1">
+              <h4 className="text-white font-semibold">{movie.title}</h4>
+              <p className="text-gray-500 text-xs mt-0.5">{movie.genre}</p>
+              <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{movie.duration}</span>
+                <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[10px] font-bold">{movie.rating}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-gray-300"><Clock className="w-4 h-4 text-blue-400" /><span>{showtime.time}</span></div>
-          <div className="bg-slate-800/50 rounded-lg p-3">
-            <h5 className="text-sm text-gray-400 mb-2">Selected Seats</h5>
-            <div className="flex flex-wrap gap-2">
+
+          {/* Showtime */}
+          <div className="flex items-center gap-2 bg-white/5 rounded-xl px-3 py-2">
+            <Clock className="w-4 h-4 text-blue-400" />
+            <span className="text-white text-sm font-medium">{showtime.time}</span>
+            <span className="text-gray-500 text-xs">· {showtime.label}</span>
+          </div>
+
+          {/* Seats */}
+          <div className="bg-white/5 rounded-xl p-3">
+            <p className="text-[11px] text-gray-500 uppercase tracking-wider mb-2">Selected Seats</p>
+            <div className="flex flex-wrap gap-1.5">
               {selectedSeats.map(seat => (
-                <span key={seat.id} className={`px-2 py-1 rounded text-xs font-medium ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300' : seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300' : 'bg-gray-500/20 text-gray-300'}`}>
+                <span key={seat.id}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold border ${
+                    seat.type === 'vip' ? 'bg-purple-500/15 text-purple-300 border-purple-500/30' :
+                    seat.type === 'premium' ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' :
+                    seat.type === 'accessible' ? 'bg-teal-500/15 text-teal-300 border-teal-500/30' :
+                    'bg-white/5 text-gray-300 border-white/10'
+                  }`}>
                   {seat.row}{seat.number}
+                  <span className="text-gray-500 ml-1">${seat.price}</span>
                 </span>
               ))}
             </div>
           </div>
-          <div className="border-t border-white/10 pt-4">
-            <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Subtotal ({selectedSeats.length} tickets)</span><span>${totalPrice.toFixed(2)}</span></div>
-            <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Booking Fee</span><span>$2.50</span></div>
-            <div className="flex justify-between text-lg font-bold text-white mt-2"><span>Total</span><span className="text-green-400">${(totalPrice + 2.5).toFixed(2)}</span></div>
+
+          {/* Price breakdown */}
+          <div className="border-t border-white/10 pt-3 space-y-1.5">
+            <div className="flex justify-between text-sm text-gray-400">
+              <span>{selectedSeats.length} × Ticket{selectedSeats.length > 1 ? 's' : ''}</span>
+              <span>${total.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-sm text-gray-400">
+              <span>Service fee</span><span>$2.50</span>
+            </div>
+            <div className="flex justify-between text-lg font-bold text-white pt-2 border-t border-white/10">
+              <span>Total</span>
+              <span className="text-emerald-400">${(total + 2.5).toFixed(2)}</span>
+            </div>
           </div>
-          <div className="flex gap-3 mt-4">
-            <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
-            <Button onClick={onConfirm} className="flex-1 bg-green-600 hover:bg-green-700"><CreditCard className="w-4 h-4 mr-2" />Pay Now</Button>
+
+          {/* Actions */}
+          <div className="flex gap-3 mt-2">
+            <button onClick={onClose}
+              className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 transition-all text-sm font-medium">
+              Cancel
+            </button>
+            <button onClick={onConfirm}
+              className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-all text-sm font-semibold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+              <CreditCard className="w-4 h-4" /> Pay Now
+            </button>
           </div>
         </div>
       </div>
@@ -752,52 +916,9 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
   );
 }
 
-// --- YOUTUBE OVERLAY COMPONENT ---
-function YouTubeOverlay({
-  videoId,
-  screenRect
-}: {
-  videoId: string;
-  screenRect: { left: number; top: number; width: number; height: number; visible: boolean };
-}) {
-  if (!screenRect.visible || screenRect.width < 50 || screenRect.height < 30) {
-    return null;
-  }
-
-  return (
-    <div
-      style={{
-        position: 'fixed',
-        left: `${screenRect.left}px`,
-        top: `${screenRect.top}px`,
-        width: `${screenRect.width}px`,
-        height: `${screenRect.height}px`,
-        zIndex: 5,
-        pointerEvents: 'auto',
-        overflow: 'hidden',
-        borderRadius: '2px',
-        backgroundColor: '#000',
-      }}
-    >
-      <iframe
-        src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&mute=1&controls=1&modestbranding=1&rel=0&playsinline=1&enablejsapi=1&iv_load_policy=3&fs=0`}
-        title="YouTube video player"
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        referrerPolicy="strict-origin-when-cross-origin"
-        style={{
-          border: 'none',
-          width: '100%',
-          height: '100%',
-          display: 'block',
-          backgroundColor: '#000',
-        }}
-      />
-    </div>
-  );
-}
-
-// --- MAIN COMPONENT ---
+// ========================================
+// MAIN COMPONENT
+// ========================================
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
   const [isAnimating, setIsAnimating] = useState(false);
@@ -806,31 +927,27 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [selectedShowtime, setSelectedShowtime] = useState(showtimes[3]);
   const [hoveredSeat, setHoveredSeat] = useState<{ seat: Seat; position: [number, number, number] } | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showMiniMap, setShowMiniMap] = useState(true);
+  const [showMiniMap, setShowMiniMap] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('default');
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [highlightedSeats, setHighlightedSeats] = useState<string[]>([]);
-  const [lightsEnabled, setLightsEnabled] = useState(false);
+  const [lightsOn, setLightsOn] = useState(false);
   const [screenRect, setScreenRect] = useState({ left: 0, top: 0, width: 0, height: 0, visible: false });
+  const [showGuide, setShowGuide] = useState(false);
+  const [showMoviePanel, setShowMoviePanel] = useState(true);
 
   const controlsRef = useRef<any>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const { playSound } = useAudio();
 
   const youtubeId = useMemo(() => getYouTubeId(selectedMovie.video), [selectedMovie.video]);
-  const isYouTube = !!youtubeId;
-
   const selectedSeats = useMemo(() => seats.filter(s => s.status === 'selected' || s.isSelected), [seats]);
-  const totalPrice = useMemo(() => selectedSeats.reduce((sum, seat) => sum + seat.price, 0), [selectedSeats]);
+  const totalPrice = useMemo(() => selectedSeats.reduce((sum, s) => sum + s.price, 0), [selectedSeats]);
   const rows = useMemo(() => [...new Set(seats.map(s => s.row))].sort(), [seats]);
 
   const seatsByRow = useMemo(() => {
-    return seats.reduce((acc, seat) => {
-      if (!acc[seat.row]) acc[seat.row] = [];
-      acc[seat.row].push(seat);
-      return acc;
-    }, {} as Record<string, Seat[]>);
+    const m: Record<string, Seat[]> = {};
+    seats.forEach(s => { if (!m[s.row]) m[s.row] = []; m[s.row].push(s); });
+    return m;
   }, [seats]);
 
   const seatPositions = useMemo(() => {
@@ -838,50 +955,60 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     const sortedRows = Object.keys(seatsByRow).sort();
     sortedRows.forEach((rowLetter, rowIndex) => {
       const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
-      const rowZ = rowIndex * 1.5 + 3;
-      const rowY = (rowIndex * 0.35) + 0.3;
+      const rowZ = rowIndex * 1.8 + 1.5;
+      const rowY = rowIndex * 0.4 + 0.25;
+      const totalWidth = rowSeats.length * 1.05;
+
       rowSeats.forEach((seat, seatIndex) => {
+        // Slight curve: seats at edges are pushed back slightly
+        const normalizedX = (seatIndex - (rowSeats.length - 1) / 2) / (rowSeats.length / 2);
+        const curvePush = Math.abs(normalizedX) * Math.abs(normalizedX) * 0.4;
+
+        // Aisle gap in the middle
         let aisleOffset = 0;
-        const middleIndex = Math.floor(rowSeats.length / 2);
-        if (seatIndex >= middleIndex) aisleOffset = 1.2;
-        const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.1 + aisleOffset * 0.5 - 0.3;
-        positions.push({ seat, position: [seatX, rowY, rowZ] });
+        const mid = Math.floor(rowSeats.length / 2);
+        if (seatIndex >= mid) aisleOffset = 1.4;
+
+        const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.05 + (seatIndex >= mid ? 0.7 : -0.7);
+        positions.push({ seat, position: [seatX, rowY, rowZ + curvePush] });
       });
     });
     return positions;
   }, [seatsByRow]);
 
-  const findBestSeats = useCallback((count: number = 2) => {
-    // Note: We use the memoized seatPositions here.
-    const availableSeats = seatPositions.filter(({ seat }) => seat.status === 'available' && !seat.isBooked);
-    const scoredSeats = availableSeats.map(({ seat, position }) => {
-      const centerScore = 12 - Math.abs(position[0]);
-      const rowScore = 10 - Math.abs(4 - position[2] / 1.5);
-      const typeBonus = seat.type === 'premium' ? 3 : seat.type === 'vip' ? 4 : 0;
+  const findBestSeats = useCallback((count: number = 4) => {
+    const available = seatPositions.filter(({ seat }) => seat.status === 'available' && !seat.isBooked);
+    const scored = available.map(({ seat, position }) => {
+      const centerScore = 14 - Math.abs(position[0]);
+      const rowScore = 10 - Math.abs(3 - position[2] / 1.8);
+      const typeBonus = seat.type === 'premium' ? 3 : seat.type === 'vip' ? 5 : 0;
       return { seat, score: centerScore + rowScore + typeBonus };
     });
-    scoredSeats.sort((a, b) => b.score - a.score);
-    return scoredSeats.slice(0, count).map(s => s.seat.id);
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, count).map(s => s.seat.id);
   }, [seatPositions]);
 
   const handleSeatClick = useCallback((seat: Seat) => {
     if (soundEnabled) playSound('click');
     onSeatClick(seat);
-    const seatData = seatPositions.find(s => s.seat.id === seat.id);
-    if (seatData) {
-      const [x, y, z] = seatData.position;
-      setCameraTarget({ position: new THREE.Vector3(x, y + 1, z + 2), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
+    const sd = seatPositions.find(s => s.seat.id === seat.id);
+    if (sd) {
+      const [x, y, z] = sd.position;
+      setCameraTarget({
+        position: new THREE.Vector3(x * 0.3, y + 2, z + 3.5),
+        lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z)
+      });
       setIsAnimating(true);
       setViewingSeatId(seat.id);
     }
   }, [soundEnabled, playSound, onSeatClick, seatPositions]);
 
-  const handleSeatHover = (seat: Seat | null, position?: [number, number, number]) => {
+  const handleSeatHover = useCallback((seat: Seat | null, position?: [number, number, number]) => {
     if (seat && position) setHoveredSeat({ seat, position });
     else setHoveredSeat(null);
-  };
+  }, []);
 
-  const handleResetView = () => {
+  const resetView = () => {
     if (soundEnabled) playSound('click');
     setCameraTarget({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
     setIsAnimating(true);
@@ -889,290 +1016,403 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     setViewMode('default');
   };
 
-  const handleViewModeChange = (mode: ViewMode) => {
+  const changeView = (mode: ViewMode) => {
     if (soundEnabled) playSound('click');
     setViewMode(mode);
-    const viewPositions: Record<ViewMode, CameraTarget> = {
+    const views: Record<ViewMode, CameraTarget> = {
       default: { position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT },
-      topdown: { position: new THREE.Vector3(0, 28, 8), lookAt: new THREE.Vector3(0, 0, 5) },
-      front: { position: new THREE.Vector3(0, 6, -14), lookAt: new THREE.Vector3(0, 6, 0) },
-      side: { position: new THREE.Vector3(28, 10, 8), lookAt: new THREE.Vector3(0, 3, 5) }
+      topdown: { position: new THREE.Vector3(0, 26, 8), lookAt: new THREE.Vector3(0, 0, 6) },
+      front: { position: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z + 6), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) },
+      side: { position: new THREE.Vector3(26, 8, 6), lookAt: new THREE.Vector3(0, 3, 4) },
     };
-    setCameraTarget(viewPositions[mode]);
+    setCameraTarget(views[mode]);
     setIsAnimating(true);
   };
 
-  const handleRecommendSeats = () => {
+  const recommendSeats = () => {
     if (soundEnabled) playSound('success');
-    const bestSeats = findBestSeats(4);
-    setHighlightedSeats(bestSeats);
-    setTimeout(() => setHighlightedSeats([]), 5000);
+    const best = findBestSeats(4);
+    setHighlightedSeats(best);
+    setTimeout(() => setHighlightedSeats([]), 6000);
   };
 
-  const handleScreenshot = async () => {
+  const takeScreenshot = () => {
     if (soundEnabled) playSound('success');
     const canvas = document.querySelector('canvas');
     if (canvas) {
-      const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `seat-view-${viewingSeatId || 'overview'}.png`;
-      link.href = dataUrl;
+      link.download = `theater-view-${Date.now()}.png`;
+      link.href = canvas.toDataURL('image/png');
       link.click();
     }
   };
 
-  const handleConfirmBooking = () => {
-    if (soundEnabled) playSound('success');
-    setShowBookingModal(false);
-    alert('Booking confirmed! Thank you for your purchase.');
-  };
-
-  const handleScreenPositionUpdate = useCallback((rect: { left: number; top: number; width: number; height: number; visible: boolean }) => {
+  const handleScreenUpdate = useCallback((r: { left: number; top: number; width: number; height: number; visible: boolean }) => {
     setScreenRect(prev => {
-      if (
-        Math.abs(prev.left - rect.left) > 1 ||
-        Math.abs(prev.top - rect.top) > 1 ||
-        Math.abs(prev.width - rect.width) > 1 ||
-        Math.abs(prev.height - rect.height) > 1 ||
-        prev.visible !== rect.visible
-      ) {
-        return rect;
-      }
+      if (Math.abs(prev.left - r.left) > 0.8 || Math.abs(prev.top - r.top) > 0.8 ||
+        Math.abs(prev.width - r.width) > 0.8 || Math.abs(prev.height - r.height) > 0.8 ||
+        prev.visible !== r.visible) return r;
       return prev;
     });
   }, []);
 
+  // Keyboard navigation
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const onKey = (e: KeyboardEvent) => {
       if (!viewingSeatId) return;
-      const currentSeat = seatPositions.find(s => s.seat.id === viewingSeatId);
-      if (!currentSeat) return;
-      const currentRow = currentSeat.seat.row;
-      const currentNumber = currentSeat.seat.number;
-      let targetSeat: Seat | undefined;
-
+      const current = seatPositions.find(s => s.seat.id === viewingSeatId);
+      if (!current) return;
+      let target: Seat | undefined;
       switch (e.key) {
-        case 'ArrowLeft': targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber - 1); break;
-        case 'ArrowRight': targetSeat = seats.find(s => s.row === currentRow && s.number === currentNumber + 1); break;
-        case 'ArrowUp': { const prevRow = String.fromCharCode(currentRow.charCodeAt(0) - 1); targetSeat = seats.find(s => s.row === prevRow && s.number === currentNumber); break; }
-        case 'ArrowDown': { const nextRow = String.fromCharCode(currentRow.charCodeAt(0) + 1); targetSeat = seats.find(s => s.row === nextRow && s.number === currentNumber); break; }
-        case 'Enter': case ' ': if (currentSeat.seat.status !== 'booked') handleSeatClick(currentSeat.seat); break;
-        case 'Escape': handleResetView(); break;
+        case 'ArrowLeft': target = seats.find(s => s.row === current.seat.row && s.number === current.seat.number - 1); break;
+        case 'ArrowRight': target = seats.find(s => s.row === current.seat.row && s.number === current.seat.number + 1); break;
+        case 'ArrowUp': target = seats.find(s => s.row === String.fromCharCode(current.seat.row.charCodeAt(0) - 1) && s.number === current.seat.number); break;
+        case 'ArrowDown': target = seats.find(s => s.row === String.fromCharCode(current.seat.row.charCodeAt(0) + 1) && s.number === current.seat.number); break;
+        case 'Escape': resetView(); return;
       }
-      if (targetSeat) {
+      if (target) {
         e.preventDefault();
-        const targetData = seatPositions.find(s => s.seat.id === targetSeat!.id);
-        if (targetData) {
-          const [x, y, z] = targetData.position;
-          setCameraTarget({ position: new THREE.Vector3(x, y + 1, z + 2), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
+        const td = seatPositions.find(s => s.seat.id === target!.id);
+        if (td) {
+          const [x, y, z] = td.position;
+          setCameraTarget({ position: new THREE.Vector3(x * 0.3, y + 2, z + 3.5), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
           setIsAnimating(true);
-          setViewingSeatId(targetSeat.id);
+          setViewingSeatId(target.id);
         }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewingSeatId, seats, seatPositions, handleSeatClick]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [viewingSeatId, seats, seatPositions]);
+
+  const viewingSeat = viewingSeatId ? seats.find(s => s.id === viewingSeatId) : null;
 
   return (
-    <div ref={containerRef} className="relative w-full h-[800px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800">
+    <div className="relative w-full h-[850px] bg-black rounded-2xl overflow-hidden shadow-2xl border border-slate-800/50">
 
-      {/* === YouTube Overlay - renders OUTSIDE canvas, tracks 3D screen position === */}
-      {isYouTube && youtubeId && (
-        <YouTubeOverlay videoId={youtubeId} screenRect={screenRect} />
+      {/* YouTube overlay */}
+      {youtubeId && <YouTubeOverlay videoId={youtubeId} rect={screenRect} />}
+
+      {/* ======= TOP BAR ======= */}
+      <div className="absolute top-0 left-0 right-0 z-20">
+        <div className="bg-gradient-to-b from-black/90 via-black/60 to-transparent pt-3 pb-8 px-4">
+          <div className="flex items-start justify-between gap-4">
+
+            {/* Left: Movie + Showtime selection */}
+            <div className="flex-1 max-w-[520px]">
+              <button
+                onClick={() => setShowMoviePanel(!showMoviePanel)}
+                className="flex items-center gap-2 text-white mb-2 group"
+              >
+                <Film className="w-3.5 h-3.5 text-blue-400" />
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
+                  Select Movie & Showtime
+                </span>
+                {showMoviePanel
+                  ? <ChevronDown className="w-3 h-3 text-gray-500" />
+                  : <ChevronRight className="w-3 h-3 text-gray-500" />
+                }
+              </button>
+
+              {showMoviePanel && (
+                <div className="space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                  {/* Movie carousel */}
+                  <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                    {movies.map(movie => (
+                      <button key={movie.id}
+                        onClick={() => { if (soundEnabled) playSound('click'); setSelectedMovie(movie); }}
+                        className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all border
+                          ${selectedMovie.id === movie.id
+                            ? 'bg-blue-600/30 border-blue-500/50 text-white shadow-lg shadow-blue-500/10'
+                            : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
+                          }`}
+                      >
+                        <img src={movie.image} alt="" className="w-6 h-8 object-cover rounded"
+                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <span className="whitespace-nowrap">{movie.title}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Showtime pills */}
+                  <div className="flex gap-1.5 flex-wrap">
+                    {showtimes.map(st => (
+                      <button key={st.id}
+                        onClick={() => { if (soundEnabled) playSound('click'); setSelectedShowtime(st); }}
+                        className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-all border
+                          ${selectedShowtime.id === st.id
+                            ? 'bg-emerald-600/30 border-emerald-500/50 text-emerald-300'
+                            : 'bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10'
+                          }`}
+                      >
+                        <span>{st.time}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Now playing info strip */}
+                  <div className="flex items-center gap-3 bg-white/5 rounded-xl px-3 py-2">
+                    <img src={selectedMovie.image} alt="" className="w-8 h-11 object-cover rounded-md shadow"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-semibold truncate">{selectedMovie.title}</p>
+                      <p className="text-gray-500 text-[10px]">{selectedMovie.genre} · {selectedMovie.duration}</p>
+                    </div>
+                    <span className="px-2 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[10px] font-bold flex-shrink-0">
+                      {selectedMovie.rating}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Right: Controls */}
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex gap-1.5">
+                {[
+                  { icon: soundEnabled ? Volume2 : VolumeX, onClick: () => setSoundEnabled(!soundEnabled), active: soundEnabled, tip: 'Sound' },
+                  { icon: Camera, onClick: takeScreenshot, tip: 'Screenshot' },
+                  { icon: Grid3X3, onClick: () => setShowMiniMap(!showMiniMap), active: showMiniMap, tip: 'Map' },
+                  { icon: lightsOn ? Sun : SunDim, onClick: () => setLightsOn(!lightsOn), active: lightsOn, tip: 'Lights' },
+                ].map(({ icon: Icon, onClick, active, tip }, i) => (
+                  <button key={i} onClick={onClick} title={tip}
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all border text-xs
+                      ${active ? 'bg-blue-600/30 border-blue-500/40 text-blue-300' : 'bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10'}`}>
+                    <Icon className="w-3.5 h-3.5" />
+                  </button>
+                ))}
+              </div>
+
+              {/* View modes */}
+              <div className="flex gap-1.5">
+                {([
+                  { mode: 'default' as ViewMode, label: 'Free', icon: Eye },
+                  { mode: 'topdown' as ViewMode, label: 'Top', icon: Maximize2 },
+                  { mode: 'front' as ViewMode, label: 'Front', icon: Film },
+                  { mode: 'side' as ViewMode, label: 'Side', icon: Armchair },
+                ]).map(({ mode, label, icon: Icon }) => (
+                  <button key={mode} onClick={() => changeView(mode)}
+                    className={`px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all border flex items-center gap-1
+                      ${viewMode === mode
+                        ? 'bg-white/15 border-white/20 text-white'
+                        : 'bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10'
+                      }`}>
+                    <Icon className="w-3 h-3" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-1.5">
+                <button onClick={recommendSeats}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-amber-500/20 border border-amber-500/30 text-amber-400 hover:bg-amber-500/30 transition-all flex items-center gap-1">
+                  <Sparkles className="w-3 h-3" /> Best Seats
+                </button>
+                <button onClick={resetView}
+                  className="px-3 py-1.5 rounded-lg text-[10px] font-semibold bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center gap-1">
+                  <RotateCcw className="w-3 h-3" /> Reset
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ======= VIEWING INDICATOR ======= */}
+      {viewingSeat && (
+        <div className="absolute top-[110px] left-1/2 -translate-x-1/2 z-20">
+          <div className="bg-blue-600/20 backdrop-blur-xl text-white px-5 py-2 rounded-full flex items-center gap-2 border border-blue-500/30 shadow-lg">
+            <Eye className="w-3.5 h-3.5 text-blue-400" />
+            <span className="text-xs font-semibold">
+              Viewing from <span className="text-blue-300">Row {viewingSeat.row} · Seat {viewingSeat.number}</span>
+            </span>
+            <span className="text-gray-500 text-[10px]">· Use arrow keys to navigate</span>
+          </div>
+        </div>
       )}
 
-      {/* === UI PANELS === */}
-      <div className="absolute top-4 left-4 z-20 flex flex-col gap-3 max-w-[420px]">
-        <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10">
-          <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <Film className="w-3 h-3 text-blue-400" />Now Playing
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {movies.map((movie) => (
-              <button key={movie.id}
-                onClick={() => { if (soundEnabled) playSound('click'); setSelectedMovie(movie); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all flex items-center gap-2 border ${selectedMovie.id === movie.id ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}`}>
-                {movie.title}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-black/70 backdrop-blur-md rounded-xl p-3 border border-white/10">
-          <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-2 flex items-center gap-2">
-            <Clock className="w-3 h-3 text-green-400" />Select Showtime
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {showtimes.map((showtime) => (
-              <button key={showtime.id}
-                onClick={() => { if (soundEnabled) playSound('click'); setSelectedShowtime(showtime); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${selectedShowtime.id === showtime.id ? 'bg-green-600 border-green-500 text-white' : 'bg-slate-800/80 border-white/10 text-gray-400 hover:text-white hover:bg-slate-700/80'}`}>
-                {showtime.time}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="bg-black/70 backdrop-blur-md p-3 rounded-xl border border-white/10">
-          <div className="flex gap-3">
-            <img src={selectedMovie.image} alt={selectedMovie.title} className="w-12 h-16 object-cover rounded-lg"
-              onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/48x64?text=Poster'; }} />
-            <div className="flex-1 min-w-0">
-              <h4 className="text-blue-400 font-bold text-sm truncate">{selectedMovie.title}</h4>
-              <p className="text-gray-500 text-xs">{selectedMovie.duration} • {selectedMovie.rating}</p>
-              <p className="text-gray-400 text-xs mt-1 line-clamp-2">{selectedMovie.description}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setSoundEnabled(!soundEnabled)} className="bg-black/50 hover:bg-black/70 border-white/20 text-white">
-            {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleScreenshot} className="bg-black/50 hover:bg-black/70 border-white/20 text-white">
-            <Camera className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowMiniMap(!showMiniMap)} className={`bg-black/50 hover:bg-black/70 border-white/20 text-white ${showMiniMap ? 'ring-2 ring-blue-500' : ''}`}>
-            <Grid3X3 className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setLightsEnabled(!lightsEnabled)} className={`bg-black/50 hover:bg-black/70 border-white/20 text-white ${lightsEnabled ? 'ring-2 ring-yellow-500' : ''}`}>
-            <Zap className="w-4 h-4" />
-          </Button>
-        </div>
-
-        <div className="flex gap-2">
-          {([
-            { mode: 'default' as ViewMode, icon: Eye },
-            { mode: 'topdown' as ViewMode, icon: ArrowDown },
-            { mode: 'front' as ViewMode, icon: Maximize2 },
-            { mode: 'side' as ViewMode, icon: ArrowUp }
-          ]).map(({ mode, icon: Icon }) => (
-            <Button key={mode} variant="outline" size="sm"
-              onClick={() => handleViewModeChange(mode)}
-              className={`bg-black/50 hover:bg-black/70 border-white/20 text-white ${viewMode === mode ? 'ring-2 ring-blue-500' : ''}`}>
-              <Icon className="w-4 h-4" />
-            </Button>
-          ))}
-        </div>
-
-        {viewingSeatId && (
-          <div className="bg-black/70 backdrop-blur-md text-white px-4 py-2 rounded-full flex items-center gap-2 border border-white/10 shadow-lg">
-            <Eye className="w-4 h-4 text-blue-400" />
-            <span className="text-sm font-medium">
-              Viewing from Seat {seats.find(s => s.id === viewingSeatId)?.row}{seats.find(s => s.id === viewingSeatId)?.number}
-            </span>
-          </div>
-        )}
-
-        <div className="flex gap-2">
-          <Button onClick={handleRecommendSeats} variant="outline" size="sm" className="bg-amber-600/50 hover:bg-amber-600/70 border-amber-500/50 text-white">
-            <Star className="w-4 h-4 mr-2" />Best Seats
-          </Button>
-          <Button onClick={handleResetView} variant="outline" size="sm" className="bg-black/50 hover:bg-black/70 border-white/20 text-white">
-            <RotateCcw className="w-4 h-4 mr-2" />Reset View
-          </Button>
-        </div>
-      </div>
-
-      {/* Seat Guide */}
-      <div className="absolute bottom-4 left-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg">
-        <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2"><Info className="w-3 h-3" />Seat Guide</h3>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-2">
-          {[
-            ['bg-gray-400', 'Standard'], ['bg-blue-500', 'Premium'], ['bg-purple-500', 'VIP'],
-            ['bg-teal-500', 'Accessible'], ['bg-green-500', 'Selected'], ['bg-slate-600', 'Booked'], ['bg-amber-500', 'Recommended']
-          ].map(([color, label]) => (
-            <div key={label} className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${color}`}></div>
-              <span className="text-gray-300 text-xs">{label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Selection Panel */}
-      <div className="absolute bottom-4 right-4 z-10 bg-black/80 backdrop-blur-md p-4 rounded-xl border border-white/10 shadow-lg min-w-[280px]">
-        <h3 className="text-white text-xs font-bold uppercase tracking-wider mb-3 flex items-center gap-2">
-          <Ticket className="w-3 h-3 text-green-400" />Your Selection
-        </h3>
-        {selectedSeats.length > 0 ? (
-          <>
-            <div className="flex flex-wrap gap-2 mb-3">
-              {selectedSeats.map(seat => (
-                <span key={seat.id} className={`px-2 py-1 rounded-md text-xs font-medium flex items-center gap-1 ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : seat.type === 'accessible' ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'bg-gray-500/20 text-gray-300 border border-gray-500/30'}`}>
-                  {seat.row}{seat.number}<span className="text-gray-500">${seat.price}</span>
-                </span>
+      {/* ======= LEFT: SEAT GUIDE ======= */}
+      <div className="absolute left-3 bottom-3 z-10">
+        <button onClick={() => setShowGuide(!showGuide)}
+          className="flex items-center gap-1.5 bg-black/70 backdrop-blur-xl px-3 py-1.5 rounded-lg border border-white/10 text-gray-400 hover:text-white transition-all text-[11px] font-medium mb-2">
+          <Info className="w-3 h-3" /> Seat Guide
+          {showGuide ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+        </button>
+        {showGuide && (
+          <div className="bg-black/80 backdrop-blur-xl p-3 rounded-xl border border-white/10 shadow-xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="grid grid-cols-2 gap-x-5 gap-y-1.5">
+              {[
+                ['#6b7280', 'Standard'],
+                ['#3b82f6', 'Premium'],
+                ['#a855f7', 'VIP'],
+                ['#14b8a6', 'Accessible'],
+                ['#22c55e', 'Selected'],
+                ['#374151', 'Booked'],
+                ['#f59e0b', 'Recommended'],
+              ].map(([color, label]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  <span className="text-gray-400 text-[11px]">{label}</span>
+                </div>
               ))}
             </div>
-            <div className="border-t border-white/10 pt-3 space-y-2">
-              <div className="flex justify-between text-sm"><span className="text-gray-400">{selectedSeats.length} ticket(s)</span><span className="text-white font-medium">${totalPrice.toFixed(2)}</span></div>
-              <div className="flex justify-between text-sm"><span className="text-gray-400">Booking fee</span><span className="text-white font-medium">$2.50</span></div>
-              <div className="flex justify-between text-lg font-bold border-t border-white/10 pt-2"><span className="text-white">Total</span><span className="text-green-400">${(totalPrice + 2.5).toFixed(2)}</span></div>
-            </div>
-            <Button onClick={() => setShowBookingModal(true)} className="w-full mt-4 bg-green-600 hover:bg-green-700 text-white">
-              <Check className="w-4 h-4 mr-2" />Proceed to Checkout
-            </Button>
-          </>
-        ) : (
-          <div className="text-center py-4">
-            <Users className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-            <p className="text-gray-500 text-sm">No seats selected</p>
-            <p className="text-gray-600 text-xs mt-1">Click on a seat to select it</p>
           </div>
         )}
       </div>
 
+      {/* ======= MINIMAP ======= */}
       {showMiniMap && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-          <MiniMap seats={seats} selectedSeats={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
+          <MiniMap seats={seats} selectedIds={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
         </div>
       )}
 
-      {/* === 3D CANVAS === */}
+      {/* ======= RIGHT: BOOKING PANEL ======= */}
+      <div className="absolute right-3 bottom-3 z-10">
+        <div className="bg-black/80 backdrop-blur-xl p-4 rounded-xl border border-white/10 shadow-xl w-[260px]">
+          <h3 className="text-[11px] font-bold uppercase tracking-widest text-gray-500 mb-3 flex items-center gap-2">
+            <Ticket className="w-3 h-3 text-emerald-500" /> Your Tickets
+          </h3>
+          {selectedSeats.length > 0 ? (
+            <>
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {selectedSeats.map(seat => (
+                  <span key={seat.id}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-semibold border
+                      ${seat.type === 'vip' ? 'bg-purple-500/15 text-purple-300 border-purple-500/25' :
+                        seat.type === 'premium' ? 'bg-blue-500/15 text-blue-300 border-blue-500/25' :
+                        seat.type === 'accessible' ? 'bg-teal-500/15 text-teal-300 border-teal-500/25' :
+                        'bg-white/5 text-gray-300 border-white/10'}`}>
+                    {seat.row}{seat.number}
+                    <span className="text-gray-500 ml-1 text-[10px]">${seat.price}</span>
+                  </span>
+                ))}
+              </div>
+
+              <div className="space-y-1 text-xs border-t border-white/10 pt-2.5">
+                <div className="flex justify-between text-gray-400">
+                  <span>{selectedSeats.length} ticket{selectedSeats.length > 1 ? 's' : ''}</span>
+                  <span>${totalPrice.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Service fee</span><span>$2.50</span>
+                </div>
+                <div className="flex justify-between text-sm font-bold text-white pt-1.5 border-t border-white/10">
+                  <span>Total</span>
+                  <span className="text-emerald-400">${(totalPrice + 2.5).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <button onClick={() => setShowBookingModal(true)}
+                className="w-full mt-3 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20">
+                <Check className="w-4 h-4" /> Checkout
+              </button>
+            </>
+          ) : (
+            <div className="text-center py-5">
+              <Armchair className="w-8 h-8 text-gray-700 mx-auto mb-2" />
+              <p className="text-gray-500 text-xs">No seats selected</p>
+              <p className="text-gray-600 text-[10px] mt-1">Click on an available seat to begin</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ======= 3D CANVAS ======= */}
       <Canvas
-        ref={canvasRef}
         shadows
-        camera={{ position: [0, 10, 22], fov: 55 }}
-        gl={{ antialias: true, preserveDrawingBuffer: true }}
+        camera={{ position: [DEFAULT_CAMERA_POS.x, DEFAULT_CAMERA_POS.y, DEFAULT_CAMERA_POS.z], fov: 50, near: 0.5, far: 100 }}
+        gl={{ antialias: true, preserveDrawingBuffer: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 0.9 }}
+        style={{ background: '#050508' }}
       >
-        <CameraController target={cameraTarget} isAnimating={isAnimating} onAnimationComplete={() => setIsAnimating(false)} controlsRef={controlsRef} viewMode={viewMode} />
+        <CameraController
+          target={cameraTarget}
+          isAnimating={isAnimating}
+          onDone={() => setIsAnimating(false)}
+          controlsRef={controlsRef}
+        />
 
-        <ambientLight intensity={0.35} />
-        <directionalLight position={[12, 22, 12]} intensity={1.0} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-25} shadow-camera-right={25} shadow-camera-top={25} shadow-camera-bottom={-25} />
-        <directionalLight position={[-12, 18, 12]} intensity={0.4} />
-        <spotLight position={[0, 22, 8]} angle={0.6} penumbra={1} intensity={0.5} castShadow />
+        {/* Ambient fill - very low for theater darkness */}
+        <ambientLight intensity={0.15} color="#b0c4de" />
 
-        {/* Screen Position Tracker - updates overlay position every frame */}
-        {isYouTube && (
-          <ScreenPositionTracker onPositionUpdate={handleScreenPositionUpdate} />
-        )}
+        {/* Main directional (simulates general overhead) */}
+        <directionalLight
+          position={[0, 15, 5]}
+          intensity={0.3}
+          color="#e8d5b7"
+          castShadow
+          shadow-mapSize={[2048, 2048]}
+          shadow-camera-left={-20}
+          shadow-camera-right={20}
+          shadow-camera-top={20}
+          shadow-camera-bottom={-20}
+          shadow-bias={-0.001}
+        />
 
-        {/* 3D Screen - for YouTube shows dark surface, for mp4 shows video texture */}
-        {isYouTube ? (
-          <Screen3D videoUrl={selectedMovie.video} movieTitle={selectedMovie.title} isYouTube={true} />
-        ) : (
-          <Screen3DWithVideo videoUrl={selectedMovie.video} movieTitle={selectedMovie.title} />
-        )}
+        {/* Fill from screen direction */}
+        <directionalLight position={[0, SCREEN_Y, SCREEN_Z + 5]} intensity={0.15} color="#6366f1" />
 
-        <RowLabels rows={rows} />
-        <TheaterEnvironment lightsEnabled={lightsEnabled} />
+        {/* Track 3D screen position for YouTube overlay */}
+        {youtubeId && <ScreenPositionTracker onUpdate={handleScreenUpdate} />}
 
+        {/* Theater screen */}
+        <TheaterScreen movieTitle={selectedMovie.title} />
+
+        {/* Row labels */}
+        <RowLabels rows={rows} seatsByRow={seatsByRow} />
+
+        {/* Theater environment */}
+        <TheaterEnvironment lightsOn={lightsOn} />
+
+        {/* Seats */}
         {seatPositions.map(({ seat, position }) => (
-          <Seat3D key={seat.id} seat={seat} position={position} onClick={handleSeatClick} onHover={handleSeatHover}
-            isHighlighted={highlightedSeats.includes(seat.id)} soundEnabled={soundEnabled} playSound={playSound} />
+          <Seat3D
+            key={seat.id}
+            seat={seat}
+            position={position}
+            onClick={handleSeatClick}
+            onHover={handleSeatHover}
+            isHighlighted={highlightedSeats.includes(seat.id)}
+            soundEnabled={soundEnabled}
+            playSound={playSound}
+          />
         ))}
 
+        {/* Hovered seat tooltip */}
         {hoveredSeat && <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />}
 
-        <OrbitControls ref={controlsRef} minDistance={4} maxDistance={45} maxPolarAngle={Math.PI / 2.05}
-          target={[0, 2, 0]} enableDamping={true} dampingFactor={0.05} />
+        {/* Orbit controls */}
+        <OrbitControls
+          ref={controlsRef}
+          minDistance={3}
+          maxDistance={40}
+          maxPolarAngle={Math.PI / 2.1}
+          minPolarAngle={0.1}
+          target={[DEFAULT_LOOK_AT.x, DEFAULT_LOOK_AT.y, DEFAULT_LOOK_AT.z]}
+          enableDamping
+          dampingFactor={0.06}
+          rotateSpeed={0.5}
+          zoomSpeed={0.8}
+        />
       </Canvas>
 
-      <BookingModal isOpen={showBookingModal} onClose={() => setShowBookingModal(false)} onConfirm={handleConfirmBooking}
-        selectedSeats={selectedSeats} movie={selectedMovie} showtime={selectedShowtime} totalPrice={totalPrice} />
+      {/* Booking modal */}
+      <BookingModal
+        isOpen={showBookingModal}
+        onClose={() => setShowBookingModal(false)}
+        onConfirm={() => {
+          if (soundEnabled) playSound('success');
+          setShowBookingModal(false);
+          alert('🎬 Booking confirmed! Enjoy the movie!');
+        }}
+        selectedSeats={selectedSeats}
+        movie={selectedMovie}
+        showtime={selectedShowtime}
+        total={totalPrice}
+      />
+
+      {/* Bottom gradient for depth */}
+      <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/40 to-transparent pointer-events-none z-[1]" />
     </div>
   );
 }
