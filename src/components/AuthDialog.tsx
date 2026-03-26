@@ -154,6 +154,34 @@ const AuthDialog = ({ open, onOpenChange }: AuthDialogProps) => {
                 {loading ? "Signing in..." : "Login"}
               </Button>
             </form>
+            <div className="text-center">
+              <Button variant="link" className="text-sm text-muted-foreground" onClick={() => setShowForgot(true)}>
+                Forgot Password?
+              </Button>
+            </div>
+            {showForgot && (
+              <div className="space-y-3 p-4 border border-border/50 rounded-lg">
+                <p className="text-sm text-muted-foreground">Enter your email to receive a password reset link.</p>
+                <Input type="email" placeholder="Your email" value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)} />
+                <Button className="w-full" disabled={loading} onClick={async () => {
+                  if (!forgotEmail) return;
+                  setLoading(true);
+                  const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+                    redirectTo: `${window.location.origin}/reset-password`,
+                  });
+                  setLoading(false);
+                  if (error) {
+                    toast({ title: "Error", description: error.message, variant: "destructive" });
+                  } else {
+                    toast({ title: "Email sent!", description: "Check your inbox for the reset link." });
+                    setShowForgot(false);
+                  }
+                }}>
+                  {loading ? "Sending..." : "Send Reset Link"}
+                </Button>
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="signup" className="space-y-4 mt-4">
