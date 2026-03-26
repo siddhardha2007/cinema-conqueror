@@ -64,7 +64,7 @@ const Payment = () => {
     setIsProcessing(true);
     
     // Simulate payment processing
-    setTimeout(() => {
+    setTimeout(async () => {
       const booking = {
         id: Date.now().toString(),
         movieTitle: state.selectedMovie!.title,
@@ -77,6 +77,23 @@ const Payment = () => {
         userEmail: userEmail,
         userName: userName
       };
+
+      // Save to database if logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await supabase.from("bookings").insert({
+          user_id: session.user.id,
+          movie_title: booking.movieTitle,
+          theater_name: booking.theaterName,
+          showtime: booking.showtime,
+          seats: booking.seats,
+          total_amount: booking.totalAmount,
+          booking_date: booking.bookingDate,
+          status: booking.status,
+          user_email: booking.userEmail,
+          user_name: booking.userName,
+        });
+      }
 
       dispatch({ type: 'CONFIRM_BOOKING', payload: booking });
       setIsProcessing(false);
