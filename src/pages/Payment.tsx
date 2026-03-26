@@ -20,6 +20,16 @@ const Payment = () => {
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
 
+  // Pre-fill from auth
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUserEmail(session.user.email || "");
+        setUserName(session.user.user_metadata?.full_name || session.user.user_metadata?.name || "");
+      }
+    });
+  }, []);
+
   if (!state.selectedMovie || !state.selectedTheater || !state.selectedShowtime || state.selectedSeats.length === 0) {
     navigate('/');
     return null;
