@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useBooking } from "@/contexts/BookingContext";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, CreditCard, Smartphone, Building, IndianRupee, Shield, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 const Payment = () => {
   const navigate = useNavigate();
@@ -18,6 +19,16 @@ const Payment = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
+
+  // Pre-fill from auth
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setUserEmail(session.user.email || "");
+        setUserName(session.user.user_metadata?.full_name || session.user.user_metadata?.name || "");
+      }
+    });
+  }, []);
 
   if (!state.selectedMovie || !state.selectedTheater || !state.selectedShowtime || state.selectedSeats.length === 0) {
     navigate('/');
@@ -53,7 +64,7 @@ const Payment = () => {
     setIsProcessing(true);
     
     // Simulate payment processing
-    setTimeout(() => {
+    setTimeout(async () => {
       const booking = {
         id: Date.now().toString(),
         movieTitle: state.selectedMovie!.title,
@@ -66,6 +77,23 @@ const Payment = () => {
         userEmail: userEmail,
         userName: userName
       };
+
+      // Save to database if logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await supabase.from("bookings").insert({
+          user_id: session.user.id,
+          movie_title: booking.movieTitle,
+          theater_name: booking.theaterName,
+          showtime: booking.showtime,
+          seats: booking.seats,
+          total_amount: booking.totalAmount,
+          booking_date: booking.bookingDate,
+          status: booking.status,
+          user_email: booking.userEmail,
+          user_name: booking.userName,
+        });
+      }
 
       dispatch({ type: 'CONFIRM_BOOKING', payload: booking });
       setIsProcessing(false);
