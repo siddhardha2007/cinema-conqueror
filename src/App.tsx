@@ -10,6 +10,9 @@ import TheaterSelection from "./pages/TheaterSelection";
 import SeatSelection from "./pages/SeatSelection";
 import Payment from "./pages/Payment";
 import BookingConfirmation from "./pages/BookingConfirmation";
+import Profile from "./pages/Profile";
+import ResetPassword from "./pages/ResetPassword";
+import BookingHistory from "./pages/BookingHistory";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +31,9 @@ const App = () => (
             <Route path="/seats" element={<SeatSelection />} />
             <Route path="/payment" element={<Payment />} />
             <Route path="/confirmation" element={<BookingConfirmation />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/bookings" element={<BookingHistory />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
