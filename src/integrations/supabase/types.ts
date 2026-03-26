@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          booking_date: string
+          created_at: string
+          id: string
+          movie_title: string
+          seats: string[]
+          showtime: string
+          status: string
+          theater_name: string
+          total_amount: number
+          user_email: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          booking_date: string
+          created_at?: string
+          id?: string
+          movie_title: string
+          seats: string[]
+          showtime: string
+          status?: string
+          theater_name: string
+          total_amount: number
+          user_email: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          booking_date?: string
+          created_at?: string
+          id?: string
+          movie_title?: string
+          seats?: string[]
+          showtime?: string
+          status?: string
+          theater_name?: string
+          total_amount?: number
+          user_email?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
