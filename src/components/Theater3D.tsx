@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Html } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Html, Environment, ContactShadows } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera,
@@ -34,26 +34,26 @@ interface CameraTarget {
 type ViewMode = 'default' | 'topdown' | 'front' | 'side';
 
 // --- CONSTANTS ---
-const SCREEN_Z = -14;
-const SCREEN_Y = 6.5;
-const SCREEN_WIDTH = 20;
-const SCREEN_HEIGHT = 8.5;
-const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 8, 20);
+const SCREEN_Z = -16;
+const SCREEN_Y = 7.5;
+const SCREEN_WIDTH = 22;
+const SCREEN_HEIGHT = 10;
+const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 10, 24);
 const DEFAULT_LOOK_AT = new THREE.Vector3(0, 3, 0);
 
-const SEAT_COLORS: Record<string, { base: string; hover: string; selected: string; booked: string }> = {
-  standard: { base: '#8b95a5', hover: '#b0bcc9', selected: '#34d399', booked: '#4b5563' },
-  premium: { base: '#5b9cf6', hover: '#7db5ff', selected: '#34d399', booked: '#4b5563' },
-  vip: { base: '#b87af7', hover: '#d4a0ff', selected: '#34d399', booked: '#4b5563' },
-  accessible: { base: '#3ecfb8', hover: '#5ee8d2', selected: '#34d399', booked: '#4b5563' },
+const SEAT_COLORS: Record<string, { base: string; hover: string; selected: string; booked: string; fabric: string; accent: string }> = {
+  standard: { base: '#6b7280', hover: '#9ca3af', selected: '#10b981', booked: '#374151', fabric: '#4b5563', accent: '#555e6e' },
+  premium: { base: '#3b82f6', hover: '#60a5fa', selected: '#10b981', booked: '#374151', fabric: '#2563eb', accent: '#1d4ed8' },
+  vip: { base: '#a855f7', hover: '#c084fc', selected: '#10b981', booked: '#374151', fabric: '#7c3aed', accent: '#6d28d9' },
+  accessible: { base: '#14b8a6', hover: '#2dd4bf', selected: '#10b981', booked: '#374151', fabric: '#0d9488', accent: '#0f766e' },
 };
 
 // --- DATA ---
 const movies = [
-  { id: '1', title: "The Dark Knight", image: "https://image.tmdb.org/t/p/w300/qJ2tW6WMUDux911BTUgMe1YdBGm.jpg", video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", description: "Batman faces the Joker who wants to plunge Gotham into anarchy.", duration: "2h 32m", rating: "PG-13", genre: "Action • Crime" },
-  { id: '2', title: "Inception", image: "https://image.tmdb.org/t/p/w300/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg", video: "https://www.youtube.com/watch?v=YoHD9XEInc0", description: "A thief steals secrets through dream-sharing technology.", duration: "2h 28m", rating: "PG-13", genre: "Sci-Fi • Action" },
-  { id: '3', title: "Interstellar", image: "https://image.tmdb.org/t/p/w300/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", video: "https://www.youtube.com/watch?v=zSWdZVtXT7E", description: "Explorers travel through a wormhole to ensure humanity's survival.", duration: "2h 49m", rating: "PG-13", genre: "Sci-Fi • Adventure" },
-  { id: '4', title: "Oppenheimer", image: "https://image.tmdb.org/t/p/w300/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", video: "https://www.youtube.com/watch?v=uYPbbksJxIg", description: "The story of J. Robert Oppenheimer and the atomic bomb.", duration: "3h 00m", rating: "R", genre: "Biography • Drama" }
+  { id: '1', title: "The Dark Knight", image: "https://image.tmdb.org/t/p/w300/qJ2tW6WMUDux911BTUgMe1YdBGm.jpg", video: "https://www.youtube.com/watch?v=EXeTwQWrcwY", description: "Batman faces the Joker.", duration: "2h 32m", rating: "PG-13", genre: "Action • Crime" },
+  { id: '2', title: "Inception", image: "https://image.tmdb.org/t/p/w300/ljsZTbVsrQSqZgWeep2B1QiDKuh.jpg", video: "https://www.youtube.com/watch?v=YoHD9XEInc0", description: "Dream-sharing technology.", duration: "2h 28m", rating: "PG-13", genre: "Sci-Fi • Action" },
+  { id: '3', title: "Interstellar", image: "https://image.tmdb.org/t/p/w300/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg", video: "https://www.youtube.com/watch?v=zSWdZVtXT7E", description: "Journey through a wormhole.", duration: "2h 49m", rating: "PG-13", genre: "Sci-Fi • Adventure" },
+  { id: '4', title: "Oppenheimer", image: "https://image.tmdb.org/t/p/w300/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg", video: "https://www.youtube.com/watch?v=uYPbbksJxIg", description: "The atomic bomb story.", duration: "3h 00m", rating: "R", genre: "Biography • Drama" }
 ];
 
 const showtimes = [
@@ -87,19 +87,32 @@ const useAudio = () => {
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
-      const freqs: Record<string, number> = { click: 550, select: 750, hover: 420, success: 880, error: 220 };
-      osc.frequency.value = freqs[type];
-      osc.type = type === 'error' ? 'sawtooth' : 'sine';
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.12);
+      const freqs: Record<string, number[]> = {
+        click: [600, 800],
+        select: [500, 700, 900],
+        hover: [450],
+        success: [523, 659, 784],
+        error: [200, 180]
+      };
+      const f = freqs[type];
+      f.forEach((freq, i) => {
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g);
+        g.connect(ctx.destination);
+        o.frequency.value = freq;
+        o.type = type === 'error' ? 'sawtooth' : 'sine';
+        g.gain.setValueAtTime(0.04, ctx.currentTime + i * 0.06);
+        g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.06 + 0.15);
+        o.start(ctx.currentTime + i * 0.06);
+        o.stop(ctx.currentTime + i * 0.06 + 0.15);
+      });
     } catch { /* silent */ }
   }, []);
   return { playSound };
 };
 
-// --- SCREEN POSITION TRACKER (optimized - throttled) ---
+// --- SCREEN POSITION TRACKER ---
 function ScreenPositionTracker({ onUpdate }: { onUpdate: (r: { left: number; top: number; width: number; height: number; visible: boolean }) => void }) {
   const { camera, gl } = useThree();
   const lastRef = useRef({ left: 0, top: 0, width: 0, height: 0, visible: false });
@@ -107,7 +120,7 @@ function ScreenPositionTracker({ onUpdate }: { onUpdate: (r: { left: number; top
 
   useFrame(() => {
     frameCount.current++;
-    if (frameCount.current % 3 !== 0) return; // Only update every 3rd frame
+    if (frameCount.current % 3 !== 0) return;
 
     const hw = SCREEN_WIDTH / 2;
     const hh = SCREEN_HEIGHT / 2;
@@ -129,7 +142,6 @@ function ScreenPositionTracker({ onUpdate }: { onUpdate: (r: { left: number; top
 
     const canvas = gl.domElement;
     const cRect = canvas.getBoundingClientRect();
-
     const project = (x: number, y: number, z: number) => {
       const v = new THREE.Vector3(x, y, z).project(camera);
       return { x: ((v.x + 1) / 2) * cRect.width, y: ((-v.y + 1) / 2) * cRect.height };
@@ -183,7 +195,7 @@ function CameraController({ target, isAnimating, onDone, controlsRef }: {
 
   useFrame((_, delta) => {
     if (!isAnimating) return;
-    progressRef.current = Math.min(progressRef.current + delta * 1.5, 1);
+    progressRef.current = Math.min(progressRef.current + delta * 1.2, 1);
     const t = easeInOutCubic(progressRef.current);
     camera.position.lerpVectors(startPosRef.current, target.position, t);
     if (controlsRef.current) {
@@ -195,7 +207,7 @@ function CameraController({ target, isAnimating, onDone, controlsRef }: {
   return null;
 }
 
-// --- SEAT 3D (Optimized - no pointLights, simpler geometry) ---
+// --- REALISTIC THEATER SEAT ---
 const Seat3D = React.memo(function Seat3D({ seat, position, onClick, onHover, isHighlighted, soundEnabled, playSound }: {
   seat: Seat; position: [number, number, number]; onClick: (s: Seat) => void;
   onHover: (s: Seat | null, p?: [number, number, number]) => void;
@@ -204,28 +216,36 @@ const Seat3D = React.memo(function Seat3D({ seat, position, onClick, onHover, is
 }) {
   const [hovered, setHovered] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
-  const foldRef = useRef(0);
-  const scaleRef = useRef(new THREE.Vector3(1, 1, 1));
+  const cushionRef = useRef<THREE.Group>(null);
+  const foldAngle = useRef(0);
 
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
   const colors = SEAT_COLORS[seat.type];
 
   useFrame((_, delta) => {
-    const targetFold = isSelected ? 1 : 0;
-    foldRef.current += (targetFold - foldRef.current) * delta * 6;
+    const targetFold = isSelected ? Math.PI * 0.35 : 0;
+    foldAngle.current += (targetFold - foldAngle.current) * delta * 5;
+
+    if (cushionRef.current) {
+      cushionRef.current.rotation.x = foldAngle.current;
+    }
 
     if (groupRef.current) {
-      const targetScale = hovered && !isBooked ? 1.12 : 1;
-      scaleRef.current.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 10);
-      groupRef.current.scale.copy(scaleRef.current);
+      const targetScale = hovered && !isBooked ? 1.06 : 1;
+      const targetY = hovered && !isBooked ? 0.03 : 0;
+      groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 8);
+      groupRef.current.position.y += (position[1] + targetY - groupRef.current.position.y) * delta * 8;
     }
   });
 
-  const color = isBooked ? colors.booked : isSelected ? colors.selected :
+  const mainColor = isBooked ? colors.booked : isSelected ? colors.selected :
     isHighlighted ? '#fbbf24' : hovered ? colors.hover : colors.base;
 
-  const emissiveIntensity = isSelected ? 0.5 : isHighlighted ? 0.4 : hovered && !isBooked ? 0.3 : 0.1;
+  const fabricColor = isBooked ? '#2d3748' : isSelected ? '#059669' :
+    isHighlighted ? '#d97706' : hovered ? colors.hover : colors.fabric;
+
+  const emissive = isSelected ? 0.3 : isHighlighted ? 0.25 : hovered && !isBooked ? 0.15 : 0.02;
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation();
@@ -247,53 +267,255 @@ const Seat3D = React.memo(function Seat3D({ seat, position, onClick, onHover, is
     onHover(null);
   }, [onHover]);
 
+  const seatWidth = 0.95;
+  const seatDepth = 0.8;
+  const armrestHeight = 0.42;
+  const backHeight = 0.85;
+
   return (
     <group ref={groupRef} position={position}>
-      {/* Cushion */}
-      <RoundedBox args={[0.88, 0.2, 0.72]} radius={0.06} smoothness={2}
-        position={[0, 0.1 - foldRef.current * 0.06, -foldRef.current * 0.04]}
-        rotation={[foldRef.current * 0.3, 0, 0]}
-        castShadow receiveShadow
-        onClick={handleClick} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}
-      >
-        <meshStandardMaterial color={color} roughness={0.45} metalness={0.08} emissive={color} emissiveIntensity={emissiveIntensity} />
-      </RoundedBox>
-
-      {/* Back */}
-      <RoundedBox args={[0.88, 0.7, 0.12]} radius={0.05} smoothness={2}
-        position={[0, 0.45, 0.35]} castShadow receiveShadow
-        onClick={handleClick} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}
-      >
-        <meshStandardMaterial color={color} roughness={0.45} metalness={0.08} emissive={color} emissiveIntensity={emissiveIntensity} />
-      </RoundedBox>
-
-      {/* Armrests */}
-      <mesh position={[-0.5, 0.24, 0.08]} castShadow>
-        <boxGeometry args={[0.07, 0.15, 0.55]} />
-        <meshStandardMaterial color="#2a2a3e" roughness={0.35} metalness={0.55} />
-      </mesh>
-      <mesh position={[0.5, 0.24, 0.08]} castShadow>
-        <boxGeometry args={[0.07, 0.15, 0.55]} />
-        <meshStandardMaterial color="#2a2a3e" roughness={0.35} metalness={0.55} />
+      {/* === SEAT BASE / PEDESTAL === */}
+      <mesh position={[0, -0.05, 0.05]} castShadow>
+        <cylinderGeometry args={[0.18, 0.22, 0.1, 8]} />
+        <meshStandardMaterial color="#1a1a2e" roughness={0.3} metalness={0.8} />
       </mesh>
 
-      {/* Seat number */}
-      <Text position={[0, 0.24, -0.02]} fontSize={0.14} color={isBooked ? '#666' : '#fff'}
-        anchorX="center" anchorY="middle" rotation={[-Math.PI / 2, 0, 0]}>
-        {seat.number}
-      </Text>
+      {/* Central support post */}
+      <mesh position={[0, 0.02, 0.05]} castShadow>
+        <cylinderGeometry args={[0.06, 0.08, 0.14, 6]} />
+        <meshStandardMaterial color="#252540" roughness={0.3} metalness={0.7} />
+      </mesh>
 
-      {/* Type indicators */}
+      {/* === SEAT FRAME (metal structure) === */}
+      {/* Left frame rail */}
+      <mesh position={[-seatWidth / 2 + 0.02, 0.12, 0.05]} castShadow>
+        <boxGeometry args={[0.04, 0.06, seatDepth + 0.1]} />
+        <meshStandardMaterial color="#2a2a42" roughness={0.25} metalness={0.85} />
+      </mesh>
+      {/* Right frame rail */}
+      <mesh position={[seatWidth / 2 - 0.02, 0.12, 0.05]} castShadow>
+        <boxGeometry args={[0.04, 0.06, seatDepth + 0.1]} />
+        <meshStandardMaterial color="#2a2a42" roughness={0.25} metalness={0.85} />
+      </mesh>
+
+      {/* === SEAT CUSHION (foldable) === */}
+      <group ref={cushionRef} position={[0, 0.16, -seatDepth / 2 + 0.4]}>
+        {/* Main cushion body */}
+        <RoundedBox args={[seatWidth - 0.14, 0.14, seatDepth - 0.08]}
+          radius={0.04} smoothness={3}
+          position={[0, 0, (seatDepth - 0.08) / 2 - 0.36]}
+          castShadow receiveShadow
+          onClick={handleClick}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+        >
+          <meshStandardMaterial
+            color={fabricColor}
+            roughness={0.75}
+            metalness={0.02}
+            emissive={mainColor}
+            emissiveIntensity={emissive}
+          />
+        </RoundedBox>
+
+        {/* Cushion stitch line - center */}
+        <mesh position={[0, 0.072, (seatDepth - 0.08) / 2 - 0.36]}
+          rotation={[-Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[seatWidth - 0.28, seatDepth - 0.22]} />
+          <meshStandardMaterial
+            color={fabricColor}
+            roughness={0.85}
+            metalness={0}
+            transparent
+            opacity={0.3}
+          />
+        </mesh>
+
+        {/* Seat number on cushion */}
+        <Text
+          position={[0, 0.076, (seatDepth - 0.08) / 2 - 0.36]}
+          fontSize={0.12}
+          color={isBooked ? '#555' : '#fff'}
+          anchorX="center"
+          anchorY="middle"
+          rotation={[-Math.PI / 2, 0, 0]}
+        >
+          {seat.number}
+        </Text>
+      </group>
+
+      {/* === SEAT BACK === */}
+      <group position={[0, 0.16, 0.42]}>
+        {/* Back frame */}
+        <RoundedBox args={[seatWidth - 0.08, backHeight, 0.1]}
+          radius={0.035} smoothness={3}
+          position={[0, backHeight / 2 + 0.02, 0]}
+          castShadow receiveShadow
+          onClick={handleClick}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+        >
+          <meshStandardMaterial
+            color={fabricColor}
+            roughness={0.78}
+            metalness={0.02}
+            emissive={mainColor}
+            emissiveIntensity={emissive}
+          />
+        </RoundedBox>
+
+        {/* Back cushion padding - upper */}
+        <RoundedBox args={[seatWidth - 0.2, backHeight * 0.45, 0.06]}
+          radius={0.025} smoothness={2}
+          position={[0, backHeight * 0.65 + 0.02, -0.04]}
+          castShadow
+        >
+          <meshStandardMaterial
+            color={fabricColor}
+            roughness={0.82}
+            metalness={0}
+            emissive={mainColor}
+            emissiveIntensity={emissive * 0.5}
+          />
+        </RoundedBox>
+
+        {/* Back cushion padding - lower */}
+        <RoundedBox args={[seatWidth - 0.2, backHeight * 0.35, 0.055]}
+          radius={0.025} smoothness={2}
+          position={[0, backHeight * 0.28 + 0.02, -0.04]}
+          castShadow
+        >
+          <meshStandardMaterial
+            color={fabricColor}
+            roughness={0.82}
+            metalness={0}
+            emissive={mainColor}
+            emissiveIntensity={emissive * 0.5}
+          />
+        </RoundedBox>
+
+        {/* Headrest - for VIP and Premium */}
+        {(seat.type === 'vip' || seat.type === 'premium') && (
+          <RoundedBox args={[seatWidth * 0.55, 0.2, 0.08]}
+            radius={0.03} smoothness={2}
+            position={[0, backHeight + 0.08, -0.02]}
+            castShadow
+          >
+            <meshStandardMaterial
+              color={fabricColor}
+              roughness={0.8}
+              metalness={0.02}
+              emissive={mainColor}
+              emissiveIntensity={emissive * 0.5}
+            />
+          </RoundedBox>
+        )}
+
+        {/* Back top trim */}
+        <mesh position={[0, backHeight + (seat.type === 'vip' || seat.type === 'premium' ? 0.2 : 0) + 0.02, 0]}>
+          <boxGeometry args={[seatWidth - 0.06, 0.025, 0.12]} />
+          <meshStandardMaterial color="#1e1e35" roughness={0.3} metalness={0.7} />
+        </mesh>
+      </group>
+
+      {/* === ARMRESTS === */}
+      {[-1, 1].map(side => (
+        <group key={side} position={[side * (seatWidth / 2 + 0.01), 0.12, 0.08]}>
+          {/* Armrest vertical support */}
+          <mesh position={[0, armrestHeight / 2 - 0.04, 0.15]} castShadow>
+            <boxGeometry args={[0.05, armrestHeight - 0.06, 0.06]} />
+            <meshStandardMaterial color="#1e1e35" roughness={0.3} metalness={0.8} />
+          </mesh>
+          <mesh position={[0, armrestHeight / 2 - 0.04, -0.15]} castShadow>
+            <boxGeometry args={[0.05, armrestHeight - 0.06, 0.06]} />
+            <meshStandardMaterial color="#1e1e35" roughness={0.3} metalness={0.8} />
+          </mesh>
+
+          {/* Armrest top pad */}
+          <RoundedBox args={[0.08, 0.04, seatDepth - 0.1]}
+            radius={0.015} smoothness={2}
+            position={[0, armrestHeight - 0.02, 0.04]}
+            castShadow
+          >
+            <meshStandardMaterial
+              color={seat.type === 'vip' ? '#2a2045' : '#1e1e35'}
+              roughness={0.5}
+              metalness={0.5}
+            />
+          </RoundedBox>
+
+          {/* Armrest front cap */}
+          <mesh position={[0, armrestHeight - 0.02, -seatDepth / 2 + 0.1]}>
+            <sphereGeometry args={[0.03, 8, 6]} />
+            <meshStandardMaterial color="#2a2a45" roughness={0.2} metalness={0.9} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* === CUP HOLDER (on right armrest) === */}
+      <group position={[seatWidth / 2 + 0.01, armrestHeight + 0.1, -0.08]}>
+        <mesh rotation={[0, 0, 0]}>
+          <cylinderGeometry args={[0.05, 0.04, 0.06, 12, 1, true]} />
+          <meshStandardMaterial color="#1a1a30" roughness={0.3} metalness={0.7} side={THREE.DoubleSide} />
+        </mesh>
+        <mesh position={[0, -0.03, 0]}>
+          <cylinderGeometry args={[0.04, 0.04, 0.005, 12]} />
+          <meshStandardMaterial color="#151528" roughness={0.4} metalness={0.6} />
+        </mesh>
+      </group>
+
+      {/* === TYPE INDICATORS === */}
       {seat.type === 'vip' && (
-        <mesh position={[0, 0.88, 0.35]}>
-          <octahedronGeometry args={[0.08, 0]} />
-          <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1} metalness={0.9} roughness={0.1} />
+        <group position={[0, backHeight + 0.52, 0.42]}>
+          <mesh>
+            <octahedronGeometry args={[0.06, 0]} />
+            <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1.5} metalness={0.95} roughness={0.05} />
+          </mesh>
+          {/* Crown shape */}
+          {[-0.08, 0, 0.08].map((x, i) => (
+            <mesh key={i} position={[x, 0.06, 0]}>
+              <coneGeometry args={[0.015, 0.04, 4]} />
+              <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1} metalness={0.9} roughness={0.1} />
+            </mesh>
+          ))}
+        </group>
+      )}
+
+      {seat.type === 'premium' && (
+        <group position={[0, backHeight + 0.45, 0.42]}>
+          <mesh>
+            <icosahedronGeometry args={[0.04, 0]} />
+            <meshStandardMaterial color="#60a5fa" emissive="#3b82f6" emissiveIntensity={0.8} metalness={0.8} roughness={0.15} />
+          </mesh>
+        </group>
+      )}
+
+      {seat.type === 'accessible' && (
+        <group position={[0, backHeight + 0.38, 0.42]}>
+          <mesh>
+            <torusGeometry args={[0.05, 0.015, 8, 16]} />
+            <meshStandardMaterial color="#2dd4bf" emissive="#14b8a6" emissiveIntensity={0.8} />
+          </mesh>
+          <mesh position={[0, -0.02, 0]}>
+            <cylinderGeometry args={[0.008, 0.008, 0.05, 6]} />
+            <meshStandardMaterial color="#2dd4bf" emissive="#14b8a6" emissiveIntensity={0.6} />
+          </mesh>
+        </group>
+      )}
+
+      {/* === SELECTION GLOW RING === */}
+      {isSelected && (
+        <mesh position={[0, 0.01, 0.05]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.55, 0.65, 24]} />
+          <meshBasicMaterial color="#10b981" transparent opacity={0.4} toneMapped={false} />
         </mesh>
       )}
-      {seat.type === 'accessible' && (
-        <mesh position={[0, 0.88, 0.35]}>
-          <torusGeometry args={[0.07, 0.025, 6, 12]} />
-          <meshStandardMaterial color="#34d399" emissive="#34d399" emissiveIntensity={0.8} />
+
+      {/* === HIGHLIGHT PULSE === */}
+      {isHighlighted && (
+        <mesh position={[0, 0.01, 0.05]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.5, 0.62, 24]} />
+          <meshBasicMaterial color="#fbbf24" transparent opacity={0.5} toneMapped={false} />
         </mesh>
       )}
     </group>
@@ -317,92 +539,244 @@ function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number
   const typeBadge: Record<string, string> = { standard: 'bg-gray-500', premium: 'bg-blue-500', vip: 'bg-purple-500', accessible: 'bg-teal-500' };
 
   return (
-    <Html position={[position[0], position[1] + 1.5, position[2]]} center distanceFactor={14}>
-      <div className="bg-slate-900/95 backdrop-blur-lg text-white px-4 py-3 rounded-xl shadow-2xl border border-white/15 min-w-[180px] pointer-events-none select-none">
-        <div className="flex items-center justify-between mb-1.5">
+    <Html position={[position[0], position[1] + 1.8, position[2]]} center distanceFactor={14}>
+      <div className="bg-slate-900/95 backdrop-blur-xl text-white px-4 py-3 rounded-xl shadow-2xl border border-white/15 min-w-[200px] pointer-events-none select-none">
+        <div className="flex items-center justify-between mb-2">
           <span className="font-bold text-sm">Row {seat.row} · Seat {seat.number}</span>
-          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${typeBadge[seat.type]} text-white`}>
+          <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${typeBadge[seat.type]} text-white`}>
             {typeLabel[seat.type]}
           </span>
         </div>
-        <div className="flex justify-between text-xs mb-0.5">
-          <span className="text-gray-400">Price</span>
-          <span className="font-bold text-emerald-400">${seat.price.toFixed(2)}</span>
+        <div className="space-y-1.5">
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400">Price</span>
+            <span className="font-bold text-emerald-400">${seat.price.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-gray-400">Status</span>
+            <span className={`font-semibold ${isBooked ? 'text-red-400' : isSelected ? 'text-emerald-400' : 'text-sky-400'}`}>
+              {isBooked ? '✕ Booked' : isSelected ? '✓ Selected' : '● Available'}
+            </span>
+          </div>
         </div>
-        <div className="flex justify-between text-xs">
-          <span className="text-gray-400">Status</span>
-          <span className={`font-semibold ${isBooked ? 'text-red-400' : isSelected ? 'text-emerald-400' : 'text-sky-400'}`}>
-            {isBooked ? '✕ Booked' : isSelected ? '✓ Selected' : '● Available'}
-          </span>
-        </div>
-        {!isBooked && <p className="mt-1.5 pt-1.5 border-t border-white/10 text-center text-[10px] text-gray-500">Click to {isSelected ? 'deselect' : 'select'}</p>}
+        {!isBooked && (
+          <p className="mt-2 pt-2 border-t border-white/10 text-center text-[10px] text-gray-500">
+            Click to {isSelected ? 'deselect' : 'select'}
+          </p>
+        )}
       </div>
     </Html>
   );
 }
 
-// --- THEATER SCREEN ---
+// --- GRAND THEATER SCREEN ---
 function TheaterScreen({ movieTitle }: { movieTitle: string }) {
+  const screenGlowRef = useRef<THREE.PointLight>(null);
+
+  useFrame(({ clock }) => {
+    if (screenGlowRef.current) {
+      screenGlowRef.current.intensity = 2.5 + Math.sin(clock.elapsedTime * 0.5) * 0.3;
+    }
+  });
+
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Wall behind */}
-      <mesh position={[0, 0, -0.8]}>
-        <planeGeometry args={[38, 18]} />
-        <meshStandardMaterial color="#0c0c20" roughness={0.95} />
+      {/* === BACK WALL === */}
+      <mesh position={[0, 0, -1.2]}>
+        <planeGeometry args={[44, 22]} />
+        <meshStandardMaterial color="#080818" roughness={0.95} />
       </mesh>
 
-      {/* Screen frame */}
-      <mesh position={[0, 0, -0.06]}>
-        <planeGeometry args={[SCREEN_WIDTH + 1.4, SCREEN_HEIGHT + 1]} />
-        <meshStandardMaterial color="#15152a" roughness={0.6} metalness={0.4} />
-      </mesh>
-      <mesh position={[0, 0, -0.03]}>
-        <planeGeometry args={[SCREEN_WIDTH + 0.5, SCREEN_HEIGHT + 0.3]} />
-        <meshStandardMaterial color="#1a1a35" roughness={0.5} metalness={0.5} />
-      </mesh>
+      {/* === SCREEN HOUSING / FRAME === */}
+      {/* Outer frame - decorative border */}
+      <RoundedBox args={[SCREEN_WIDTH + 3, SCREEN_HEIGHT + 2.2, 0.4]}
+        radius={0.12} smoothness={3}
+        position={[0, 0.1, -0.3]}
+      >
+        <meshStandardMaterial color="#12122a" roughness={0.5} metalness={0.6} />
+      </RoundedBox>
 
-      {/* Screen surface */}
-      <mesh position={[0, 0, 0.02]}>
+      {/* Inner frame - metallic */}
+      <RoundedBox args={[SCREEN_WIDTH + 1.2, SCREEN_HEIGHT + 0.8, 0.3]}
+        radius={0.08} smoothness={3}
+        position={[0, 0.1, -0.15]}
+      >
+        <meshStandardMaterial color="#1a1a38" roughness={0.4} metalness={0.7} />
+      </RoundedBox>
+
+      {/* Frame accent lines */}
+      {[
+        [-SCREEN_WIDTH / 2 - 0.3, 0, -0.08, 0.02, SCREEN_HEIGHT + 0.4, 0.02],
+        [SCREEN_WIDTH / 2 + 0.3, 0, -0.08, 0.02, SCREEN_HEIGHT + 0.4, 0.02],
+        [0, SCREEN_HEIGHT / 2 + 0.22, -0.08, SCREEN_WIDTH + 0.6, 0.02, 0.02],
+        [0, -SCREEN_HEIGHT / 2 - 0.22, -0.08, SCREEN_WIDTH + 0.6, 0.02, 0.02],
+      ].map(([x, y, z, w, h, d], i) => (
+        <mesh key={i} position={[x as number, y as number, z as number]}>
+          <boxGeometry args={[w as number, h as number, d as number]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} emissive="#c4982a" emissiveIntensity={0.15} />
+        </mesh>
+      ))}
+
+      {/* Corner accents */}
+      {[[-1, 1], [1, 1], [-1, -1], [1, -1]].map(([sx, sy], i) => (
+        <mesh key={i} position={[
+          sx * (SCREEN_WIDTH / 2 + 0.3),
+          sy * (SCREEN_HEIGHT / 2 + 0.22),
+          -0.06
+        ]}>
+          <octahedronGeometry args={[0.06, 0]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.95} emissive="#c4982a" emissiveIntensity={0.3} />
+        </mesh>
+      ))}
+
+      {/* === SCREEN SURFACE === */}
+      <mesh position={[0, 0.1, 0.02]}>
         <planeGeometry args={[SCREEN_WIDTH, SCREEN_HEIGHT]} />
-        <meshBasicMaterial color="#0e0e18" />
+        <meshBasicMaterial color="#0a0a14" />
       </mesh>
 
-      {/* Screen glow - only 1 main light */}
-      <pointLight position={[0, 0, 5]} intensity={3} distance={35} color="#5577dd" />
+      {/* Screen edge glow */}
+      <mesh position={[0, 0.1, 0.01]}>
+        <planeGeometry args={[SCREEN_WIDTH + 0.1, SCREEN_HEIGHT + 0.1]} />
+        <meshBasicMaterial color="#1a2a55" transparent opacity={0.15} />
+      </mesh>
 
-      {/* Curtains - simplified: 4 panels per side */}
+      {/* === SCREEN LIGHTING === */}
+      <pointLight ref={screenGlowRef} position={[0, 0, 6]} intensity={2.5} distance={40} color="#4466bb" />
+      <pointLight position={[-6, -2, 4]} intensity={0.5} distance={15} color="#3344aa" />
+      <pointLight position={[6, -2, 4]} intensity={0.5} distance={15} color="#3344aa" />
+
+      {/* === LUXURY CURTAINS === */}
       {[-1, 1].map(side => (
-        <group key={side} position={[side * (SCREEN_WIDTH / 2 + 2.2), 0, 0]}>
-          {[0, 1, 2, 3].map(i => (
-            <mesh key={i} position={[side * (i * 0.65), 0, Math.sin(i * 0.9) * 0.12]} castShadow>
-              <boxGeometry args={[0.7, SCREEN_HEIGHT + 3.5, 0.3 + Math.sin(i) * 0.08]} />
-              <meshStandardMaterial color={i % 2 === 0 ? '#8b2020' : '#a52828'} roughness={0.88} />
+        <group key={side} position={[side * (SCREEN_WIDTH / 2 + 3.2), 0, 0.2]}>
+          {/* Main curtain panels with folds */}
+          {Array.from({ length: 7 }, (_, i) => {
+            const depth = Math.sin(i * 0.7) * 0.15 + 0.1;
+            const widthVar = 0.65 + Math.sin(i * 1.2) * 0.1;
+            return (
+              <group key={i} position={[side * (i * 0.55), 0, depth]}>
+                <mesh castShadow>
+                  <boxGeometry args={[widthVar, SCREEN_HEIGHT + 5, 0.25 + Math.sin(i) * 0.06]} />
+                  <meshStandardMaterial
+                    color={i % 2 === 0 ? '#7a1818' : '#921e1e'}
+                    roughness={0.9}
+                    metalness={0.05}
+                  />
+                </mesh>
+                {/* Fold shadow strip */}
+                <mesh position={[widthVar / 2 * side * -0.3, 0, -0.12]}>
+                  <boxGeometry args={[0.08, SCREEN_HEIGHT + 5, 0.02]} />
+                  <meshStandardMaterial color="#4a0e0e" roughness={0.95} />
+                </mesh>
+              </group>
+            );
+          })}
+
+          {/* Curtain tie-back */}
+          <group position={[side * 0.3, -2, 0.5]}>
+            <mesh>
+              <torusGeometry args={[0.25, 0.04, 8, 16, Math.PI]} />
+              <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
             </mesh>
-          ))}
+            {/* Tassel */}
+            {Array.from({ length: 5 }, (_, i) => (
+              <mesh key={i} position={[(i - 2) * 0.06, -0.35, 0]}>
+                <cylinderGeometry args={[0.012, 0.008, 0.3, 4]} />
+                <meshStandardMaterial color="#c4982a" roughness={0.4} metalness={0.7} />
+              </mesh>
+            ))}
+            <mesh position={[0, -0.52, 0]}>
+              <sphereGeometry args={[0.06, 8, 6]} />
+              <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
+            </mesh>
+          </group>
         </group>
       ))}
 
-      {/* Top pelmet */}
-      <mesh position={[0, SCREEN_HEIGHT / 2 + 1.6, 0.15]} castShadow>
-        <boxGeometry args={[SCREEN_WIDTH + 9, 1.8, 0.7]} />
-        <meshStandardMaterial color="#8b2020" roughness={0.88} />
-      </mesh>
+      {/* === TOP PELMET / VALANCE === */}
+      <group position={[0, SCREEN_HEIGHT / 2 + 2.2, 0.4]}>
+        {/* Main pelmet */}
+        <mesh castShadow>
+          <boxGeometry args={[SCREEN_WIDTH + 12, 2.2, 1]} />
+          <meshStandardMaterial color="#7a1818" roughness={0.88} />
+        </mesh>
+        {/* Pelmet scalloped edge */}
+        {Array.from({ length: 12 }, (_, i) => (
+          <mesh key={i} position={[(i - 5.5) * 2.2, -1.25, 0.3]}>
+            <sphereGeometry args={[0.55, 6, 4, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            <meshStandardMaterial color="#8a1e1e" roughness={0.9} />
+          </mesh>
+        ))}
+        {/* Gold trim along pelmet */}
+        <mesh position={[0, -1.05, 0.52]}>
+          <boxGeometry args={[SCREEN_WIDTH + 12, 0.06, 0.04]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} emissive="#c4982a" emissiveIntensity={0.1} />
+        </mesh>
+      </group>
 
-      {/* Title */}
-      <Text position={[0, -SCREEN_HEIGHT / 2 - 1, 0.2]} fontSize={0.5} color="#5e6d8a" anchorX="center" letterSpacing={0.12}>
-        {`NOW SHOWING — ${movieTitle.toUpperCase()}`}
-      </Text>
+      {/* === NOW SHOWING TEXT === */}
+      <group position={[0, -SCREEN_HEIGHT / 2 - 1.5, 0.3]}>
+        <RoundedBox args={[8, 0.5, 0.08]} radius={0.04} smoothness={2}>
+          <meshStandardMaterial color="#151528" roughness={0.5} metalness={0.4} />
+        </RoundedBox>
+        <Text position={[0, 0, 0.06]} fontSize={0.22} color="#7888aa"
+          anchorX="center" letterSpacing={0.2} font={undefined}>
+          {`★  NOW SHOWING — ${movieTitle.toUpperCase()}  ★`}
+        </Text>
+      </group>
     </group>
   );
 }
 
-// --- WALL SCONCE (no separate point light component) ---
+// --- ORNATE WALL SCONCE ---
+function WallSconce({ position, rotation }: { position: [number, number, number]; rotation: [number, number, number] }) {
+  return (
+    <group position={position} rotation={rotation}>
+      {/* Back plate - ornate */}
+      <mesh>
+        <boxGeometry args={[0.3, 0.5, 0.04]} />
+        <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
+      </mesh>
+      {/* Decorative diamond on plate */}
+      <mesh position={[0, -0.12, 0.03]} rotation={[0, 0, Math.PI / 4]}>
+        <boxGeometry args={[0.1, 0.1, 0.02]} />
+        <meshStandardMaterial color="#d4a83a" roughness={0.15} metalness={0.95} />
+      </mesh>
+
+      {/* Arm */}
+      <mesh position={[0, 0.08, 0.15]} rotation={[Math.PI * 0.15, 0, 0]}>
+        <cylinderGeometry args={[0.02, 0.025, 0.3, 6]} />
+        <meshStandardMaterial color="#b8892a" roughness={0.25} metalness={0.85} />
+      </mesh>
+
+      {/* Shade */}
+      <mesh position={[0, 0.2, 0.28]}>
+        <cylinderGeometry args={[0.08, 0.14, 0.2, 8, 1, true]} />
+        <meshStandardMaterial
+          color="#fff5e0" roughness={0.7} side={THREE.DoubleSide}
+          transparent opacity={0.85}
+          emissive="#ffe8b0" emissiveIntensity={0.4}
+        />
+      </mesh>
+
+      {/* Bulb glow */}
+      <mesh position={[0, 0.16, 0.28]}>
+        <sphereGeometry args={[0.03, 8, 6]} />
+        <meshBasicMaterial color="#fff5e0" toneMapped={false} />
+      </mesh>
+
+      {/* Light */}
+      <pointLight position={[0, 0.18, 0.3]} intensity={0.8} distance={6} color="#ffe0a0" />
+    </group>
+  );
+}
+
 function WallSconces() {
   const positions = useMemo(() => {
     const p: { pos: [number, number, number]; rot: [number, number, number] }[] = [];
-    for (let i = 0; i < 4; i++) {
-      p.push({ pos: [-16.8, 5.5, -4 + i * 8], rot: [0, Math.PI / 2, 0] });
-      p.push({ pos: [16.8, 5.5, -4 + i * 8], rot: [0, -Math.PI / 2, 0] });
+    for (let i = 0; i < 5; i++) {
+      p.push({ pos: [-18.8, 6, -6 + i * 7], rot: [0, Math.PI / 2, 0] });
+      p.push({ pos: [18.8, 6, -6 + i * 7], rot: [0, -Math.PI / 2, 0] });
     }
     return p;
   }, []);
@@ -410,167 +784,410 @@ function WallSconces() {
   return (
     <group>
       {positions.map((s, i) => (
-        <group key={i} position={s.pos} rotation={s.rot}>
-          <mesh>
-            <boxGeometry args={[0.25, 0.35, 0.12]} />
-            <meshStandardMaterial color="#c4982a" roughness={0.25} metalness={0.85} />
-          </mesh>
-          <mesh position={[0, 0.14, 0.1]}>
-            <cylinderGeometry args={[0.12, 0.18, 0.25, 6, 1, true]} />
-            <meshStandardMaterial color="#fff5e0" roughness={0.6} side={THREE.DoubleSide} transparent opacity={0.9} emissive="#ffe8b0" emissiveIntensity={0.3} />
-          </mesh>
-          {/* Only 1 light per sconce with limited range */}
-          <pointLight position={[0, 0.1, 0.18]} intensity={0.6} distance={4.5} color="#ffdd99" />
-        </group>
+        <WallSconce key={i} position={s.pos} rotation={s.rot} />
       ))}
     </group>
   );
 }
 
-// --- THEATER ENVIRONMENT (Optimized - fewer lights, brighter materials) ---
+// --- GRAND THEATER ENVIRONMENT ---
 const TheaterEnvironment = React.memo(function TheaterEnvironment({ lightsOn }: { lightsOn: boolean }) {
   const { scene } = useThree();
-  const ceilingGroupRef = useRef<THREE.Group>(null);
+  const ceilingLightsRef = useRef<THREE.Group>(null);
+  const chandelierRef = useRef<THREE.Group>(null);
 
   useEffect(() => {
-    scene.fog = new THREE.FogExp2('#0a0a18', 0.007);
+    scene.fog = new THREE.FogExp2('#080818', 0.005);
     return () => { scene.fog = null; };
   }, [scene]);
 
-  useFrame((_, delta) => {
-    if (ceilingGroupRef.current) {
-      ceilingGroupRef.current.children.forEach(child => {
+  useFrame((state, delta) => {
+    // Animate ceiling lights
+    if (ceilingLightsRef.current) {
+      ceilingLightsRef.current.children.forEach(child => {
         child.traverse(obj => {
           if (obj instanceof THREE.PointLight) {
-            const t = lightsOn ? 1.2 : 0.12;
+            const t = lightsOn ? 2 : 0.15;
             obj.intensity += (t - obj.intensity) * delta * 3;
           }
         });
       });
     }
+
+    // Slowly rotate chandelier
+    if (chandelierRef.current) {
+      chandelierRef.current.rotation.y += delta * 0.05;
+    }
   });
 
   const steps = useMemo(() => Array.from({ length: 10 }, (_, i) => ({
-    z: i * 1.8 + 1.5,
-    y: i * 0.4,
+    z: i * 2 + 1.5,
+    y: i * 0.45,
     index: i,
-  })), []);
-
-  const stars = useMemo(() => Array.from({ length: 20 }, () => ({
-    x: (Math.random() - 0.5) * 28,
-    z: (Math.random() - 0.5) * 30 + 5,
   })), []);
 
   return (
     <group>
-      {/* Floor */}
-      <mesh position={[0, -0.01, 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[45, 55]} />
-        <meshStandardMaterial color="#1a1a30" roughness={0.85} metalness={0.08} />
-      </mesh>
-      {/* Carpet aisle */}
-      <mesh position={[0, 0.005, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[2.2, 22]} />
-        <meshStandardMaterial color="#2a1515" roughness={0.95} />
+      {/* === FLOOR === */}
+      {/* Main floor */}
+      <mesh position={[0, -0.05, 5]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[50, 60]} />
+        <meshStandardMaterial color="#141428" roughness={0.8} metalness={0.1} />
       </mesh>
 
-      {/* Walls */}
-      <mesh position={[-17, 6, 2]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[48, 15]} />
-        <meshStandardMaterial color="#161630" roughness={0.85} />
+      {/* Carpet runners */}
+      <mesh position={[0, -0.02, 10]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[2.5, 25]} />
+        <meshStandardMaterial color="#2a1520" roughness={0.95} />
       </mesh>
-      <mesh position={[17, 6, 2]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
-        <planeGeometry args={[48, 15]} />
-        <meshStandardMaterial color="#161630" roughness={0.85} />
+      {/* Side aisle carpets */}
+      <mesh position={[-13, -0.02, 10]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[1.5, 25]} />
+        <meshStandardMaterial color="#2a1520" roughness={0.95} />
       </mesh>
-      <mesh position={[0, 6, 23]} rotation={[0, Math.PI, 0]} receiveShadow>
-        <planeGeometry args={[36, 15]} />
-        <meshStandardMaterial color="#121228" roughness={0.88} />
-      </mesh>
-
-      {/* Ceiling */}
-      <mesh position={[0, 13, 5]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[36, 40]} />
-        <meshStandardMaterial color="#0d0d20" roughness={0.95} />
+      <mesh position={[13, -0.02, 10]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <planeGeometry args={[1.5, 25]} />
+        <meshStandardMaterial color="#2a1520" roughness={0.95} />
       </mesh>
 
-      {/* Wall sconces */}
-      <WallSconces />
-
-      {/* Stadium steps */}
-      {steps.map(step => (
-        <group key={step.index}>
-          <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
-            <boxGeometry args={[31, 0.45, 1.8]} />
-            <meshStandardMaterial color="#1e1e38" roughness={0.82} metalness={0.1} />
+      {/* === WALLS === */}
+      {/* Side walls with wainscoting */}
+      {[-1, 1].map(side => (
+        <group key={side}>
+          {/* Main wall */}
+          <mesh position={[side * 19, 7, 5]} rotation={[0, -side * Math.PI / 2, 0]} receiveShadow>
+            <planeGeometry args={[52, 18]} />
+            <meshStandardMaterial color="#12122a" roughness={0.85} />
           </mesh>
-          {/* Step riser */}
-          <mesh position={[0, step.y + 0.22, step.z + 0.89]}>
-            <boxGeometry args={[31, 0.44, 0.02]} />
-            <meshStandardMaterial color="#181830" roughness={0.88} />
-          </mesh>
-          {/* LED strip */}
-          <mesh position={[0, step.y + 0.24, step.z + 0.88]}>
-            <boxGeometry args={[27, 0.02, 0.02]} />
-            <meshBasicMaterial color="#2a4a7a" toneMapped={false} />
-          </mesh>
-        </group>
-      ))}
 
-      {/* Exit signs */}
-      {[[-16, 5.5, 20], [16, 5.5, 20]].map((pos, i) => (
-        <group key={i} position={pos as [number, number, number]}>
-          <RoundedBox args={[1.5, 0.45, 0.06]} radius={0.04} smoothness={2}>
-            <meshBasicMaterial color="#22c55e" toneMapped={false} />
-          </RoundedBox>
-          <Text position={[0, 0, 0.04]} fontSize={0.2} color="#fff" anchorX="center">EXIT</Text>
-        </group>
-      ))}
+          {/* Lower wall panel (wainscoting) */}
+          <mesh position={[side * 18.9, 2.5, 5]} rotation={[0, -side * Math.PI / 2, 0]}>
+            <planeGeometry args={[52, 5.5]} />
+            <meshStandardMaterial color="#181835" roughness={0.75} metalness={0.15} />
+          </mesh>
 
-      {/* Ceiling lights - only 4 for performance */}
-      <group ref={ceilingGroupRef}>
-        {[[-8, 12.8, 4], [8, 12.8, 4], [-8, 12.8, 14], [8, 12.8, 14]].map((pos, i) => (
-          <group key={i} position={pos as [number, number, number]}>
-            <mesh>
-              <cylinderGeometry args={[0.3, 0.4, 0.12, 8]} />
-              <meshStandardMaterial color="#252540" roughness={0.5} metalness={0.5} />
+          {/* Chair rail */}
+          <mesh position={[side * 18.85, 5.2, 5]} rotation={[0, -side * Math.PI / 2, 0]}>
+            <boxGeometry args={[52, 0.08, 0.12]} />
+            <meshStandardMaterial color="#c4982a" roughness={0.25} metalness={0.85} />
+          </mesh>
+
+          {/* Crown molding */}
+          <mesh position={[side * 18.85, 15, 5]} rotation={[0, -side * Math.PI / 2, 0]}>
+            <boxGeometry args={[52, 0.15, 0.2]} />
+            <meshStandardMaterial color="#c4982a" roughness={0.25} metalness={0.85} />
+          </mesh>
+
+          {/* Decorative wall panels */}
+          {Array.from({ length: 6 }, (_, i) => (
+            <mesh key={i} position={[side * 18.88, 8.5, -8 + i * 7]}
+              rotation={[0, -side * Math.PI / 2, 0]}>
+              <planeGeometry args={[4.5, 6]} />
+              <meshStandardMaterial color="#161632" roughness={0.78} metalness={0.12} />
             </mesh>
-            <pointLight intensity={lightsOn ? 1.2 : 0.12} distance={12} color="#ffe8c8" />
-          </group>
-        ))}
-      </group>
+          ))}
 
-      {/* Projector booth */}
-      <group position={[0, 11, 21]}>
-        <mesh castShadow>
-          <boxGeometry args={[3.5, 2.5, 3.5]} />
-          <meshStandardMaterial color="#181830" roughness={0.7} metalness={0.3} />
-        </mesh>
-        <mesh position={[0, -0.4, -1.8]}>
-          <cylinderGeometry args={[0.18, 0.18, 0.25, 10]} />
-          <meshStandardMaterial color="#445" roughness={0.3} metalness={0.7} />
-        </mesh>
-        <spotLight position={[0, -0.4, -1.85]} angle={0.18} penumbra={0.5} intensity={1.8} distance={38} color="#d4ddff" />
-      </group>
-
-      {/* Speakers */}
-      {[-16.3, 16.3].map((x, si) => (
-        <group key={si}>
-          {[SCREEN_Y - 1.5, SCREEN_Y + 1.5].map((y, yi) => (
-            <RoundedBox key={yi} args={[0.5, 1.6, 0.7]} radius={0.06} smoothness={2}
-              position={[x, y, SCREEN_Z + 1.5]}>
-              <meshStandardMaterial color="#1a1a2a" roughness={0.75} metalness={0.3} />
-            </RoundedBox>
+          {/* Panel frame accents */}
+          {Array.from({ length: 6 }, (_, i) => (
+            <group key={`frame-${i}`}>
+              {/* Top */}
+              <mesh position={[side * 18.87, 11.5, -8 + i * 7]} rotation={[0, -side * Math.PI / 2, 0]}>
+                <boxGeometry args={[4.7, 0.04, 0.04]} />
+                <meshStandardMaterial color="#c4982a" roughness={0.3} metalness={0.8} emissive="#c4982a" emissiveIntensity={0.05} />
+              </mesh>
+              {/* Bottom */}
+              <mesh position={[side * 18.87, 5.5, -8 + i * 7]} rotation={[0, -side * Math.PI / 2, 0]}>
+                <boxGeometry args={[4.7, 0.04, 0.04]} />
+                <meshStandardMaterial color="#c4982a" roughness={0.3} metalness={0.8} emissive="#c4982a" emissiveIntensity={0.05} />
+              </mesh>
+            </group>
           ))}
         </group>
       ))}
 
-      {/* Ceiling stars */}
-      {stars.map((s, i) => (
-        <mesh key={i} position={[s.x, 12.6, s.z]}>
-          <sphereGeometry args={[0.025, 4, 4]} />
-          <meshBasicMaterial color="#4a5568" toneMapped={false} />
+      {/* Back wall */}
+      <mesh position={[0, 7, 26]} rotation={[0, Math.PI, 0]} receiveShadow>
+        <planeGeometry args={[40, 18]} />
+        <meshStandardMaterial color="#101025" roughness={0.88} />
+      </mesh>
+
+      {/* === CEILING === */}
+      {/* Main ceiling */}
+      <mesh position={[0, 15.5, 5]} rotation={[Math.PI / 2, 0, 0]}>
+        <planeGeometry args={[40, 46]} />
+        <meshStandardMaterial color="#0c0c1e" roughness={0.95} />
+      </mesh>
+
+      {/* Ceiling coffer panels */}
+      {[[-8, 15.3, 2], [8, 15.3, 2], [-8, 15.3, 12], [8, 15.3, 12], [0, 15.3, 7]].map((pos, i) => (
+        <group key={i} position={pos as [number, number, number]}>
+          <RoundedBox args={[8, 0.15, 8]} radius={0.05} smoothness={2}>
+            <meshStandardMaterial color="#0e0e22" roughness={0.8} metalness={0.2} />
+          </RoundedBox>
+          {/* Coffer trim */}
+          <mesh position={[0, -0.06, 0]}>
+            <boxGeometry args={[8.2, 0.03, 8.2]} />
+            <meshStandardMaterial color="#c4982a" roughness={0.3} metalness={0.8} transparent opacity={0.4} />
+          </mesh>
+        </group>
+      ))}
+
+      {/* Wall sconces */}
+      <WallSconces />
+
+      {/* === STADIUM SEATING RISERS === */}
+      {steps.map(step => (
+        <group key={step.index}>
+          {/* Main riser */}
+          <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
+            <boxGeometry args={[34, 0.5, 2]} />
+            <meshStandardMaterial color="#1a1a35" roughness={0.8} metalness={0.12} />
+          </mesh>
+
+          {/* Riser face */}
+          <mesh position={[0, step.y + 0.25, step.z + 0.99]}>
+            <boxGeometry args={[34, 0.5, 0.02]} />
+            <meshStandardMaterial color="#161630" roughness={0.85} />
+          </mesh>
+
+          {/* LED strip lighting on each step */}
+          <mesh position={[0, step.y + 0.265, step.z + 0.98]}>
+            <boxGeometry args={[30, 0.015, 0.015]} />
+            <meshBasicMaterial color={lightsOn ? '#4477cc' : '#1a2a55'} toneMapped={false} />
+          </mesh>
+
+          {/* Carpet on top of riser */}
+          <mesh position={[0, step.y + 0.26, step.z]} rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[33.5, 1.9]} />
+            <meshStandardMaterial color="#1e1832" roughness={0.95} />
+          </mesh>
+
+          {/* Side trim */}
+          {[-17, 17].map((x, i) => (
+            <mesh key={i} position={[x, step.y + 0.12, step.z]}>
+              <boxGeometry args={[0.04, 0.5, 2.02]} />
+              <meshStandardMaterial color="#c4982a" roughness={0.3} metalness={0.8} transparent opacity={0.3} />
+            </mesh>
+          ))}
+        </group>
+      ))}
+
+      {/* === AISLE STEP LIGHTS === */}
+      {steps.map(step => (
+        <group key={`aisle-${step.index}`}>
+          {[0].map((x, i) => (
+            <group key={i}>
+              <pointLight
+                position={[x, step.y + 0.32, step.z + 0.5]}
+                intensity={lightsOn ? 0.15 : 0.04}
+                distance={2}
+                color="#4477cc"
+              />
+            </group>
+          ))}
+        </group>
+      ))}
+
+      {/* === EXIT SIGNS === */}
+      {[[-17.5, 6, 24], [17.5, 6, 24]].map((pos, i) => (
+        <group key={i} position={pos as [number, number, number]}>
+          <RoundedBox args={[1.8, 0.55, 0.08]} radius={0.05} smoothness={2}>
+            <meshBasicMaterial color="#22c55e" toneMapped={false} />
+          </RoundedBox>
+          <Text position={[0, 0, 0.05]} fontSize={0.22} color="#fff" anchorX="center" fontWeight="bold">
+            EXIT
+          </Text>
+          <pointLight position={[0, -0.5, 0.3]} intensity={0.3} distance={3} color="#22c55e" />
+        </group>
+      ))}
+
+      {/* === CHANDELIER === */}
+      <group ref={chandelierRef} position={[0, 14.5, 8]}>
+        {/* Central column */}
+        <mesh>
+          <cylinderGeometry args={[0.08, 0.08, 1.5, 8]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
         </mesh>
+
+        {/* Ceiling plate */}
+        <mesh position={[0, 0.75, 0]}>
+          <cylinderGeometry args={[0.4, 0.3, 0.1, 12]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
+        </mesh>
+
+        {/* Ring 1 */}
+        <mesh position={[0, -0.2, 0]}>
+          <torusGeometry args={[1.2, 0.04, 8, 24]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
+        </mesh>
+
+        {/* Ring 2 */}
+        <mesh position={[0, -0.5, 0]}>
+          <torusGeometry args={[1.8, 0.04, 8, 24]} />
+          <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
+        </mesh>
+
+        {/* Support chains */}
+        {Array.from({ length: 6 }, (_, i) => {
+          const angle = (i / 6) * Math.PI * 2;
+          return (
+            <group key={i}>
+              <mesh position={[Math.cos(angle) * 1.2, -0.2, Math.sin(angle) * 1.2]}>
+                <cylinderGeometry args={[0.015, 0.015, 0.7, 4]} />
+                <meshStandardMaterial color="#b8892a" roughness={0.3} metalness={0.85} />
+              </mesh>
+              <mesh position={[Math.cos(angle) * 1.8, -0.5, Math.sin(angle) * 1.8]}>
+                <cylinderGeometry args={[0.015, 0.015, 0.7, 4]} />
+                <meshStandardMaterial color="#b8892a" roughness={0.3} metalness={0.85} />
+              </mesh>
+            </group>
+          );
+        })}
+
+        {/* Inner light bulbs */}
+        {Array.from({ length: 6 }, (_, i) => {
+          const angle = (i / 6) * Math.PI * 2;
+          return (
+            <group key={`inner-${i}`} position={[Math.cos(angle) * 1.2, -0.45, Math.sin(angle) * 1.2]}>
+              <mesh>
+                <sphereGeometry args={[0.04, 6, 6]} />
+                <meshBasicMaterial color="#fff5e0" toneMapped={false} />
+              </mesh>
+            </group>
+          );
+        })}
+
+        {/* Outer light bulbs */}
+        {Array.from({ length: 8 }, (_, i) => {
+          const angle = (i / 8) * Math.PI * 2;
+          return (
+            <group key={`outer-${i}`} position={[Math.cos(angle) * 1.8, -0.75, Math.sin(angle) * 1.8]}>
+              <mesh>
+                <sphereGeometry args={[0.035, 6, 6]} />
+                <meshBasicMaterial color="#fff5e0" toneMapped={false} />
+              </mesh>
+              {/* Crystal drops */}
+              <mesh position={[0, -0.12, 0]}>
+                <octahedronGeometry args={[0.03, 0]} />
+                <meshStandardMaterial color="#ffffff" roughness={0.05} metalness={0.1} transparent opacity={0.7} />
+              </mesh>
+            </group>
+          );
+        })}
+
+        {/* Chandelier light */}
+        <pointLight position={[0, -0.5, 0]} intensity={lightsOn ? 3 : 0.3} distance={18} color="#ffe8c0" />
+      </group>
+
+      {/* === CEILING RECESSED LIGHTS === */}
+      <group ref={ceilingLightsRef}>
+        {[
+          [-6, 15.2, 0], [6, 15.2, 0],
+          [-6, 15.2, 8], [6, 15.2, 8],
+          [-6, 15.2, 16], [6, 15.2, 16],
+          [-12, 15.2, 4], [12, 15.2, 4],
+          [-12, 15.2, 12], [12, 15.2, 12],
+        ].map((pos, i) => (
+          <group key={i} position={pos as [number, number, number]}>
+            <mesh>
+              <cylinderGeometry args={[0.25, 0.3, 0.1, 12]} />
+              <meshStandardMaterial color="#1e1e38" roughness={0.4} metalness={0.6} />
+            </mesh>
+            <mesh position={[0, -0.04, 0]}>
+              <cylinderGeometry args={[0.2, 0.2, 0.02, 12]} />
+              <meshBasicMaterial color={lightsOn ? '#fff5e0' : '#2a2a40'} toneMapped={false} transparent opacity={lightsOn ? 0.8 : 0.3} />
+            </mesh>
+            <pointLight intensity={lightsOn ? 2 : 0.15} distance={10} color="#ffe8c8" />
+          </group>
+        ))}
+      </group>
+
+      {/* === PROJECTOR BOOTH === */}
+      <group position={[0, 12.5, 24]}>
+        {/* Booth structure */}
+        <RoundedBox args={[5, 3.5, 4]} radius={0.15} smoothness={2}>
+          <meshStandardMaterial color="#151530" roughness={0.7} metalness={0.3} />
+        </RoundedBox>
+
+        {/* Window */}
+        <mesh position={[0, -0.2, -2.01]}>
+          <planeGeometry args={[3, 1.2]} />
+          <meshStandardMaterial color="#0a0a1a" roughness={0.1} metalness={0.5} transparent opacity={0.7} />
+        </mesh>
+
+        {/* Projector lens */}
+        <group position={[0, -0.5, -2.1]}>
+          <mesh>
+            <cylinderGeometry args={[0.15, 0.2, 0.3, 12]} />
+            <meshStandardMaterial color="#2a2a48" roughness={0.3} metalness={0.7} />
+          </mesh>
+          <mesh position={[0, 0, -0.15]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[0.12, 0.12, 0.05, 12]} />
+            <meshStandardMaterial color="#4466aa" roughness={0.1} metalness={0.3} transparent opacity={0.6} />
+          </mesh>
+        </group>
+
+        {/* Projector beam */}
+        <spotLight
+          position={[0, -0.5, -2.2]}
+          angle={0.15}
+          penumbra={0.6}
+          intensity={2}
+          distance={42}
+          color="#c8d4ff"
+          target-position={[0, SCREEN_Y, SCREEN_Z]}
+        />
+      </group>
+
+      {/* === SPEAKERS === */}
+      {[-1, 1].map(side => (
+        <group key={side}>
+          {[SCREEN_Y - 2, SCREEN_Y + 2].map((y, yi) => (
+            <group key={yi} position={[side * 18, y, SCREEN_Z + 2]}>
+              <RoundedBox args={[0.7, 2, 0.9]} radius={0.08} smoothness={2}>
+                <meshStandardMaterial color="#151525" roughness={0.75} metalness={0.3} />
+              </RoundedBox>
+              {/* Speaker cone */}
+              <mesh position={[side * -0.35, 0, 0]}>
+                <circleGeometry args={[0.3, 16]} />
+                <meshStandardMaterial color="#1a1a30" roughness={0.6} metalness={0.4} />
+              </mesh>
+              <mesh position={[side * -0.355, 0, 0]}>
+                <circleGeometry args={[0.12, 12]} />
+                <meshStandardMaterial color="#252540" roughness={0.5} metalness={0.5} />
+              </mesh>
+              {/* Tweeter */}
+              <mesh position={[side * -0.35, 0.55, 0]}>
+                <circleGeometry args={[0.1, 10]} />
+                <meshStandardMaterial color="#1a1a30" roughness={0.5} metalness={0.4} />
+              </mesh>
+            </group>
+          ))}
+        </group>
+      ))}
+
+      {/* === CEILING STARS === */}
+      {useMemo(() => Array.from({ length: 40 }, (_, i) => ({
+        x: (Math.random() - 0.5) * 34,
+        z: (Math.random() - 0.5) * 40 + 5,
+        s: 0.015 + Math.random() * 0.02,
+      })), []).map((s, i) => (
+        <mesh key={i} position={[s.x, 15.1, s.z]}>
+          <sphereGeometry args={[s.s, 4, 4]} />
+          <meshBasicMaterial color={lightsOn ? '#3a4055' : '#556688'} toneMapped={false} />
+        </mesh>
+      ))}
+
+      {/* === FLOOR AISLE LIGHTS === */}
+      {steps.map((step, i) => (
+        <group key={`floor-light-${i}`}>
+          {[-14, 14].map((x, j) => (
+            <mesh key={j} position={[x, step.y + 0.27, step.z - 0.6]}>
+              <sphereGeometry args={[0.025, 6, 4]} />
+              <meshBasicMaterial color="#3355aa" toneMapped={false} />
+            </mesh>
+          ))}
+        </group>
       ))}
     </group>
   );
@@ -581,12 +1198,21 @@ function RowLabels({ rows }: { rows: string[] }) {
   return (
     <group>
       {rows.map((row, i) => {
-        const z = i * 1.8 + 1.5;
-        const y = i * 0.4 + 0.5;
+        const z = i * 2 + 1.5;
+        const y = i * 0.45 + 0.6;
         return (
           <group key={row}>
-            <Text position={[-14, y, z]} fontSize={0.45} color="#5b8af6" anchorX="center" anchorY="middle">{row}</Text>
-            <Text position={[14, y, z]} fontSize={0.45} color="#5b8af6" anchorX="center" anchorY="middle">{row}</Text>
+            {[-15.5, 15.5].map((x, j) => (
+              <group key={j} position={[x, y, z]}>
+                <RoundedBox args={[0.6, 0.35, 0.06]} radius={0.04} smoothness={2}>
+                  <meshStandardMaterial color="#1a1a35" roughness={0.5} metalness={0.4} />
+                </RoundedBox>
+                <Text position={[0, 0, 0.04]} fontSize={0.2} color="#6b8bcf"
+                  anchorX="center" anchorY="middle" fontWeight="bold">
+                  {row}
+                </Text>
+              </group>
+            ))}
           </group>
         );
       })}
@@ -622,27 +1248,27 @@ function MiniMap({ seats, selectedIds, onSeatClick }: { seats: Seat[]; selectedI
 
   const dotColor = (s: Seat) => {
     if (s.status === 'booked' || s.isBooked) return 'bg-slate-600';
-    if (selectedIds.includes(s.id)) return 'bg-emerald-400 ring-1 ring-emerald-300';
+    if (selectedIds.includes(s.id)) return 'bg-emerald-400 ring-1 ring-emerald-300 shadow-sm shadow-emerald-400/50';
     if (s.type === 'vip') return 'bg-purple-400';
     if (s.type === 'premium') return 'bg-blue-400';
     if (s.type === 'accessible') return 'bg-teal-400';
-    return 'bg-slate-300';
+    return 'bg-slate-400';
   };
 
   return (
-    <div className="bg-slate-900/90 backdrop-blur-lg p-3 rounded-xl border border-white/10">
-      <div className="w-full h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full mb-2" />
-      <p className="text-[8px] text-center text-slate-400 mb-1.5 tracking-widest uppercase">Screen</p>
+    <div className="bg-slate-900/95 backdrop-blur-xl p-3.5 rounded-xl border border-white/10 shadow-2xl">
+      <div className="w-full h-1.5 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full mb-2.5" />
+      <p className="text-[8px] text-center text-slate-400 mb-2 tracking-[0.2em] uppercase font-semibold">Screen</p>
       <div className="space-y-1">
         {rows.map(([row, rowSeats]) => (
-          <div key={row} className="flex items-center gap-0.5">
-            <span className="text-[7px] text-slate-500 w-2.5 text-right">{row}</span>
+          <div key={row} className="flex items-center gap-1">
+            <span className="text-[7px] text-slate-500 w-3 text-right font-mono">{row}</span>
             <div className="flex gap-[3px]">
               {rowSeats.sort((a, b) => a.number - b.number).map(seat => (
                 <button key={seat.id}
                   onClick={() => !(seat.status === 'booked' || seat.isBooked) && onSeatClick(seat)}
                   disabled={!!(seat.status === 'booked' || seat.isBooked)}
-                  className={`w-[7px] h-[7px] rounded-sm transition-transform hover:scale-[2.5] ${dotColor(seat)} ${(seat.status === 'booked' || seat.isBooked) ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}
+                  className={`w-[7px] h-[7px] rounded-sm transition-all duration-150 hover:scale-[2.5] hover:z-10 ${dotColor(seat)} ${(seat.status === 'booked' || seat.isBooked) ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}
                 />
               ))}
             </div>
@@ -660,441 +1286,62 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
 }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[60] p-4" onClick={onClose}>
-      <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-2xl p-5 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[60] p-4" onClick={onClose}>
+      <div className="bg-gradient-to-b from-slate-900 to-slate-950 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
-            <Ticket className="w-4 h-4 text-emerald-400" /> Confirm Booking
+            <Ticket className="w-5 h-5 text-emerald-400" /> Confirm Booking
           </h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X className="w-4 h-4" /></button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors">
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <div className="space-y-3">
-          <div className="bg-white/5 rounded-lg p-3 flex gap-3">
-            <img src={movie.image} alt="" className="w-12 h-[68px] object-cover rounded-md shadow"
+        <div className="space-y-4">
+          <div className="bg-white/5 rounded-xl p-4 flex gap-4">
+            <img src={movie.image} alt="" className="w-14 h-20 object-cover rounded-lg shadow-lg"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
             <div>
-              <p className="text-white font-semibold text-sm">{movie.title}</p>
-              <p className="text-gray-500 text-[11px]">{movie.genre}</p>
-              <div className="flex gap-2 mt-1 text-[11px] text-gray-400">
-                <span>{movie.duration}</span>
-                <span className="px-1 bg-amber-500/20 text-amber-400 rounded text-[9px] font-bold">{movie.rating}</span>
+              <p className="text-white font-bold">{movie.title}</p>
+              <p className="text-gray-500 text-xs mt-0.5">{movie.genre}</p>
+              <div className="flex gap-2 mt-2 text-xs text-gray-400">
+                <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{movie.duration}</span>
+                <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[10px] font-bold">{movie.rating}</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-2 text-sm">
-            <Clock className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-white">{showtime.time}</span>
+
+          <div className="flex items-center gap-2 bg-white/5 rounded-xl px-4 py-3 text-sm">
+            <Clock className="w-4 h-4 text-blue-400" />
+            <span className="text-white font-medium">{showtime.time}</span>
             <span className="text-gray-500 text-xs">· {showtime.label}</span>
           </div>
-          <div className="bg-white/5 rounded-lg p-3">
-            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1.5">Seats</p>
-            <div className="flex flex-wrap gap-1.5">
+
+          <div className="bg-white/5 rounded-xl p-4">
+            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-2 font-semibold">Selected Seats</p>
+            <div className="flex flex-wrap gap-2">
               {selectedSeats.map(s => (
-                <span key={s.id} className={`px-2 py-0.5 rounded text-[11px] font-semibold border
+                <span key={s.id} className={`px-2.5 py-1 rounded-lg text-xs font-semibold border
                   ${s.type === 'vip' ? 'bg-purple-500/15 text-purple-300 border-purple-500/25' :
                     s.type === 'premium' ? 'bg-blue-500/15 text-blue-300 border-blue-500/25' :
                     'bg-white/5 text-gray-300 border-white/10'}`}>
-                  {s.row}{s.number} <span className="text-gray-500">${s.price}</span>
+                  {s.row}{s.number} · ${s.price}
                 </span>
               ))}
             </div>
           </div>
-          <div className="border-t border-white/10 pt-2.5 space-y-1">
-            <div className="flex justify-between text-xs text-gray-400"><span>{selectedSeats.length}× Tickets</span><span>${total.toFixed(2)}</span></div>
-            <div className="flex justify-between text-xs text-gray-500"><span>Service fee</span><span>$2.50</span></div>
-            <div className="flex justify-between text-sm font-bold text-white pt-1.5 border-t border-white/10"><span>Total</span><span className="text-emerald-400">${(total + 2.5).toFixed(2)}</span></div>
-          </div>
-          <div className="flex gap-2 mt-1">
-            <button onClick={onClose} className="flex-1 py-2 rounded-lg border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 text-sm">Cancel</button>
-            <button onClick={onConfirm} className="flex-1 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20">
-              <CreditCard className="w-3.5 h-3.5" /> Pay Now
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-// ========================================
-// MAIN COMPONENT
-// ========================================
-export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
-  const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [viewingSeatId, setViewingSeatId] = useState<string | null>(null);
-  const [selectedMovie, setSelectedMovie] = useState(movies[0]);
-  const [selectedShowtime, setSelectedShowtime] = useState(showtimes[3]);
-  const [hoveredSeat, setHoveredSeat] = useState<{ seat: Seat; position: [number, number, number] } | null>(null);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showMiniMap, setShowMiniMap] = useState(false);
-  const [viewMode, setViewMode] = useState<ViewMode>('default');
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [highlightedSeats, setHighlightedSeats] = useState<string[]>([]);
-  const [lightsOn, setLightsOn] = useState(false);
-  const [screenRect, setScreenRect] = useState({ left: 0, top: 0, width: 0, height: 0, visible: false });
-  const [showGuide, setShowGuide] = useState(false);
-  const [showMoviePanel, setShowMoviePanel] = useState(true);
-
-  const controlsRef = useRef<any>(null);
-  const { playSound } = useAudio();
-
-  const youtubeId = useMemo(() => getYouTubeId(selectedMovie.video), [selectedMovie.video]);
-  const selectedSeats = useMemo(() => seats.filter(s => s.status === 'selected' || s.isSelected), [seats]);
-  const totalPrice = useMemo(() => selectedSeats.reduce((sum, s) => sum + s.price, 0), [selectedSeats]);
-  const rows = useMemo(() => [...new Set(seats.map(s => s.row))].sort(), [seats]);
-
-  const seatsByRow = useMemo(() => {
-    const m: Record<string, Seat[]> = {};
-    seats.forEach(s => { if (!m[s.row]) m[s.row] = []; m[s.row].push(s); });
-    return m;
-  }, [seats]);
-
-  const seatPositions = useMemo(() => {
-    const positions: Array<{ seat: Seat; position: [number, number, number] }> = [];
-    const sortedRows = Object.keys(seatsByRow).sort();
-    sortedRows.forEach((rowLetter, rowIndex) => {
-      const rowSeats = seatsByRow[rowLetter].sort((a, b) => a.number - b.number);
-      const rowZ = rowIndex * 1.8 + 1.5;
-      const rowY = rowIndex * 0.4 + 0.25;
-      const mid = Math.floor(rowSeats.length / 2);
-      rowSeats.forEach((seat, seatIndex) => {
-        const normalizedX = (seatIndex - (rowSeats.length - 1) / 2) / Math.max(rowSeats.length / 2, 1);
-        const curvePush = normalizedX * normalizedX * 0.35;
-        const seatX = (seatIndex - (rowSeats.length - 1) / 2) * 1.08 + (seatIndex >= mid ? 0.65 : -0.65);
-        positions.push({ seat, position: [seatX, rowY, rowZ + curvePush] });
-      });
-    });
-    return positions;
-  }, [seatsByRow]);
-
-  const findBestSeats = useCallback((count: number = 4) => {
-    const available = seatPositions.filter(({ seat }) => seat.status === 'available' && !seat.isBooked);
-    const scored = available.map(({ seat, position }) => ({
-      seat,
-      score: (14 - Math.abs(position[0])) + (10 - Math.abs(3 - position[2] / 1.8)) + (seat.type === 'vip' ? 5 : seat.type === 'premium' ? 3 : 0),
-    }));
-    scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, count).map(s => s.seat.id);
-  }, [seatPositions]);
-
-  const handleSeatClick = useCallback((seat: Seat) => {
-    if (soundEnabled) playSound('click');
-    onSeatClick(seat);
-    const sd = seatPositions.find(s => s.seat.id === seat.id);
-    if (sd) {
-      const [x, y, z] = sd.position;
-      setCameraTarget({ position: new THREE.Vector3(x * 0.3, y + 2, z + 3.5), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
-      setIsAnimating(true);
-      setViewingSeatId(seat.id);
-    }
-  }, [soundEnabled, playSound, onSeatClick, seatPositions]);
-
-  const handleSeatHover = useCallback((seat: Seat | null, position?: [number, number, number]) => {
-    if (seat && position) setHoveredSeat({ seat, position });
-    else setHoveredSeat(null);
-  }, []);
-
-  const resetView = useCallback(() => {
-    if (soundEnabled) playSound('click');
-    setCameraTarget({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
-    setIsAnimating(true);
-    setViewingSeatId(null);
-    setViewMode('default');
-  }, [soundEnabled, playSound]);
-
-  const changeView = useCallback((mode: ViewMode) => {
-    if (soundEnabled) playSound('click');
-    setViewMode(mode);
-    const views: Record<ViewMode, CameraTarget> = {
-      default: { position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT },
-      topdown: { position: new THREE.Vector3(0, 26, 8), lookAt: new THREE.Vector3(0, 0, 6) },
-      front: { position: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z + 6), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) },
-      side: { position: new THREE.Vector3(26, 8, 6), lookAt: new THREE.Vector3(0, 3, 4) },
-    };
-    setCameraTarget(views[mode]);
-    setIsAnimating(true);
-  }, [soundEnabled, playSound]);
-
-  const handleScreenUpdate = useCallback((r: { left: number; top: number; width: number; height: number; visible: boolean }) => {
-    setScreenRect(prev => {
-      if (Math.abs(prev.left - r.left) > 1 || Math.abs(prev.top - r.top) > 1 ||
-        Math.abs(prev.width - r.width) > 1 || Math.abs(prev.height - r.height) > 1 ||
-        prev.visible !== r.visible) return r;
-      return prev;
-    });
-  }, []);
-
-  // Keyboard nav
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!viewingSeatId) return;
-      const current = seatPositions.find(s => s.seat.id === viewingSeatId);
-      if (!current) return;
-      let target: Seat | undefined;
-      switch (e.key) {
-        case 'ArrowLeft': target = seats.find(s => s.row === current.seat.row && s.number === current.seat.number - 1); break;
-        case 'ArrowRight': target = seats.find(s => s.row === current.seat.row && s.number === current.seat.number + 1); break;
-        case 'ArrowUp': target = seats.find(s => s.row === String.fromCharCode(current.seat.row.charCodeAt(0) - 1) && s.number === current.seat.number); break;
-        case 'ArrowDown': target = seats.find(s => s.row === String.fromCharCode(current.seat.row.charCodeAt(0) + 1) && s.number === current.seat.number); break;
-        case 'Escape': resetView(); return;
-      }
-      if (target) {
-        e.preventDefault();
-        const td = seatPositions.find(s => s.seat.id === target!.id);
-        if (td) {
-          const [x, y, z] = td.position;
-          setCameraTarget({ position: new THREE.Vector3(x * 0.3, y + 2, z + 3.5), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
-          setIsAnimating(true);
-          setViewingSeatId(target.id);
-        }
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [viewingSeatId, seats, seatPositions, resetView]);
-
-  const viewingSeat = viewingSeatId ? seats.find(s => s.id === viewingSeatId) : null;
-
-  return (
-    <div className="relative w-full h-[850px] bg-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/60">
-
-      {youtubeId && <YouTubeOverlay videoId={youtubeId} rect={screenRect} />}
-
-      {/* ===== TOP CONTROLS ===== */}
-      <div className="absolute top-0 left-0 right-0 z-20">
-        <div className="bg-gradient-to-b from-black/80 via-black/50 to-transparent pt-3 pb-10 px-4">
-          <div className="flex items-start justify-between gap-4">
-
-            {/* Left: Movie & Showtime */}
-            <div className="flex-1 max-w-[520px]">
-              <button onClick={() => setShowMoviePanel(!showMoviePanel)} className="flex items-center gap-2 mb-2 group">
-                <Film className="w-3.5 h-3.5 text-blue-400" />
-                <span className="text-[11px] font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
-                  Movie & Showtime
-                </span>
-                {showMoviePanel ? <ChevronDown className="w-3 h-3 text-gray-500" /> : <ChevronRight className="w-3 h-3 text-gray-500" />}
-              </button>
-
-              {showMoviePanel && (
-                <div className="space-y-2">
-                  <div className="flex gap-1.5 overflow-x-auto pb-1">
-                    {movies.map(movie => (
-                      <button key={movie.id}
-                        onClick={() => { if (soundEnabled) playSound('click'); setSelectedMovie(movie); }}
-                        className={`flex-shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all border
-                          ${selectedMovie.id === movie.id
-                            ? 'bg-blue-600/30 border-blue-400/50 text-white'
-                            : 'bg-white/5 border-white/5 text-gray-400 hover:text-white hover:bg-white/10'
-                          }`}>
-                        <img src={movie.image} alt="" className="w-5 h-7 object-cover rounded"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                        <span className="whitespace-nowrap">{movie.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-1.5 flex-wrap">
-                    {showtimes.map(st => (
-                      <button key={st.id}
-                        onClick={() => { if (soundEnabled) playSound('click'); setSelectedShowtime(st); }}
-                        className={`px-2.5 py-1 rounded-md text-[10px] font-semibold transition-all border
-                          ${selectedShowtime.id === st.id
-                            ? 'bg-emerald-600/30 border-emerald-400/50 text-emerald-300'
-                            : 'bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/8'
-                          }`}>
-                        {st.time}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-2.5 bg-white/5 rounded-lg px-3 py-1.5">
-                    <img src={selectedMovie.image} alt="" className="w-7 h-10 object-cover rounded shadow"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <div className="min-w-0">
-                      <p className="text-white text-xs font-semibold truncate">{selectedMovie.title}</p>
-                      <p className="text-gray-500 text-[9px]">{selectedMovie.genre} · {selectedMovie.duration}</p>
-                    </div>
-                    <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-400 rounded text-[9px] font-bold ml-auto flex-shrink-0">{selectedMovie.rating}</span>
-                  </div>
-                </div>
-              )}
+          <div className="border-t border-white/10 pt-3 space-y-1.5">
+            <div className="flex justify-between text-sm text-gray-400">
+              <span>{selectedSeats.length}× Ticket{selectedSeats.length > 1 ? 's' : ''}</span>
+              <span>${total.toFixed(2)}</span>
             </div>
-
-            {/* Right: Controls */}
-            <div className="flex flex-col items-end gap-1.5">
-              <div className="flex gap-1">
-                {[
-                  { icon: soundEnabled ? Volume2 : VolumeX, fn: () => setSoundEnabled(!soundEnabled), on: soundEnabled },
-                  { icon: Camera, fn: () => { if (soundEnabled) playSound('success'); const c = document.querySelector('canvas'); if (c) { const l = document.createElement('a'); l.download = `view-${Date.now()}.png`; l.href = c.toDataURL('image/png'); l.click(); } } },
-                  { icon: Grid3X3, fn: () => setShowMiniMap(!showMiniMap), on: showMiniMap },
-                  { icon: lightsOn ? Sun : SunDim, fn: () => setLightsOn(!lightsOn), on: lightsOn },
-                ].map(({ icon: Icon, fn, on }, i) => (
-                  <button key={i} onClick={fn} className={`w-7 h-7 rounded-md flex items-center justify-center transition-all border
-                    ${on ? 'bg-blue-500/25 border-blue-400/40 text-blue-300' : 'bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10'}`}>
-                    <Icon className="w-3 h-3" />
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                {([
-                  { m: 'default' as ViewMode, l: 'Free', I: Eye },
-                  { m: 'topdown' as ViewMode, l: 'Top', I: Maximize2 },
-                  { m: 'front' as ViewMode, l: 'Front', I: Film },
-                  { m: 'side' as ViewMode, l: 'Side', I: Armchair },
-                ]).map(({ m, l, I }) => (
-                  <button key={m} onClick={() => changeView(m)}
-                    className={`px-2 py-1 rounded-md text-[9px] font-semibold transition-all border flex items-center gap-1
-                      ${viewMode === m ? 'bg-white/12 border-white/20 text-white' : 'bg-white/5 border-white/5 text-gray-500 hover:text-white hover:bg-white/10'}`}>
-                    <I className="w-2.5 h-2.5" />{l}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                <button onClick={() => { if (soundEnabled) playSound('success'); setHighlightedSeats(findBestSeats(4)); setTimeout(() => setHighlightedSeats([]), 6000); }}
-                  className="px-2.5 py-1 rounded-md text-[9px] font-semibold bg-amber-500/20 border border-amber-500/25 text-amber-400 hover:bg-amber-500/30 flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5" /> Best
-                </button>
-                <button onClick={resetView}
-                  className="px-2.5 py-1 rounded-md text-[9px] font-semibold bg-white/5 border border-white/5 text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1">
-                  <RotateCcw className="w-2.5 h-2.5" /> Reset
-                </button>
-              </div>
+            <div className="flex justify-between text-sm text-gray-500">
+              <span>Service fee</span><span>$2.50</span>
+            </div>
+            <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-white/10">
+              <span>Total</span>
+              <span className="text-emerald-400">${(total + 2.5).toFixed(2)}</span>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Viewing indicator */}
-      {viewingSeat && (
-        <div className="absolute top-[100px] left-1/2 -translate-x-1/2 z-20">
-          <div className="bg-blue-600/20 backdrop-blur-lg text-white px-4 py-1.5 rounded-full flex items-center gap-2 border border-blue-500/25">
-            <Eye className="w-3 h-3 text-blue-400" />
-            <span className="text-[11px] font-semibold">Row {viewingSeat.row} · Seat {viewingSeat.number}</span>
-            <span className="text-gray-500 text-[9px]">· Arrow keys to navigate</span>
-          </div>
-        </div>
-      )}
-
-      {/* Seat guide */}
-      <div className="absolute left-3 bottom-3 z-10">
-        <button onClick={() => setShowGuide(!showGuide)}
-          className="flex items-center gap-1 bg-black/60 backdrop-blur-lg px-2.5 py-1 rounded-md border border-white/10 text-gray-400 hover:text-white text-[10px] font-medium mb-1.5">
-          <Info className="w-2.5 h-2.5" /> Guide
-          {showGuide ? <ChevronDown className="w-2.5 h-2.5" /> : <ChevronRight className="w-2.5 h-2.5" />}
-        </button>
-        {showGuide && (
-          <div className="bg-black/75 backdrop-blur-lg p-2.5 rounded-lg border border-white/10">
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-              {[['#8b95a5', 'Standard'], ['#5b9cf6', 'Premium'], ['#b87af7', 'VIP'], ['#3ecfb8', 'Accessible'], ['#34d399', 'Selected'], ['#4b5563', 'Booked'], ['#fbbf24', 'Recommended']].map(([c, l]) => (
-                <div key={l} className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c }} />
-                  <span className="text-gray-400 text-[10px]">{l}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Minimap */}
-      {showMiniMap && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10">
-          <MiniMap seats={seats} selectedIds={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
-        </div>
-      )}
-
-      {/* Booking panel */}
-      <div className="absolute right-3 bottom-3 z-10">
-        <div className="bg-slate-900/90 backdrop-blur-lg p-3.5 rounded-xl border border-white/10 w-[240px]">
-          <h3 className="text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2.5 flex items-center gap-1.5">
-            <Ticket className="w-3 h-3 text-emerald-400" /> Your Tickets
-          </h3>
-          {selectedSeats.length > 0 ? (
-            <>
-              <div className="flex flex-wrap gap-1 mb-2.5">
-                {selectedSeats.map(seat => (
-                  <span key={seat.id} className={`px-1.5 py-0.5 rounded text-[10px] font-semibold border
-                    ${seat.type === 'vip' ? 'bg-purple-500/15 text-purple-300 border-purple-500/20' :
-                      seat.type === 'premium' ? 'bg-blue-500/15 text-blue-300 border-blue-500/20' :
-                      'bg-white/5 text-gray-300 border-white/8'}`}>
-                    {seat.row}{seat.number} <span className="text-gray-500">${seat.price}</span>
-                  </span>
-                ))}
-              </div>
-              <div className="space-y-0.5 text-[11px] border-t border-white/10 pt-2">
-                <div className="flex justify-between text-gray-400"><span>{selectedSeats.length} ticket{selectedSeats.length > 1 ? 's' : ''}</span><span>${totalPrice.toFixed(2)}</span></div>
-                <div className="flex justify-between text-gray-500"><span>Fee</span><span>$2.50</span></div>
-                <div className="flex justify-between text-xs font-bold text-white pt-1 border-t border-white/10"><span>Total</span><span className="text-emerald-400">${(totalPrice + 2.5).toFixed(2)}</span></div>
-              </div>
-              <button onClick={() => setShowBookingModal(true)}
-                className="w-full mt-2.5 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/20 transition-colors">
-                <Check className="w-3.5 h-3.5" /> Checkout
-              </button>
-            </>
-          ) : (
-            <div className="text-center py-4">
-              <Armchair className="w-7 h-7 text-gray-700 mx-auto mb-1.5" />
-              <p className="text-gray-500 text-[11px]">No seats selected</p>
-              <p className="text-gray-600 text-[9px] mt-0.5">Click a seat to begin</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ===== 3D CANVAS ===== */}
-      <Canvas
-        shadows
-        camera={{ position: [DEFAULT_CAMERA_POS.x, DEFAULT_CAMERA_POS.y, DEFAULT_CAMERA_POS.z], fov: 50, near: 0.5, far: 80 }}
-        gl={{
-          antialias: true,
-          preserveDrawingBuffer: true,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.4,
-          powerPreference: 'high-performance',
-        }}
-        style={{ background: '#0a0a18' }}
-        dpr={[1, 1.5]}
-        performance={{ min: 0.5 }}
-      >
-        <CameraController target={cameraTarget} isAnimating={isAnimating} onDone={() => setIsAnimating(false)} controlsRef={controlsRef} />
-
-        {/* Lighting - brighter for visibility */}
-        <ambientLight intensity={0.55} color="#c8d4e8" />
-        <directionalLight
-          position={[5, 18, 8]} intensity={0.8} color="#f0e6d0"
-          castShadow shadow-mapSize={[1024, 1024]}
-          shadow-camera-left={-18} shadow-camera-right={18}
-          shadow-camera-top={18} shadow-camera-bottom={-18}
-          shadow-bias={-0.002}
-        />
-        <directionalLight position={[-8, 12, -5]} intensity={0.25} color="#8888cc" />
-        <hemisphereLight args={['#3344668', '#1a1a30', 0.3]} />
-
-        {/* Screen tracking */}
-        {youtubeId && <ScreenPositionTracker onUpdate={handleScreenUpdate} />}
-
-        <TheaterScreen movieTitle={selectedMovie.title} />
-        <RowLabels rows={rows} />
-        <TheaterEnvironment lightsOn={lightsOn} />
-
-        {seatPositions.map(({ seat, position }) => (
-          <Seat3D key={seat.id} seat={seat} position={position} onClick={handleSeatClick}
-            onHover={handleSeatHover} isHighlighted={highlightedSeats.includes(seat.id)}
-            soundEnabled={soundEnabled} playSound={playSound} />
-        ))}
-
-        {hoveredSeat && <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />}
-
-        <OrbitControls ref={controlsRef} minDistance={3} maxDistance={35}
-          maxPolarAngle={Math.PI / 2.1} minPolarAngle={0.1}
-          target={[DEFAULT_LOOK_AT.x, DEFAULT_LOOK_AT.y, DEFAULT_LOOK_AT.z]}
-          enableDamping dampingFactor={0.06} rotateSpeed={0.5} zoomSpeed={0.8} />
-      </Canvas>
-
-      <BookingModal isOpen={showBookingModal} onClose={() => setShowBookingModal(false)}
-        onConfirm={() => { if (soundEnabled) playSound('success'); setShowBookingModal(false); alert('🎬 Booking confirmed!'); }}
-        selectedSeats={selectedSeats} movie={selectedMovie} showtime={selectedShowtime} total={totalPrice} />
-
-      <div className="absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-black/30 to-transparent pointer-events-none z-[1]" />
-    </div>
-  );
-}
+          
