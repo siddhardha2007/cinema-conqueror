@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Text, RoundedBox, Html, useTexture, Sparkles as DreiSparkles, Environment } from '@react-three/drei';
+import { OrbitControls, Text, RoundedBox, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import {
   RotateCcw, Eye, Film, Clock, Volume2, VolumeX, Camera,
@@ -41,11 +41,11 @@ const SCREEN_HEIGHT = 10;
 const DEFAULT_CAMERA_POS = new THREE.Vector3(0, 10, 24);
 const DEFAULT_LOOK_AT = new THREE.Vector3(0, 4, 0);
 
-const SEAT_COLORS: Record<string, { base: string; hover: string; selected: string; booked: string; leather: string }> = {
-  standard: { base: '#2c3e50', hover: '#34495e', selected: '#10b981', booked: '#1a1a2e', leather: '#8b4513' },
-  premium: { base: '#1e3a8a', hover: '#2563eb', selected: '#10b981', booked: '#1a1a2e', leather: '#4a0e4e' },
-  vip: { base: '#6b21a8', hover: '#9333ea', selected: '#10b981', booked: '#1a1a2e', leather: '#8b0000' },
-  accessible: { base: '#0d9488', hover: '#14b8a6', selected: '#10b981', booked: '#1a1a2e', leather: '#2d5a4a' },
+const SEAT_COLORS: Record<string, { base: string; hover: string; selected: string; booked: string }> = {
+  standard: { base: '#3b4a5c', hover: '#4a5d73', selected: '#10b981', booked: '#1a1a2e' },
+  premium: { base: '#2563eb', hover: '#3b82f6', selected: '#10b981', booked: '#1a1a2e' },
+  vip: { base: '#7c3aed', hover: '#8b5cf6', selected: '#10b981', booked: '#1a1a2e' },
+  accessible: { base: '#0d9488', hover: '#14b8a6', selected: '#10b981', booked: '#1a1a2e' },
 };
 
 // --- DATA ---
@@ -98,59 +98,6 @@ const useAudio = () => {
   }, []);
   return { playSound };
 };
-
-// --- PROCEDURAL TEXTURES ---
-function createLeatherTexture() {
-  const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 512;
-  const ctx = canvas.getContext('2d')!;
-  
-  // Base color
-  ctx.fillStyle = '#2a2a3e';
-  ctx.fillRect(0, 0, 512, 512);
-  
-  // Add noise for leather grain
-  for (let i = 0; i < 5000; i++) {
-    const x = Math.random() * 512;
-    const y = Math.random() * 512;
-    const brightness = Math.random() * 40 - 20;
-    ctx.fillStyle = `rgba(${brightness > 0 ? 255 : 0}, ${brightness > 0 ? 255 : 0}, ${brightness > 0 ? 255 : 0}, ${Math.abs(brightness) / 100})`;
-    ctx.fillRect(x, y, 2, 2);
-  }
-  
-  return new THREE.CanvasTexture(canvas);
-}
-
-function createFabricTexture(baseColor: string) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 256;
-  canvas.height = 256;
-  const ctx = canvas.getContext('2d')!;
-  
-  ctx.fillStyle = baseColor;
-  ctx.fillRect(0, 0, 256, 256);
-  
-  // Weave pattern
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 256; i += 4) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i, 256);
-    ctx.stroke();
-    
-    ctx.beginPath();
-    ctx.moveTo(0, i);
-    ctx.lineTo(256, i);
-    ctx.stroke();
-  }
-  
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(2, 2);
-  return texture;
-}
 
 // --- SCREEN POSITION TRACKER ---
 function ScreenPositionTracker({ onUpdate }: { onUpdate: (r: { left: number; top: number; width: number; height: number; visible: boolean }) => void }) {
@@ -248,7 +195,7 @@ function CameraController({ target, isAnimating, onDone, controlsRef }: {
   return null;
 }
 
-// --- PREMIUM SEAT 3D ---
+// --- PREMIUM SEAT 3D (FIXED) ---
 const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClick, onHover, isHighlighted, soundEnabled, playSound }: {
   seat: Seat; position: [number, number, number]; onClick: (s: Seat) => void;
   onHover: (s: Seat | null, p?: [number, number, number]) => void;
@@ -257,19 +204,13 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
 }) {
   const [hovered, setHovered] = useState(false);
   const groupRef = useRef<THREE.Group>(null);
-  const cushionRef = useRef<THREE.Mesh>(null);
-  const backRef = useRef<THREE.Mesh>(null);
+  const cushionRef = useRef<THREE.Group>(null);
   const foldRef = useRef(0);
   const scaleRef = useRef(1);
-  const glowRef = useRef(0);
 
   const isBooked = seat.status === 'booked' || seat.isBooked;
   const isSelected = seat.status === 'selected' || seat.isSelected;
   const colors = SEAT_COLORS[seat.type];
-
-  // Create textures
-  const fabricTexture = useMemo(() => createFabricTexture(colors.base), [colors.base]);
-  const leatherTexture = useMemo(() => createLeatherTexture(), []);
 
   useFrame((_, delta) => {
     const targetFold = isSelected ? 1 : 0;
@@ -278,29 +219,21 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
     const targetScale = hovered && !isBooked ? 1.15 : 1;
     scaleRef.current += (targetScale - scaleRef.current) * delta * 12;
 
-    const targetGlow = isSelected ? 1 : isHighlighted ? 0.8 : hovered && !isBooked ? 0.6 : 0;
-    glowRef.current += (targetGlow - glowRef.current) * delta * 10;
-
     if (groupRef.current) {
       groupRef.current.scale.setScalar(scaleRef.current);
-      groupRef.current.rotation.y = Math.sin(Date.now() * 0.001 + seat.number) * 0.02 * glowRef.current;
     }
 
     if (cushionRef.current) {
-      cushionRef.current.position.y = 0.1 - foldRef.current * 0.08;
+      cushionRef.current.position.y = -foldRef.current * 0.08;
       cushionRef.current.position.z = -foldRef.current * 0.05;
       cushionRef.current.rotation.x = foldRef.current * 0.35;
-    }
-
-    if (backRef.current) {
-      backRef.current.rotation.x = -foldRef.current * 0.15;
     }
   });
 
   const color = isBooked ? colors.booked : isSelected ? colors.selected :
     isHighlighted ? '#fbbf24' : hovered ? colors.hover : colors.base;
 
-  const emissiveIntensity = isSelected ? 0.8 : isHighlighted ? 0.6 : hovered && !isBooked ? 0.4 : 0.1;
+  const emissiveIntensity = isSelected ? 0.8 : isHighlighted ? 0.6 : hovered && !isBooked ? 0.4 : 0.15;
 
   const handleClick = useCallback((e: any) => {
     e.stopPropagation();
@@ -324,19 +257,19 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Glow effect for selected/highlighted */}
+      {/* Glow for selected */}
       {(isSelected || isHighlighted) && (
         <pointLight 
           position={[0, 0.5, 0]} 
-          intensity={glowRef.current * 2} 
-          distance={2} 
+          intensity={1.5} 
+          distance={2.5} 
           color={isSelected ? '#10b981' : '#fbbf24'} 
         />
       )}
 
-      {/* Base platform */}
-      <mesh position={[0, -0.05, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.55, 0.6, 0.1, 8]} />
+      {/* Base */}
+      <mesh position={[0, -0.05, 0]} castShadow>
+        <cylinderGeometry args={[0.55, 0.6, 0.1, 12]} />
         <meshStandardMaterial 
           color="#1a1a2e" 
           roughness={0.3} 
@@ -344,42 +277,43 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
         />
       </mesh>
 
-      {/* Cushion - premium rounded design */}
-      <RoundedBox 
-        ref={cushionRef}
-        args={[0.95, 0.25, 0.8]} 
-        radius={0.08} 
-        smoothness={4}
-        position={[0, 0.1, 0]}
-        castShadow 
-        receiveShadow
-        onClick={handleClick} 
-        onPointerEnter={handlePointerEnter} 
-        onPointerLeave={handlePointerLeave}
-      >
-        <meshStandardMaterial 
-          color={color}
-          map={fabricTexture}
-          roughness={0.6} 
-          metalness={0.1} 
-          emissive={color} 
-          emissiveIntensity={emissiveIntensity}
-          normalScale={new THREE.Vector2(0.3, 0.3)}
-        />
-      </RoundedBox>
+      {/* Cushion group for animation */}
+      <group ref={cushionRef}>
+        {/* Main cushion */}
+        <RoundedBox 
+          args={[0.95, 0.25, 0.8]} 
+          radius={0.08} 
+          smoothness={4}
+          position={[0, 0.1, 0]}
+          castShadow 
+          receiveShadow
+          onClick={handleClick} 
+          onPointerEnter={handlePointerEnter} 
+          onPointerLeave={handlePointerLeave}
+        >
+          <meshStandardMaterial 
+            color={color}
+            roughness={0.7} 
+            metalness={0.1} 
+            emissive={color} 
+            emissiveIntensity={emissiveIntensity}
+          />
+        </RoundedBox>
 
-      {/* Cushion stitching detail */}
-      <mesh position={[0, 0.23, 0]}>
-        <torusGeometry args={[0.35, 0.01, 8, 32]} />
-        <meshStandardMaterial 
-          color="#000" 
-          roughness={0.9}
-        />
-      </mesh>
+        {/* Cushion detail circle */}
+        <mesh position={[0, 0.23, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[0.25, 0.35, 16]} />
+          <meshStandardMaterial 
+            color="#000" 
+            roughness={0.9}
+            transparent
+            opacity={0.3}
+          />
+        </mesh>
+      </group>
 
-      {/* Back rest - ergonomic curved */}
+      {/* Back rest */}
       <RoundedBox 
-        ref={backRef}
         args={[0.95, 0.85, 0.15]} 
         radius={0.08} 
         smoothness={4}
@@ -392,25 +326,12 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
       >
         <meshStandardMaterial 
           color={color}
-          map={fabricTexture}
-          roughness={0.6} 
+          roughness={0.7} 
           metalness={0.1} 
           emissive={color} 
-          emissiveIntensity={emissiveIntensity}
+          emissiveIntensity={emissiveIntensity * 0.8}
         />
       </RoundedBox>
-
-      {/* Back stitching */}
-      <mesh position={[0, 0.55, 0.47]}>
-        <planeGeometry args={[0.7, 0.6]} />
-        <meshStandardMaterial 
-          color="#000" 
-          roughness={0.9}
-          transparent
-          opacity={0.3}
-          side={THREE.DoubleSide}
-        />
-      </mesh>
 
       {/* Headrest for VIP */}
       {seat.type === 'vip' && (
@@ -423,7 +344,7 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
         >
           <meshStandardMaterial 
             color={color}
-            roughness={0.5} 
+            roughness={0.6} 
             metalness={0.2}
             emissive={color} 
             emissiveIntensity={emissiveIntensity * 0.5}
@@ -431,7 +352,7 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
         </RoundedBox>
       )}
 
-      {/* Armrests - premium metal with leather padding */}
+      {/* Armrests */}
       {[-1, 1].map((side) => (
         <group key={side} position={[side * 0.55, 0.3, 0.05]}>
           {/* Metal frame */}
@@ -441,26 +362,24 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
               color="#2a2a3e" 
               roughness={0.2} 
               metalness={0.9}
-              envMapIntensity={1}
             />
           </mesh>
-          {/* Leather padding */}
+          {/* Padding */}
           <RoundedBox args={[0.1, 0.06, 0.5]} radius={0.02} smoothness={2} position={[0, 0.07, 0]}>
             <meshStandardMaterial 
-              color={colors.leather}
-              map={leatherTexture}
-              roughness={0.4} 
+              color={color}
+              roughness={0.5} 
               metalness={0.1}
             />
           </RoundedBox>
         </group>
       ))}
 
-      {/* Cup holder (for premium and VIP) */}
+      {/* Cup holder for premium/VIP */}
       {(seat.type === 'premium' || seat.type === 'vip') && (
         <group position={[0.65, 0.15, -0.3]}>
-          <mesh rotation={[0, 0, 0]}>
-            <cylinderGeometry args={[0.08, 0.06, 0.12, 16]} />
+          <mesh>
+            <cylinderGeometry args={[0.08, 0.06, 0.12, 12]} />
             <meshStandardMaterial 
               color="#1a1a2e" 
               roughness={0.3} 
@@ -470,22 +389,19 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
         </group>
       )}
 
-      {/* Seat number - embossed */}
-      <group position={[0, 0.24, -0.05]}>
-        <Text 
-          fontSize={0.16} 
-          color={isBooked ? '#444' : '#fff'}
-          anchorX="center" 
-          anchorY="middle" 
-          rotation={[-Math.PI / 2, 0, 0]}
-          outlineWidth={0.01}
-          outlineColor="#000"
-        >
-          {seat.number}
-        </Text>
-      </group>
+      {/* Seat number */}
+      <Text 
+        position={[0, 0.24, -0.05]}
+        fontSize={0.16} 
+        color={isBooked ? '#555' : '#fff'}
+        anchorX="center" 
+        anchorY="middle" 
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        {seat.number}
+      </Text>
 
-      {/* Type indicators with premium effects */}
+      {/* Type indicators */}
       {seat.type === 'vip' && (
         <group position={[0, 1.15, 0.35]}>
           <mesh>
@@ -495,37 +411,37 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
               emissive="#fbbf24" 
               emissiveIntensity={1.5} 
               metalness={1} 
-              roughness={0}
-            />
-          </mesh>
-          <pointLight position={[0, 0, 0]} intensity={0.5} distance={1} color="#fbbf24" />
-        </group>
-      )}
-
-      {seat.type === 'premium' && (
-        <group position={[0, 1.05, 0.35]}>
-          <mesh>
-            <sphereGeometry args={[0.06, 16, 16]} />
-            <meshStandardMaterial 
-              color="#60a5fa" 
-              emissive="#60a5fa" 
-              emissiveIntensity={1.2} 
-              metalness={1} 
               roughness={0.1}
             />
           </mesh>
         </group>
       )}
 
+      {seat.type === 'premium' && (
+        <group position={[0, 1.0, 0.35]}>
+          <mesh>
+            <sphereGeometry args={[0.06, 12, 12]} />
+            <meshStandardMaterial 
+              color="#60a5fa" 
+              emissive="#60a5fa" 
+              emissiveIntensity={1.2} 
+              metalness={0.8} 
+              roughness={0.2}
+            />
+          </mesh>
+        </group>
+      )}
+
       {seat.type === 'accessible' && (
-        <group position={[0, 1.05, 0.35]}>
+        <group position={[0, 1.0, 0.35]}>
           <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <torusGeometry args={[0.08, 0.02, 8, 16]} />
+            <torusGeometry args={[0.08, 0.02, 8, 12]} />
             <meshStandardMaterial 
               color="#34d399" 
               emissive="#34d399" 
               emissiveIntensity={1} 
               metalness={0.8}
+              roughness={0.2}
             />
           </mesh>
         </group>
@@ -534,31 +450,33 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
   );
 });
 
-// --- PREMIUM THEATER SCREEN ---
+// --- PREMIUM THEATER SCREEN (FIXED) ---
 function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
   const screenRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef(0);
 
   useFrame((state) => {
-    glowRef.current = Math.sin(state.clock.elapsedTime * 0.5) * 0.2 + 0.8;
+    glowRef.current = Math.sin(state.clock.elapsedTime * 0.5) * 0.15 + 0.85;
     if (screenRef.current) {
-      (screenRef.current.material as THREE.MeshStandardMaterial).emissiveIntensity = glowRef.current * 0.3;
+      const mat = screenRef.current.material as THREE.MeshStandardMaterial;
+      if (mat.emissiveIntensity !== undefined) {
+        mat.emissiveIntensity = glowRef.current * 0.3;
+      }
     }
   });
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Architectural wall */}
+      {/* Wall behind */}
       <mesh position={[0, 0, -1.2]} receiveShadow>
         <boxGeometry args={[42, 20, 0.5]} />
         <meshStandardMaterial 
           color="#0a0a15" 
           roughness={0.9}
-          metalness={0.1}
         />
       </mesh>
 
-      {/* Decorative panels */}
+      {/* Decorative side panels */}
       {[-1, 1].map((side) => (
         <group key={side} position={[side * (SCREEN_WIDTH / 2 + 2), 0, -0.8]}>
           <mesh castShadow>
@@ -569,20 +487,19 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
               metalness={0.4}
             />
           </mesh>
-          {/* Vertical LED strips */}
+          {/* LED strip */}
           <mesh position={[0, 0, 0.2]}>
             <boxGeometry args={[0.1, SCREEN_HEIGHT + 4, 0.05]} />
             <meshStandardMaterial 
               color="#3b82f6" 
               emissive="#3b82f6" 
               emissiveIntensity={2}
-              toneMapped={false}
             />
           </mesh>
         </group>
       ))}
 
-      {/* Premium frame - multiple layers */}
+      {/* Frame layers */}
       <mesh position={[0, 0, -0.15]} castShadow>
         <boxGeometry args={[SCREEN_WIDTH + 2, SCREEN_HEIGHT + 1.5, 0.2]} />
         <meshStandardMaterial 
@@ -601,45 +518,40 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
         />
       </mesh>
 
-      {/* Screen surface with subtle glow */}
+      {/* Screen surface - VISIBLE NOW */}
       <mesh ref={screenRef} position={[0, 0, 0.02]}>
         <planeGeometry args={[SCREEN_WIDTH, SCREEN_HEIGHT]} />
         <meshStandardMaterial 
-          color="#050508" 
-          roughness={0.1}
-          metalness={0.5}
+          color="#0a0a12" 
+          roughness={0.2}
+          metalness={0.3}
           emissive="#1a1a3e"
           emissiveIntensity={0.2}
         />
       </mesh>
 
-      {/* Screen lighting - multiple sources for depth */}
-      <pointLight position={[0, 0, 5]} intensity={4} distance={40} color="#4a5f8f" castShadow />
+      {/* Screen lighting */}
+      <pointLight position={[0, 0, 5]} intensity={4} distance={40} color="#5577dd" castShadow />
       <pointLight position={[-8, 2, 3]} intensity={2} distance={20} color="#5577dd" />
       <pointLight position={[8, 2, 3]} intensity={2} distance={20} color="#5577dd" />
-      
-      {/* Rim lighting */}
-      <pointLight position={[0, SCREEN_HEIGHT/2 + 2, 0]} intensity={1.5} distance={15} color="#6b8cce" />
 
-      {/* Premium velvet curtains - realistic draping */}
+      {/* Curtains - simplified but visible */}
       {[-1, 1].map(side => (
         <group key={side} position={[side * (SCREEN_WIDTH / 2 + 3), 0, 0.5]}>
-          {[...Array(8)].map((_, i) => {
-            const xOffset = side * (i * 0.45);
-            const zWave = Math.sin(i * 0.7) * 0.25;
-            const yOffset = -i * 0.1;
+          {[...Array(6)].map((_, i) => {
+            const xOffset = side * (i * 0.5);
+            const zWave = Math.sin(i * 0.7) * 0.2;
             return (
               <mesh 
                 key={i} 
-                position={[xOffset, yOffset, zWave]} 
+                position={[xOffset, 0, zWave]} 
                 castShadow 
                 receiveShadow
               >
-                <cylinderGeometry args={[0.02, 0.05, SCREEN_HEIGHT + 4, 8]} />
+                <boxGeometry args={[0.4, SCREEN_HEIGHT + 4, 0.15]} />
                 <meshStandardMaterial 
                   color={i % 2 === 0 ? '#8b1a1a' : '#a52828'}
                   roughness={0.95}
-                  metalness={0.05}
                 />
               </mesh>
             );
@@ -647,9 +559,9 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
         </group>
       ))}
 
-      {/* Curtain rod - ornate */}
+      {/* Curtain rod */}
       <mesh position={[0, SCREEN_HEIGHT / 2 + 2.5, 0.8]} castShadow>
-        <cylinderGeometry args={[0.12, 0.12, SCREEN_WIDTH + 12, 16]} />
+        <cylinderGeometry args={[0.12, 0.12, SCREEN_WIDTH + 12, 12]} />
         <meshStandardMaterial 
           color="#8b7355" 
           roughness={0.2} 
@@ -657,10 +569,10 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
         />
       </mesh>
 
-      {/* Decorative finials */}
+      {/* Finials */}
       {[-1, 1].map(side => (
         <mesh key={side} position={[side * (SCREEN_WIDTH / 2 + 6.5), SCREEN_HEIGHT / 2 + 2.5, 0.8]} castShadow>
-          <sphereGeometry args={[0.25, 16, 16]} />
+          <sphereGeometry args={[0.25, 12, 12]} />
           <meshStandardMaterial 
             color="#d4af37" 
             roughness={0.2} 
@@ -671,7 +583,7 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
         </mesh>
       ))}
 
-      {/* Pelmet - decorative top */}
+      {/* Pelmet */}
       <mesh position={[0, SCREEN_HEIGHT / 2 + 2, 0.5]} castShadow>
         <boxGeometry args={[SCREEN_WIDTH + 10, 2.2, 0.8]} />
         <meshStandardMaterial 
@@ -680,28 +592,15 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
         />
       </mesh>
 
-      {/* Ambient particle effects around screen */}
-      <DreiSparkles 
-        count={30} 
-        scale={[SCREEN_WIDTH + 4, SCREEN_HEIGHT + 4, 2]} 
-        size={2} 
-        speed={0.3}
-        opacity={0.4}
-        color="#5577dd"
-      />
-
-      {/* Movie title with premium styling */}
+      {/* Movie title */}
       <group position={[0, -SCREEN_HEIGHT / 2 - 1.5, 0.3]}>
         <Text 
           fontSize={0.6} 
           color="#6b8cce" 
           anchorX="center" 
           letterSpacing={0.15}
-          outlineWidth={0.02}
-          outlineColor="#000"
-          font="/fonts/Cinzel-Bold.woff"
         >
-          {`NOW SHOWING`}
+          NOW SHOWING
         </Text>
         <Text 
           position={[0, -0.8, 0]}
@@ -715,7 +614,7 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
         </Text>
       </group>
 
-      {/* Spotlight effect from above */}
+      {/* Spotlight */}
       <spotLight
         position={[0, SCREEN_HEIGHT / 2 + 3, 2]}
         angle={0.8}
@@ -729,121 +628,67 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
   );
 }
 
-// --- PREMIUM WALL SCONCES ---
-function PremiumWallSconces() {
-  const sconceRef = useRef<THREE.Group>(null);
-
-  useFrame((state) => {
-    if (sconceRef.current) {
-      sconceRef.current.children.forEach((sconce, i) => {
-        const light = sconce.children.find(child => child instanceof THREE.PointLight) as THREE.PointLight;
-        if (light) {
-          light.intensity = 0.8 + Math.sin(state.clock.elapsedTime * 0.5 + i) * 0.2;
-        }
-      });
-    }
-  });
-
+// --- WALL SCONCES (FIXED) ---
+function WallSconces() {
   const positions = useMemo(() => {
     const p: { pos: [number, number, number]; rot: [number, number, number] }[] = [];
-    for (let i = 0; i < 5; i++) {
-      p.push({ pos: [-18, 6 + Math.sin(i) * 0.3, -6 + i * 9], rot: [0, Math.PI / 2, 0] });
-      p.push({ pos: [18, 6 + Math.sin(i) * 0.3, -6 + i * 9], rot: [0, -Math.PI / 2, 0] });
+    for (let i = 0; i < 4; i++) {
+      p.push({ pos: [-17, 6, -4 + i * 8], rot: [0, Math.PI / 2, 0] });
+      p.push({ pos: [17, 6, -4 + i * 8], rot: [0, -Math.PI / 2, 0] });
     }
     return p;
   }, []);
 
   return (
-    <group ref={sconceRef}>
+    <group>
       {positions.map((s, i) => (
         <group key={i} position={s.pos} rotation={s.rot}>
           {/* Backplate */}
-          <mesh castShadow>
-            <cylinderGeometry args={[0.25, 0.3, 0.08, 6]} />
+          <mesh>
+            <cylinderGeometry args={[0.2, 0.25, 0.08, 6]} />
             <meshStandardMaterial 
               color="#c4982a" 
               roughness={0.2} 
               metalness={0.9}
-              emissive="#c4982a"
-              emissiveIntensity={0.2}
             />
           </mesh>
           
-          {/* Arm */}
-          <mesh position={[0, 0, 0.15]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.04, 0.04, 0.3, 8]} />
-            <meshStandardMaterial 
-              color="#8b7355" 
-              roughness={0.3} 
-              metalness={0.8}
-            />
-          </mesh>
-
           {/* Glass shade */}
-          <mesh position={[0, 0.1, 0.25]}>
-            <sphereGeometry args={[0.15, 16, 16]} />
+          <mesh position={[0, 0, 0.2]}>
+            <sphereGeometry args={[0.12, 12, 12]} />
             <meshStandardMaterial 
-              color="#fffaf0" 
+              color="#fff5e0" 
               transparent
-              opacity={0.4}
-              roughness={0.1}
-              metalness={0.1}
-              emissive="#ffeeb0" 
-              emissiveIntensity={0.8}
+              opacity={0.6}
+              emissive="#ffe8b0" 
+              emissiveIntensity={0.5}
             />
           </mesh>
 
-          {/* Light source */}
+          {/* Light */}
           <pointLight 
-            position={[0, 0.1, 0.25]} 
+            position={[0, 0, 0.2]} 
             intensity={0.8} 
-            distance={8} 
+            distance={6} 
             color="#ffddaa"
-            castShadow
-            shadow-mapSize-width={256}
-            shadow-mapSize-height={256}
           />
-
-          {/* Decorative crystals */}
-          {[0, 1, 2].map((j) => (
-            <mesh 
-              key={j}
-              position={[
-                Math.cos(j * Math.PI * 2 / 3) * 0.12,
-                0.1 + Math.sin(j * Math.PI * 2 / 3) * 0.05,
-                0.25 + Math.sin(j * Math.PI * 2 / 3) * 0.12
-              ]}
-            >
-              <octahedronGeometry args={[0.02, 0]} />
-              <meshStandardMaterial 
-                color="#ffffff" 
-                transparent
-                opacity={0.8}
-                roughness={0}
-                metalness={1}
-                emissive="#ffffff"
-                emissiveIntensity={0.5}
-              />
-            </mesh>
-          ))}
         </group>
       ))}
     </group>
   );
 }
 
-// --- PREMIUM THEATER ENVIRONMENT ---
-const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment({ lightsOn }: { lightsOn: boolean }) {
+// --- THEATER ENVIRONMENT (FIXED) ---
+const TheaterEnvironment = React.memo(function TheaterEnvironment({ lightsOn }: { lightsOn: boolean }) {
   const { scene } = useThree();
   const ceilingLightsRef = useRef<THREE.Group>(null);
-  const starsRef = useRef<THREE.Group>(null);
 
   useEffect(() => {
     scene.fog = new THREE.FogExp2('#05050a', 0.008);
     return () => { scene.fog = null; };
   }, [scene]);
 
-  useFrame((state, delta) => {
+  useFrame((_, delta) => {
     if (ceilingLightsRef.current) {
       ceilingLightsRef.current.children.forEach(child => {
         child.traverse(obj => {
@@ -854,10 +699,6 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
         });
       });
     }
-
-    if (starsRef.current) {
-      starsRef.current.rotation.z += delta * 0.01;
-    }
   });
 
   const steps = useMemo(() => Array.from({ length: 11 }, (_, i) => ({
@@ -866,57 +707,32 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
     index: i,
   })), []);
 
-  const stars = useMemo(() => Array.from({ length: 50 }, () => ({
-    x: (Math.random() - 0.5) * 32,
-    y: Math.random() * 2 + 11.5,
-    z: (Math.random() - 0.5) * 35 + 5,
-    size: Math.random() * 0.04 + 0.01,
-    brightness: Math.random(),
-  })), []);
-
-  const floorPattern = useMemo(() => createFabricTexture('#1a1a30'), []);
-
   return (
     <group>
-      {/* Premium carpeted floor */}
+      {/* Floor */}
       <mesh position={[0, -0.01, 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[50, 60]} />
         <meshStandardMaterial 
           color="#14142a" 
-          roughness={0.95} 
-          metalness={0.02}
-          map={floorPattern}
+          roughness={0.95}
         />
       </mesh>
 
-      {/* Center aisle - premium carpet */}
+      {/* Center aisle */}
       <mesh position={[0, 0.008, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[2.4, 24]} />
         <meshStandardMaterial 
           color="#2a0e0e" 
           roughness={0.98}
-          normalScale={new THREE.Vector2(0.5, 0.5)}
         />
       </mesh>
 
-      {/* Side aisles */}
-      {[-7, 7].map((x) => (
-        <mesh key={x} position={[x, 0.008, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-          <planeGeometry args={[1.5, 24]} />
-          <meshStandardMaterial 
-            color="#1a0e0e" 
-            roughness={0.98}
-          />
-        </mesh>
-      ))}
-
-      {/* Textured walls with ambient occlusion */}
+      {/* Walls */}
       <mesh position={[-19, 7, 2]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[52, 16]} />
         <meshStandardMaterial 
           color="#0f0f22" 
           roughness={0.9}
-          metalness={0.05}
         />
       </mesh>
       <mesh position={[19, 7, 2]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
@@ -924,11 +740,8 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
         <meshStandardMaterial 
           color="#0f0f22" 
           roughness={0.9}
-          metalness={0.05}
         />
       </mesh>
-
-      {/* Back wall with texture */}
       <mesh position={[0, 7, 25]} rotation={[0, Math.PI, 0]} receiveShadow>
         <planeGeometry args={[40, 16]} />
         <meshStandardMaterial 
@@ -937,7 +750,7 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
         />
       </mesh>
 
-      {/* Ceiling - coffered design */}
+      {/* Ceiling */}
       <mesh position={[0, 14, 5]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[40, 44]} />
         <meshStandardMaterial 
@@ -946,40 +759,20 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
         />
       </mesh>
 
-      {/* Ceiling coffers */}
-      {[...Array(4)].map((_, i) => 
-        [...Array(5)].map((_, j) => (
-          <mesh 
-            key={`${i}-${j}`}
-            position={[-12 + i * 8, 13.9, -8 + j * 8]} 
-            rotation={[Math.PI / 2, 0, 0]}
-          >
-            <planeGeometry args={[6, 6]} />
-            <meshStandardMaterial 
-              color="#05050f" 
-              roughness={0.9}
-            />
-          </mesh>
-        ))
-      )}
+      {/* Wall sconces */}
+      <WallSconces />
 
-      {/* Premium wall sconces */}
-      <PremiumWallSconces />
-
-      {/* Stadium steps with premium finish */}
+      {/* Steps */}
       {steps.map(step => (
         <group key={step.index}>
-          {/* Main step platform */}
           <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
             <boxGeometry args={[34, 0.5, 1.9]} />
             <meshStandardMaterial 
               color="#1a1a32" 
-              roughness={0.7} 
-              metalness={0.3}
+              roughness={0.7}
             />
           </mesh>
           
-          {/* Step riser with detail */}
           <mesh position={[0, step.y + 0.25, step.z + 0.94]}>
             <boxGeometry args={[34, 0.5, 0.04]} />
             <meshStandardMaterial 
@@ -988,13 +781,10 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
             />
           </mesh>
           
-          {/* LED safety strip */}
+          {/* LED strip */}
           <mesh position={[0, step.y + 0.26, step.z + 0.93]}>
             <boxGeometry args={[30, 0.03, 0.03]} />
-            <meshBasicMaterial 
-              color="#3a5a9a" 
-              toneMapped={false}
-            />
+            <meshBasicMaterial color="#3a5a9a" />
           </mesh>
           <pointLight 
             position={[0, step.y + 0.3, step.z + 0.95]} 
@@ -1002,34 +792,20 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
             distance={4} 
             color="#3a5a9a"
           />
-
-          {/* Step edge lights */}
-          {[-15, 15].map((x) => (
-            <mesh key={x} position={[x, step.y + 0.26, step.z + 0.93]}>
-              <sphereGeometry args={[0.04, 8, 8]} />
-              <meshStandardMaterial 
-                color="#3a5a9a" 
-                emissive="#3a5a9a"
-                emissiveIntensity={2}
-                toneMapped={false}
-              />
-            </mesh>
-          ))}
         </group>
       ))}
 
-      {/* Premium exit signs */}
+      {/* Exit signs */}
       {[
-        { pos: [-17.5, 6.5, 22], rot: [0, Math.PI / 4, 0] },
-        { pos: [17.5, 6.5, 22], rot: [0, -Math.PI / 4, 0] }
-      ].map(({ pos, rot }, i) => (
-        <group key={i} position={pos as [number, number, number]} rotation={rot as [number, number, number]}>
+        [-17, 6.5, 22],
+        [17, 6.5, 22]
+      ].map((pos, i) => (
+        <group key={i} position={pos as [number, number, number]}>
           <RoundedBox args={[1.8, 0.55, 0.08]} radius={0.05} smoothness={3} castShadow>
             <meshStandardMaterial 
               color="#059669" 
               emissive="#059669"
               emissiveIntensity={1.5}
-              toneMapped={false}
             />
           </RoundedBox>
           <Text 
@@ -1037,7 +813,6 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
             fontSize={0.25} 
             color="#fff" 
             anchorX="center"
-            font="/fonts/Arial-Bold.woff"
           >
             EXIT
           </Text>
@@ -1045,7 +820,7 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
         </group>
       ))}
 
-      {/* Recessed ceiling lights */}
+      {/* Ceiling lights */}
       <group ref={ceilingLightsRef}>
         {[
           [-10, 13.7, 0], [10, 13.7, 0],
@@ -1053,9 +828,8 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
           [-10, 13.7, 16], [10, 13.7, 16],
         ].map((pos, i) => (
           <group key={i} position={pos as [number, number, number]}>
-            {/* Light housing */}
             <mesh>
-              <cylinderGeometry args={[0.4, 0.5, 0.15, 16]} />
+              <cylinderGeometry args={[0.4, 0.5, 0.15, 12]} />
               <meshStandardMaterial 
                 color="#1a1a2e" 
                 roughness={0.4} 
@@ -1063,61 +837,49 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
               />
             </mesh>
             
-            {/* Glass cover */}
             <mesh position={[0, -0.05, 0]}>
-              <cylinderGeometry args={[0.38, 0.38, 0.05, 16]} />
+              <cylinderGeometry args={[0.38, 0.38, 0.05, 12]} />
               <meshStandardMaterial 
                 color="#ffffff" 
                 transparent
                 opacity={0.3}
-                roughness={0.1}
-                metalness={0.1}
                 emissive="#ffe8c8"
                 emissiveIntensity={0.5}
               />
             </mesh>
 
-            {/* Main light */}
             <pointLight 
-              intensity={lightsOn ? 2.5 : 0.15} 
+              intensity={2.5} 
               distance={14} 
               color="#ffe8c8"
               castShadow
-              shadow-mapSize-width={512}
-              shadow-mapSize-height={512}
             />
           </group>
         ))}
       </group>
 
-      {/* Premium projector booth */}
+      {/* Projector booth */}
       <group position={[0, 12, 23]}>
-        {/* Booth structure */}
         <mesh castShadow receiveShadow>
           <boxGeometry args={[4.5, 3, 4]} />
           <meshStandardMaterial 
             color="#0f0f22" 
-            roughness={0.6} 
-            metalness={0.4}
+            roughness={0.6}
           />
         </mesh>
 
-        {/* Window */}
         <mesh position={[0, 0.3, -2.05]}>
           <planeGeometry args={[3, 1.5]} />
           <meshStandardMaterial 
             color="#1a1a3e" 
             transparent
             opacity={0.6}
-            roughness={0.1}
-            metalness={0.5}
           />
         </mesh>
 
-        {/* Projector */}
         <group position={[0, -0.2, -1.5]}>
           <mesh castShadow>
-            <cylinderGeometry args={[0.25, 0.25, 0.8, 16]} />
+            <cylinderGeometry args={[0.25, 0.25, 0.8, 12]} />
             <meshStandardMaterial 
               color="#2a2a3e" 
               roughness={0.2} 
@@ -1125,21 +887,17 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
             />
           </mesh>
           
-          {/* Lens */}
           <mesh position={[0, 0, -0.45]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.18, 0.15, 0.1, 16]} />
+            <cylinderGeometry args={[0.18, 0.15, 0.1, 12]} />
             <meshStandardMaterial 
               color="#88aacc" 
               transparent
               opacity={0.8}
-              roughness={0.05}
-              metalness={0.9}
               emissive="#88aacc"
               emissiveIntensity={0.5}
             />
           </mesh>
 
-          {/* Projection beam */}
           <spotLight
             position={[0, 0, -0.5]}
             angle={0.25}
@@ -1148,90 +906,43 @@ const PremiumTheaterEnvironment = React.memo(function PremiumTheaterEnvironment(
             distance={45}
             color="#d4ddff"
             castShadow
-            shadow-mapSize-width={1024}
-            shadow-mapSize-height={1024}
           />
         </group>
-
-        {/* Booth lights */}
-        <pointLight position={[0, 1.2, 0]} intensity={0.5} distance={3} color="#4a6a9a" />
       </group>
 
-      {/* Premium speaker systems */}
+      {/* Speakers */}
       {[
-        { pos: [-18, SCREEN_Y - 2, SCREEN_Z + 2], rot: [0, Math.PI / 6, 0] },
-        { pos: [18, SCREEN_Y - 2, SCREEN_Z + 2], rot: [0, -Math.PI / 6, 0] },
-        { pos: [-18, SCREEN_Y + 2, SCREEN_Z + 2], rot: [0, Math.PI / 6, 0] },
-        { pos: [18, SCREEN_Y + 2, SCREEN_Z + 2], rot: [0, -Math.PI / 6, 0] },
-      ].map(({ pos, rot }, i) => (
-        <group key={i} position={pos as [number, number, number]} rotation={rot as [number, number, number]}>
-          <RoundedBox args={[0.6, 2, 0.8]} radius={0.08} smoothness={3} castShadow>
-            <meshStandardMaterial 
-              color="#0a0a1a" 
-              roughness={0.7} 
-              metalness={0.3}
-            />
-          </RoundedBox>
-          
-          {/* Speaker cones */}
-          {[0.4, 0, -0.4].map((y, j) => (
-            <mesh key={j} position={[0, y, 0.35]}>
-              <cylinderGeometry args={[0.15, 0.12, 0.1, 16]} />
-              <meshStandardMaterial 
-                color="#1a1a2e" 
-                roughness={0.8}
-              />
-            </mesh>
-          ))}
-        </group>
+        [-18, SCREEN_Y - 2, SCREEN_Z + 2],
+        [18, SCREEN_Y - 2, SCREEN_Z + 2],
+        [-18, SCREEN_Y + 2, SCREEN_Z + 2],
+        [18, SCREEN_Y + 2, SCREEN_Z + 2],
+      ].map((pos, i) => (
+        <RoundedBox key={i} args={[0.6, 2, 0.8]} radius={0.08} smoothness={3} 
+          position={pos as [number, number, number]} castShadow>
+          <meshStandardMaterial 
+            color="#0a0a1a" 
+            roughness={0.7}
+          />
+        </RoundedBox>
       ))}
 
-      {/* Ceiling stars with twinkling effect */}
-      <group ref={starsRef}>
-        {stars.map((s, i) => (
-          <mesh key={i} position={[s.x, s.y, s.z]}>
-            <sphereGeometry args={[s.size, 8, 8]} />
-            <meshStandardMaterial 
-              color="#ffffff" 
-              emissive="#ffffff"
-              emissiveIntensity={s.brightness}
-              toneMapped={false}
-            />
-          </mesh>
-        ))}
-      </group>
-
-      {/* Ambient ceiling glow */}
-      <mesh position={[0, 13.5, 5]} rotation={[Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[35, 40]} />
-        <meshStandardMaterial 
-          color="#0a0a1a" 
-          transparent
-          opacity={0.3}
-          emissive="#1a2a4a"
-          emissiveIntensity={0.1}
-        />
-      </mesh>
-
-      {/* Column accents */}
-      {[-16, 16].map((x) => 
-        [0, 12].map((z) => (
-          <mesh key={`${x}-${z}`} position={[x, 7, z]} castShadow>
-            <cylinderGeometry args={[0.3, 0.4, 14, 8]} />
-            <meshStandardMaterial 
-              color="#1a1a2e" 
-              roughness={0.5} 
-              metalness={0.5}
-            />
-          </mesh>
-        ))
-      )}
+      {/* Ceiling stars */}
+      {[...Array(40)].map((_, i) => (
+        <mesh key={i} position={[
+          (Math.random() - 0.5) * 32,
+          13.5,
+          (Math.random() - 0.5) * 35 + 5
+        ]}>
+          <sphereGeometry args={[0.02, 6, 6]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+      ))}
     </group>
   );
 });
 
-// --- ROW LABELS (Enhanced) ---
-function EnhancedRowLabels({ rows }: { rows: string[] }) {
+// --- ROW LABELS ---
+function RowLabels({ rows }: { rows: string[] }) {
   return (
     <group>
       {rows.map((row, i) => {
@@ -1239,13 +950,11 @@ function EnhancedRowLabels({ rows }: { rows: string[] }) {
         const y = i * 0.42 + 0.6;
         return (
           <React.Fragment key={row}>
-            {/* Left label */}
             <group position={[-16, y, z]}>
               <RoundedBox args={[0.6, 0.6, 0.1]} radius={0.05} smoothness={2}>
                 <meshStandardMaterial 
                   color="#1a1a3e" 
                   roughness={0.5} 
-                  metalness={0.5}
                   emissive="#3a5a9a"
                   emissiveIntensity={0.2}
                 />
@@ -1256,20 +965,16 @@ function EnhancedRowLabels({ rows }: { rows: string[] }) {
                 color="#60a5fa" 
                 anchorX="center" 
                 anchorY="middle"
-                outlineWidth={0.02}
-                outlineColor="#000"
               >
                 {row}
               </Text>
             </group>
 
-            {/* Right label */}
             <group position={[16, y, z]}>
               <RoundedBox args={[0.6, 0.6, 0.1]} radius={0.05} smoothness={2}>
                 <meshStandardMaterial 
                   color="#1a1a3e" 
                   roughness={0.5} 
-                  metalness={0.5}
                   emissive="#3a5a9a"
                   emissiveIntensity={0.2}
                 />
@@ -1280,8 +985,6 @@ function EnhancedRowLabels({ rows }: { rows: string[] }) {
                 color="#60a5fa" 
                 anchorX="center" 
                 anchorY="middle"
-                outlineWidth={0.02}
-                outlineColor="#000"
               >
                 {row}
               </Text>
@@ -1293,7 +996,7 @@ function EnhancedRowLabels({ rows }: { rows: string[] }) {
   );
 }
 
-// Keep all other components (SeatTooltip, YouTubeOverlay, MiniMap, BookingModal, etc.) the same as original
+// Keep all other helper components (SeatTooltip, YouTubeOverlay, MiniMap, BookingModal) exactly as in original
 
 // --- SEAT TOOLTIP ---
 function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number, number] }) {
@@ -1451,7 +1154,7 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
 }
 
 // ========================================
-// MAIN COMPONENT
+// MAIN COMPONENT (Same structure, just using fixed components)
 // ========================================
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
@@ -1559,7 +1262,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     });
   }, []);
 
-  // Keyboard navigation
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!viewingSeatId) return;
@@ -1592,15 +1294,12 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
 
   return (
     <div className="relative w-full h-[900px] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80">
-
       {youtubeId && <YouTubeOverlay videoId={youtubeId} rect={screenRect} />}
 
-      {/* ===== TOP CONTROLS ===== */}
+      {/* TOP CONTROLS - keeping same UI from original */}
       <div className="absolute top-0 left-0 right-0 z-20">
         <div className="bg-gradient-to-b from-black/90 via-black/60 to-transparent pt-4 pb-12 px-5">
           <div className="flex items-start justify-between gap-5">
-
-            {/* Left: Movie & Showtime */}
             <div className="flex-1 max-w-[560px]">
               <button onClick={() => setShowMoviePanel(!showMoviePanel)} className="flex items-center gap-2.5 mb-3 group">
                 <Film className="w-4 h-4 text-blue-400" />
@@ -1653,7 +1352,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
               )}
             </div>
 
-            {/* Right: Controls */}
             <div className="flex flex-col items-end gap-2">
               <div className="flex gap-1.5">
                 {[
@@ -1697,7 +1395,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* Viewing indicator */}
       {viewingSeat && (
         <div className="absolute top-[120px] left-1/2 -translate-x-1/2 z-20">
           <div className="bg-blue-600/25 backdrop-blur-xl text-white px-5 py-2 rounded-full flex items-center gap-2.5 border border-blue-500/30 shadow-xl shadow-blue-500/20">
@@ -1708,7 +1405,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       )}
 
-      {/* Seat guide */}
       <div className="absolute left-4 bottom-4 z-10">
         <button onClick={() => setShowGuide(!showGuide)}
           className="flex items-center gap-1.5 bg-black/70 backdrop-blur-xl px-3 py-1.5 rounded-lg border border-white/15 text-gray-400 hover:text-white text-xs font-medium mb-2 shadow-lg">
@@ -1719,9 +1415,9 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           <div className="bg-black/80 backdrop-blur-xl p-3 rounded-xl border border-white/15 shadow-2xl">
             <div className="grid grid-cols-2 gap-x-5 gap-y-1.5">
               {[
-                ['#2c3e50', 'Standard'],
-                ['#1e3a8a', 'Premium'],
-                ['#6b21a8', 'VIP'],
+                ['#3b4a5c', 'Standard'],
+                ['#2563eb', 'Premium'],
+                ['#7c3aed', 'VIP'],
                 ['#0d9488', 'Accessible'],
                 ['#10b981', 'Selected'],
                 ['#1a1a2e', 'Booked'],
@@ -1737,14 +1433,12 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         )}
       </div>
 
-      {/* Minimap */}
       {showMiniMap && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
           <MiniMap seats={seats} selectedIds={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
         </div>
       )}
 
-      {/* Booking panel */}
       <div className="absolute right-4 bottom-4 z-10">
         <div className="bg-slate-900/95 backdrop-blur-xl p-4 rounded-xl border border-white/15 w-[260px] shadow-2xl">
           <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
@@ -1782,7 +1476,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* ===== 3D CANVAS ===== */}
+      {/* ===== 3D CANVAS - FIXED ===== */}
       <Canvas
         shadows
         camera={{ position: [DEFAULT_CAMERA_POS.x, DEFAULT_CAMERA_POS.y, DEFAULT_CAMERA_POS.z], fov: 55, near: 0.5, far: 100 }}
@@ -1798,29 +1492,27 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
       >
         <CameraController target={cameraTarget} isAnimating={isAnimating} onDone={() => setIsAnimating(false)} controlsRef={controlsRef} />
 
-        {/* Enhanced Lighting */}
-        <ambientLight intensity={0.4} color="#b8c6db" />
-        <hemisphereLight args={['#4a5a88', '#0f0f22', 0.5]} />
+        {/* Lighting */}
+        <ambientLight intensity={0.5} color="#b8c6db" />
+        <hemisphereLight args={['#4a5a88', '#0f0f22', 0.6]} />
         
         <directionalLight
-          position={[8, 20, 10]} intensity={1.2} color="#f5ead6"
+          position={[8, 20, 10]} intensity={1.5} color="#f5ead6"
           castShadow shadow-mapSize={[2048, 2048]}
-          shadow-camera-left={-22} shadow-camera-right={22}
-          shadow-camera-top={22} shadow-camera-bottom={-22}
+          shadow-camera-left={-25} shadow-camera-right={25}
+          shadow-camera-top={25} shadow-camera-bottom={-25}
           shadow-bias={-0.0001}
         />
-        <directionalLight position={[-10, 15, -8]} intensity={0.4} color="#7788cc" />
+        <directionalLight position={[-10, 15, -8]} intensity={0.5} color="#7788cc" />
+        <directionalLight position={[0, 8, -20]} intensity={0.7} color="#5577dd" />
 
-        {/* Rim lighting */}
-        <directionalLight position={[0, 8, -20]} intensity={0.6} color="#5577dd" />
-
-        {/* Screen tracking */}
         {youtubeId && <ScreenPositionTracker onUpdate={handleScreenUpdate} />}
 
         <PremiumTheaterScreen movieTitle={selectedMovie.title} />
-        <EnhancedRowLabels rows={rows} />
-        <PremiumTheaterEnvironment lightsOn={lightsOn} />
+        <RowLabels rows={rows} />
+        <TheaterEnvironment lightsOn={lightsOn} />
 
+        {/* SEATS - NOW VISIBLE */}
         {seatPositions.map(({ seat, position }) => (
           <PremiumSeat3D 
             key={seat.id} 
@@ -1848,9 +1540,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
           rotateSpeed={0.6} 
           zoomSpeed={1} 
         />
-
-        {/* Add HDR environment for better reflections */}
-        <Environment preset="city" />
       </Canvas>
 
       <BookingModal 
@@ -1866,8 +1555,6 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         showtime={selectedShowtime} 
         total={totalPrice} 
       />
-
-      <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/40 to-transparent pointer-events-none z-[1]" />
     </div>
   );
 }
