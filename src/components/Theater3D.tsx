@@ -195,7 +195,7 @@ function CameraController({ target, isAnimating, onDone, controlsRef }: {
   return null;
 }
 
-// --- PREMIUM SEAT 3D (FIXED) ---
+// --- PREMIUM SEAT 3D ---
 const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClick, onHover, isHighlighted, soundEnabled, playSound }: {
   seat: Seat; position: [number, number, number]; onClick: (s: Seat) => void;
   onHover: (s: Seat | null, p?: [number, number, number]) => void;
@@ -257,192 +257,73 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
 
   return (
     <group ref={groupRef} position={position}>
-      {/* Glow for selected */}
       {(isSelected || isHighlighted) && (
-        <pointLight 
-          position={[0, 0.5, 0]} 
-          intensity={1.5} 
-          distance={2.5} 
-          color={isSelected ? '#10b981' : '#fbbf24'} 
-        />
+        <pointLight position={[0, 0.5, 0]} intensity={1.5} distance={2.5} color={isSelected ? '#10b981' : '#fbbf24'} />
       )}
-
-      {/* Base */}
       <mesh position={[0, -0.05, 0]} castShadow>
         <cylinderGeometry args={[0.55, 0.6, 0.1, 12]} />
-        <meshStandardMaterial 
-          color="#1a1a2e" 
-          roughness={0.3} 
-          metalness={0.8}
-        />
+        <meshStandardMaterial color="#1a1a2e" roughness={0.3} metalness={0.8} />
       </mesh>
-
-      {/* Cushion group for animation */}
       <group ref={cushionRef}>
-        {/* Main cushion */}
-        <RoundedBox 
-          args={[0.95, 0.25, 0.8]} 
-          radius={0.08} 
-          smoothness={4}
-          position={[0, 0.1, 0]}
-          castShadow 
-          receiveShadow
-          onClick={handleClick} 
-          onPointerEnter={handlePointerEnter} 
-          onPointerLeave={handlePointerLeave}
-        >
-          <meshStandardMaterial 
-            color={color}
-            roughness={0.7} 
-            metalness={0.1} 
-            emissive={color} 
-            emissiveIntensity={emissiveIntensity}
-          />
+        <RoundedBox args={[0.95, 0.25, 0.8]} radius={0.08} smoothness={4} position={[0, 0.1, 0]} castShadow receiveShadow onClick={handleClick} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
+          <meshStandardMaterial color={color} roughness={0.7} metalness={0.1} emissive={color} emissiveIntensity={emissiveIntensity} />
         </RoundedBox>
-
-        {/* Cushion detail circle */}
         <mesh position={[0, 0.23, 0]} rotation={[-Math.PI / 2, 0, 0]}>
           <ringGeometry args={[0.25, 0.35, 16]} />
-          <meshStandardMaterial 
-            color="#000" 
-            roughness={0.9}
-            transparent
-            opacity={0.3}
-          />
+          <meshStandardMaterial color="#000" roughness={0.9} transparent opacity={0.3} />
         </mesh>
       </group>
-
-      {/* Back rest */}
-      <RoundedBox 
-        args={[0.95, 0.85, 0.15]} 
-        radius={0.08} 
-        smoothness={4}
-        position={[0, 0.55, 0.38]} 
-        castShadow 
-        receiveShadow
-        onClick={handleClick} 
-        onPointerEnter={handlePointerEnter} 
-        onPointerLeave={handlePointerLeave}
-      >
-        <meshStandardMaterial 
-          color={color}
-          roughness={0.7} 
-          metalness={0.1} 
-          emissive={color} 
-          emissiveIntensity={emissiveIntensity * 0.8}
-        />
+      <RoundedBox args={[0.95, 0.85, 0.15]} radius={0.08} smoothness={4} position={[0, 0.55, 0.38]} castShadow receiveShadow onClick={handleClick} onPointerEnter={handlePointerEnter} onPointerLeave={handlePointerLeave}>
+        <meshStandardMaterial color={color} roughness={0.7} metalness={0.1} emissive={color} emissiveIntensity={emissiveIntensity * 0.8} />
       </RoundedBox>
-
-      {/* Headrest for VIP */}
       {seat.type === 'vip' && (
-        <RoundedBox 
-          args={[0.7, 0.2, 0.12]} 
-          radius={0.06} 
-          smoothness={3}
-          position={[0, 1.05, 0.35]} 
-          castShadow
-        >
-          <meshStandardMaterial 
-            color={color}
-            roughness={0.6} 
-            metalness={0.2}
-            emissive={color} 
-            emissiveIntensity={emissiveIntensity * 0.5}
-          />
+        <RoundedBox args={[0.7, 0.2, 0.12]} radius={0.06} smoothness={3} position={[0, 1.05, 0.35]} castShadow>
+          <meshStandardMaterial color={color} roughness={0.6} metalness={0.2} emissive={color} emissiveIntensity={emissiveIntensity * 0.5} />
         </RoundedBox>
       )}
-
-      {/* Armrests */}
       {[-1, 1].map((side) => (
         <group key={side} position={[side * 0.55, 0.3, 0.05]}>
-          {/* Metal frame */}
           <mesh castShadow>
             <boxGeometry args={[0.08, 0.18, 0.65]} />
-            <meshStandardMaterial 
-              color="#2a2a3e" 
-              roughness={0.2} 
-              metalness={0.9}
-            />
+            <meshStandardMaterial color="#2a2a3e" roughness={0.2} metalness={0.9} />
           </mesh>
-          {/* Padding */}
           <RoundedBox args={[0.1, 0.06, 0.5]} radius={0.02} smoothness={2} position={[0, 0.07, 0]}>
-            <meshStandardMaterial 
-              color={color}
-              roughness={0.5} 
-              metalness={0.1}
-            />
+            <meshStandardMaterial color={color} roughness={0.5} metalness={0.1} />
           </RoundedBox>
         </group>
       ))}
-
-      {/* Cup holder for premium/VIP */}
       {(seat.type === 'premium' || seat.type === 'vip') && (
         <group position={[0.65, 0.15, -0.3]}>
           <mesh>
             <cylinderGeometry args={[0.08, 0.06, 0.12, 12]} />
-            <meshStandardMaterial 
-              color="#1a1a2e" 
-              roughness={0.3} 
-              metalness={0.7}
-            />
+            <meshStandardMaterial color="#1a1a2e" roughness={0.3} metalness={0.7} />
           </mesh>
         </group>
       )}
-
-      {/* Seat number */}
-      <Text 
-        position={[0, 0.24, -0.05]}
-        fontSize={0.16} 
-        color={isBooked ? '#555' : '#fff'}
-        anchorX="center" 
-        anchorY="middle" 
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
+      <Text position={[0, 0.24, -0.05]} fontSize={0.16} color={isBooked ? '#555' : '#fff'} anchorX="center" anchorY="middle" rotation={[-Math.PI / 2, 0, 0]}>
         {seat.number}
       </Text>
-
-      {/* Type indicators */}
       {seat.type === 'vip' && (
         <group position={[0, 1.15, 0.35]}>
           <mesh>
             <octahedronGeometry args={[0.1, 0]} />
-            <meshStandardMaterial 
-              color="#fbbf24" 
-              emissive="#fbbf24" 
-              emissiveIntensity={1.5} 
-              metalness={1} 
-              roughness={0.1}
-            />
+            <meshStandardMaterial color="#fbbf24" emissive="#fbbf24" emissiveIntensity={1.5} metalness={1} roughness={0.1} />
           </mesh>
         </group>
       )}
-
       {seat.type === 'premium' && (
         <group position={[0, 1.0, 0.35]}>
           <mesh>
             <sphereGeometry args={[0.06, 12, 12]} />
-            <meshStandardMaterial 
-              color="#60a5fa" 
-              emissive="#60a5fa" 
-              emissiveIntensity={1.2} 
-              metalness={0.8} 
-              roughness={0.2}
-            />
+            <meshStandardMaterial color="#60a5fa" emissive="#60a5fa" emissiveIntensity={1.2} metalness={0.8} roughness={0.2} />
           </mesh>
         </group>
       )}
-
       {seat.type === 'accessible' && (
         <group position={[0, 1.0, 0.35]}>
           <mesh rotation={[Math.PI / 2, 0, 0]}>
             <torusGeometry args={[0.08, 0.02, 8, 12]} />
-            <meshStandardMaterial 
-              color="#34d399" 
-              emissive="#34d399" 
-              emissiveIntensity={1} 
-              metalness={0.8}
-              roughness={0.2}
-            />
+            <meshStandardMaterial color="#34d399" emissive="#34d399" emissiveIntensity={1} metalness={0.8} roughness={0.2} />
           </mesh>
         </group>
       )}
@@ -450,7 +331,7 @@ const PremiumSeat3D = React.memo(function PremiumSeat3D({ seat, position, onClic
   );
 });
 
-// --- PREMIUM THEATER SCREEN (FIXED) ---
+// --- PREMIUM THEATER SCREEN ---
 function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
   const screenRef = useRef<THREE.Mesh>(null);
   const glowRef = useRef(0);
@@ -467,168 +348,77 @@ function PremiumTheaterScreen({ movieTitle }: { movieTitle: string }) {
 
   return (
     <group position={[0, SCREEN_Y, SCREEN_Z]}>
-      {/* Wall behind */}
       <mesh position={[0, 0, -1.2]} receiveShadow>
         <boxGeometry args={[42, 20, 0.5]} />
-        <meshStandardMaterial 
-          color="#0a0a15" 
-          roughness={0.9}
-        />
+        <meshStandardMaterial color="#0a0a15" roughness={0.9} />
       </mesh>
-
-      {/* Decorative side panels */}
       {[-1, 1].map((side) => (
         <group key={side} position={[side * (SCREEN_WIDTH / 2 + 2), 0, -0.8]}>
           <mesh castShadow>
             <boxGeometry args={[3, SCREEN_HEIGHT + 4, 0.3]} />
-            <meshStandardMaterial 
-              color="#1a1a2e" 
-              roughness={0.6} 
-              metalness={0.4}
-            />
+            <meshStandardMaterial color="#1a1a2e" roughness={0.6} metalness={0.4} />
           </mesh>
-          {/* LED strip */}
           <mesh position={[0, 0, 0.2]}>
             <boxGeometry args={[0.1, SCREEN_HEIGHT + 4, 0.05]} />
-            <meshStandardMaterial 
-              color="#3b82f6" 
-              emissive="#3b82f6" 
-              emissiveIntensity={2}
-            />
+            <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={2} />
           </mesh>
         </group>
       ))}
-
-      {/* Frame layers */}
       <mesh position={[0, 0, -0.15]} castShadow>
         <boxGeometry args={[SCREEN_WIDTH + 2, SCREEN_HEIGHT + 1.5, 0.2]} />
-        <meshStandardMaterial 
-          color="#0f0f1e" 
-          roughness={0.4} 
-          metalness={0.6}
-        />
+        <meshStandardMaterial color="#0f0f1e" roughness={0.4} metalness={0.6} />
       </mesh>
-
       <mesh position={[0, 0, -0.08]}>
         <boxGeometry args={[SCREEN_WIDTH + 1.2, SCREEN_HEIGHT + 0.8, 0.15]} />
-        <meshStandardMaterial 
-          color="#1a1a35" 
-          roughness={0.3} 
-          metalness={0.7}
-        />
+        <meshStandardMaterial color="#1a1a35" roughness={0.3} metalness={0.7} />
       </mesh>
-
-      {/* Screen surface - VISIBLE NOW */}
       <mesh ref={screenRef} position={[0, 0, 0.02]}>
         <planeGeometry args={[SCREEN_WIDTH, SCREEN_HEIGHT]} />
-        <meshStandardMaterial 
-          color="#0a0a12" 
-          roughness={0.2}
-          metalness={0.3}
-          emissive="#1a1a3e"
-          emissiveIntensity={0.2}
-        />
+        <meshStandardMaterial color="#0a0a12" roughness={0.2} metalness={0.3} emissive="#1a1a3e" emissiveIntensity={0.2} />
       </mesh>
-
-      {/* Screen lighting */}
       <pointLight position={[0, 0, 5]} intensity={4} distance={40} color="#5577dd" castShadow />
       <pointLight position={[-8, 2, 3]} intensity={2} distance={20} color="#5577dd" />
       <pointLight position={[8, 2, 3]} intensity={2} distance={20} color="#5577dd" />
-
-      {/* Curtains - simplified but visible */}
       {[-1, 1].map(side => (
         <group key={side} position={[side * (SCREEN_WIDTH / 2 + 3), 0, 0.5]}>
           {[...Array(6)].map((_, i) => {
             const xOffset = side * (i * 0.5);
             const zWave = Math.sin(i * 0.7) * 0.2;
             return (
-              <mesh 
-                key={i} 
-                position={[xOffset, 0, zWave]} 
-                castShadow 
-                receiveShadow
-              >
+              <mesh key={i} position={[xOffset, 0, zWave]} castShadow receiveShadow>
                 <boxGeometry args={[0.4, SCREEN_HEIGHT + 4, 0.15]} />
-                <meshStandardMaterial 
-                  color={i % 2 === 0 ? '#8b1a1a' : '#a52828'}
-                  roughness={0.95}
-                />
+                <meshStandardMaterial color={i % 2 === 0 ? '#8b1a1a' : '#a52828'} roughness={0.95} />
               </mesh>
             );
           })}
         </group>
       ))}
-
-      {/* Curtain rod */}
       <mesh position={[0, SCREEN_HEIGHT / 2 + 2.5, 0.8]} castShadow>
         <cylinderGeometry args={[0.12, 0.12, SCREEN_WIDTH + 12, 12]} />
-        <meshStandardMaterial 
-          color="#8b7355" 
-          roughness={0.2} 
-          metalness={0.9}
-        />
+        <meshStandardMaterial color="#8b7355" roughness={0.2} metalness={0.9} />
       </mesh>
-
-      {/* Finials */}
       {[-1, 1].map(side => (
         <mesh key={side} position={[side * (SCREEN_WIDTH / 2 + 6.5), SCREEN_HEIGHT / 2 + 2.5, 0.8]} castShadow>
           <sphereGeometry args={[0.25, 12, 12]} />
-          <meshStandardMaterial 
-            color="#d4af37" 
-            roughness={0.2} 
-            metalness={0.9}
-            emissive="#d4af37"
-            emissiveIntensity={0.3}
-          />
+          <meshStandardMaterial color="#d4af37" roughness={0.2} metalness={0.9} emissive="#d4af37" emissiveIntensity={0.3} />
         </mesh>
       ))}
-
-      {/* Pelmet */}
       <mesh position={[0, SCREEN_HEIGHT / 2 + 2, 0.5]} castShadow>
         <boxGeometry args={[SCREEN_WIDTH + 10, 2.2, 0.8]} />
-        <meshStandardMaterial 
-          color="#7a1a1a" 
-          roughness={0.9}
-        />
+        <meshStandardMaterial color="#7a1a1a" roughness={0.9} />
       </mesh>
-
-      {/* Movie title */}
       <group position={[0, -SCREEN_HEIGHT / 2 - 1.5, 0.3]}>
-        <Text 
-          fontSize={0.6} 
-          color="#6b8cce" 
-          anchorX="center" 
-          letterSpacing={0.15}
-        >
-          NOW SHOWING
-        </Text>
-        <Text 
-          position={[0, -0.8, 0]}
-          fontSize={0.45} 
-          color="#9ab0d9" 
-          anchorX="center" 
-          letterSpacing={0.08}
-          maxWidth={SCREEN_WIDTH - 2}
-        >
+        <Text fontSize={0.6} color="#6b8cce" anchorX="center" letterSpacing={0.15}>NOW SHOWING</Text>
+        <Text position={[0, -0.8, 0]} fontSize={0.45} color="#9ab0d9" anchorX="center" letterSpacing={0.08} maxWidth={SCREEN_WIDTH - 2}>
           {movieTitle.toUpperCase()}
         </Text>
       </group>
-
-      {/* Spotlight */}
-      <spotLight
-        position={[0, SCREEN_HEIGHT / 2 + 3, 2]}
-        angle={0.8}
-        penumbra={0.5}
-        intensity={2}
-        distance={25}
-        color="#8899cc"
-        castShadow
-      />
+      <spotLight position={[0, SCREEN_HEIGHT / 2 + 3, 2]} angle={0.8} penumbra={0.5} intensity={2} distance={25} color="#8899cc" castShadow />
     </group>
   );
 }
 
-// --- WALL SCONCES (FIXED) ---
+// --- WALL SCONCES ---
 function WallSconces() {
   const positions = useMemo(() => {
     const p: { pos: [number, number, number]; rot: [number, number, number] }[] = [];
@@ -643,42 +433,22 @@ function WallSconces() {
     <group>
       {positions.map((s, i) => (
         <group key={i} position={s.pos} rotation={s.rot}>
-          {/* Backplate */}
           <mesh>
             <cylinderGeometry args={[0.2, 0.25, 0.08, 6]} />
-            <meshStandardMaterial 
-              color="#c4982a" 
-              roughness={0.2} 
-              metalness={0.9}
-            />
+            <meshStandardMaterial color="#c4982a" roughness={0.2} metalness={0.9} />
           </mesh>
-          
-          {/* Glass shade */}
           <mesh position={[0, 0, 0.2]}>
             <sphereGeometry args={[0.12, 12, 12]} />
-            <meshStandardMaterial 
-              color="#fff5e0" 
-              transparent
-              opacity={0.6}
-              emissive="#ffe8b0" 
-              emissiveIntensity={0.5}
-            />
+            <meshStandardMaterial color="#fff5e0" transparent opacity={0.6} emissive="#ffe8b0" emissiveIntensity={0.5} />
           </mesh>
-
-          {/* Light */}
-          <pointLight 
-            position={[0, 0, 0.2]} 
-            intensity={0.8} 
-            distance={6} 
-            color="#ffddaa"
-          />
+          <pointLight position={[0, 0, 0.2]} intensity={0.8} distance={6} color="#ffddaa" />
         </group>
       ))}
     </group>
   );
 }
 
-// --- THEATER ENVIRONMENT (FIXED) ---
+// --- THEATER ENVIRONMENT ---
 const TheaterEnvironment = React.memo(function TheaterEnvironment({ lightsOn }: { lightsOn: boolean }) {
   const { scene } = useThree();
   const ceilingLightsRef = useRef<THREE.Group>(null);
@@ -702,237 +472,105 @@ const TheaterEnvironment = React.memo(function TheaterEnvironment({ lightsOn }: 
   });
 
   const steps = useMemo(() => Array.from({ length: 11 }, (_, i) => ({
-    z: i * 1.9 + 1,
-    y: i * 0.42,
-    index: i,
+    z: i * 1.9 + 1, y: i * 0.42, index: i,
   })), []);
 
   return (
     <group>
-      {/* Floor */}
       <mesh position={[0, -0.01, 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[50, 60]} />
-        <meshStandardMaterial 
-          color="#14142a" 
-          roughness={0.95}
-        />
+        <meshStandardMaterial color="#14142a" roughness={0.95} />
       </mesh>
-
-      {/* Center aisle */}
       <mesh position={[0, 0.008, 8]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <planeGeometry args={[2.4, 24]} />
-        <meshStandardMaterial 
-          color="#2a0e0e" 
-          roughness={0.98}
-        />
+        <meshStandardMaterial color="#2a0e0e" roughness={0.98} />
       </mesh>
-
-      {/* Walls */}
       <mesh position={[-19, 7, 2]} rotation={[0, Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[52, 16]} />
-        <meshStandardMaterial 
-          color="#0f0f22" 
-          roughness={0.9}
-        />
+        <meshStandardMaterial color="#0f0f22" roughness={0.9} />
       </mesh>
       <mesh position={[19, 7, 2]} rotation={[0, -Math.PI / 2, 0]} receiveShadow>
         <planeGeometry args={[52, 16]} />
-        <meshStandardMaterial 
-          color="#0f0f22" 
-          roughness={0.9}
-        />
+        <meshStandardMaterial color="#0f0f22" roughness={0.9} />
       </mesh>
       <mesh position={[0, 7, 25]} rotation={[0, Math.PI, 0]} receiveShadow>
         <planeGeometry args={[40, 16]} />
-        <meshStandardMaterial 
-          color="#0a0a1a" 
-          roughness={0.95}
-        />
+        <meshStandardMaterial color="#0a0a1a" roughness={0.95} />
       </mesh>
-
-      {/* Ceiling */}
       <mesh position={[0, 14, 5]} rotation={[Math.PI / 2, 0, 0]}>
         <planeGeometry args={[40, 44]} />
-        <meshStandardMaterial 
-          color="#08081a" 
-          roughness={0.95}
-        />
+        <meshStandardMaterial color="#08081a" roughness={0.95} />
       </mesh>
-
-      {/* Wall sconces */}
       <WallSconces />
-
-      {/* Steps */}
       {steps.map(step => (
         <group key={step.index}>
           <mesh position={[0, step.y, step.z]} receiveShadow castShadow>
             <boxGeometry args={[34, 0.5, 1.9]} />
-            <meshStandardMaterial 
-              color="#1a1a32" 
-              roughness={0.7}
-            />
+            <meshStandardMaterial color="#1a1a32" roughness={0.7} />
           </mesh>
-          
           <mesh position={[0, step.y + 0.25, step.z + 0.94]}>
             <boxGeometry args={[34, 0.5, 0.04]} />
-            <meshStandardMaterial 
-              color="#12122a" 
-              roughness={0.8}
-            />
+            <meshStandardMaterial color="#12122a" roughness={0.8} />
           </mesh>
-          
-          {/* LED strip */}
           <mesh position={[0, step.y + 0.26, step.z + 0.93]}>
             <boxGeometry args={[30, 0.03, 0.03]} />
             <meshBasicMaterial color="#3a5a9a" />
           </mesh>
-          <pointLight 
-            position={[0, step.y + 0.3, step.z + 0.95]} 
-            intensity={0.3} 
-            distance={4} 
-            color="#3a5a9a"
-          />
+          <pointLight position={[0, step.y + 0.3, step.z + 0.95]} intensity={0.3} distance={4} color="#3a5a9a" />
         </group>
       ))}
-
-      {/* Exit signs */}
-      {[
-        [-17, 6.5, 22],
-        [17, 6.5, 22]
-      ].map((pos, i) => (
+      {[[-17, 6.5, 22], [17, 6.5, 22]].map((pos, i) => (
         <group key={i} position={pos as [number, number, number]}>
           <RoundedBox args={[1.8, 0.55, 0.08]} radius={0.05} smoothness={3} castShadow>
-            <meshStandardMaterial 
-              color="#059669" 
-              emissive="#059669"
-              emissiveIntensity={1.5}
-            />
+            <meshStandardMaterial color="#059669" emissive="#059669" emissiveIntensity={1.5} />
           </RoundedBox>
-          <Text 
-            position={[0, 0, 0.05]} 
-            fontSize={0.25} 
-            color="#fff" 
-            anchorX="center"
-          >
-            EXIT
-          </Text>
+          <Text position={[0, 0, 0.05]} fontSize={0.25} color="#fff" anchorX="center">EXIT</Text>
           <pointLight position={[0, 0, 0.3]} intensity={1} distance={5} color="#059669" />
         </group>
       ))}
-
-      {/* Ceiling lights */}
       <group ref={ceilingLightsRef}>
-        {[
-          [-10, 13.7, 0], [10, 13.7, 0],
-          [-10, 13.7, 8], [10, 13.7, 8],
-          [-10, 13.7, 16], [10, 13.7, 16],
-        ].map((pos, i) => (
+        {[[-10, 13.7, 0], [10, 13.7, 0], [-10, 13.7, 8], [10, 13.7, 8], [-10, 13.7, 16], [10, 13.7, 16]].map((pos, i) => (
           <group key={i} position={pos as [number, number, number]}>
             <mesh>
               <cylinderGeometry args={[0.4, 0.5, 0.15, 12]} />
-              <meshStandardMaterial 
-                color="#1a1a2e" 
-                roughness={0.4} 
-                metalness={0.6}
-              />
+              <meshStandardMaterial color="#1a1a2e" roughness={0.4} metalness={0.6} />
             </mesh>
-            
             <mesh position={[0, -0.05, 0]}>
               <cylinderGeometry args={[0.38, 0.38, 0.05, 12]} />
-              <meshStandardMaterial 
-                color="#ffffff" 
-                transparent
-                opacity={0.3}
-                emissive="#ffe8c8"
-                emissiveIntensity={0.5}
-              />
+              <meshStandardMaterial color="#ffffff" transparent opacity={0.3} emissive="#ffe8c8" emissiveIntensity={0.5} />
             </mesh>
-
-            <pointLight 
-              intensity={2.5} 
-              distance={14} 
-              color="#ffe8c8"
-              castShadow
-            />
+            <pointLight intensity={2.5} distance={14} color="#ffe8c8" castShadow />
           </group>
         ))}
       </group>
-
-      {/* Projector booth */}
       <group position={[0, 12, 23]}>
         <mesh castShadow receiveShadow>
           <boxGeometry args={[4.5, 3, 4]} />
-          <meshStandardMaterial 
-            color="#0f0f22" 
-            roughness={0.6}
-          />
+          <meshStandardMaterial color="#0f0f22" roughness={0.6} />
         </mesh>
-
         <mesh position={[0, 0.3, -2.05]}>
           <planeGeometry args={[3, 1.5]} />
-          <meshStandardMaterial 
-            color="#1a1a3e" 
-            transparent
-            opacity={0.6}
-          />
+          <meshStandardMaterial color="#1a1a3e" transparent opacity={0.6} />
         </mesh>
-
         <group position={[0, -0.2, -1.5]}>
           <mesh castShadow>
             <cylinderGeometry args={[0.25, 0.25, 0.8, 12]} />
-            <meshStandardMaterial 
-              color="#2a2a3e" 
-              roughness={0.2} 
-              metalness={0.8}
-            />
+            <meshStandardMaterial color="#2a2a3e" roughness={0.2} metalness={0.8} />
           </mesh>
-          
           <mesh position={[0, 0, -0.45]} rotation={[Math.PI / 2, 0, 0]}>
             <cylinderGeometry args={[0.18, 0.15, 0.1, 12]} />
-            <meshStandardMaterial 
-              color="#88aacc" 
-              transparent
-              opacity={0.8}
-              emissive="#88aacc"
-              emissiveIntensity={0.5}
-            />
+            <meshStandardMaterial color="#88aacc" transparent opacity={0.8} emissive="#88aacc" emissiveIntensity={0.5} />
           </mesh>
-
-          <spotLight
-            position={[0, 0, -0.5]}
-            angle={0.25}
-            penumbra={0.4}
-            intensity={3}
-            distance={45}
-            color="#d4ddff"
-            castShadow
-          />
+          <spotLight position={[0, 0, -0.5]} angle={0.25} penumbra={0.4} intensity={3} distance={45} color="#d4ddff" castShadow />
         </group>
       </group>
-
-      {/* Speakers */}
-      {[
-        [-18, SCREEN_Y - 2, SCREEN_Z + 2],
-        [18, SCREEN_Y - 2, SCREEN_Z + 2],
-        [-18, SCREEN_Y + 2, SCREEN_Z + 2],
-        [18, SCREEN_Y + 2, SCREEN_Z + 2],
-      ].map((pos, i) => (
-        <RoundedBox key={i} args={[0.6, 2, 0.8]} radius={0.08} smoothness={3} 
-          position={pos as [number, number, number]} castShadow>
-          <meshStandardMaterial 
-            color="#0a0a1a" 
-            roughness={0.7}
-          />
+      {[[-18, SCREEN_Y - 2, SCREEN_Z + 2], [18, SCREEN_Y - 2, SCREEN_Z + 2], [-18, SCREEN_Y + 2, SCREEN_Z + 2], [18, SCREEN_Y + 2, SCREEN_Z + 2]].map((pos, i) => (
+        <RoundedBox key={i} args={[0.6, 2, 0.8]} radius={0.08} smoothness={3} position={pos as [number, number, number]} castShadow>
+          <meshStandardMaterial color="#0a0a1a" roughness={0.7} />
         </RoundedBox>
       ))}
-
-      {/* Ceiling stars */}
       {[...Array(40)].map((_, i) => (
-        <mesh key={i} position={[
-          (Math.random() - 0.5) * 32,
-          13.5,
-          (Math.random() - 0.5) * 35 + 5
-        ]}>
+        <mesh key={i} position={[(Math.random() - 0.5) * 32, 13.5, (Math.random() - 0.5) * 35 + 5]}>
           <sphereGeometry args={[0.02, 6, 6]} />
           <meshBasicMaterial color="#ffffff" />
         </mesh>
@@ -952,42 +590,15 @@ function RowLabels({ rows }: { rows: string[] }) {
           <React.Fragment key={row}>
             <group position={[-16, y, z]}>
               <RoundedBox args={[0.6, 0.6, 0.1]} radius={0.05} smoothness={2}>
-                <meshStandardMaterial 
-                  color="#1a1a3e" 
-                  roughness={0.5} 
-                  emissive="#3a5a9a"
-                  emissiveIntensity={0.2}
-                />
+                <meshStandardMaterial color="#1a1a3e" roughness={0.5} emissive="#3a5a9a" emissiveIntensity={0.2} />
               </RoundedBox>
-              <Text 
-                position={[0, 0, 0.06]} 
-                fontSize={0.4} 
-                color="#60a5fa" 
-                anchorX="center" 
-                anchorY="middle"
-              >
-                {row}
-              </Text>
+              <Text position={[0, 0, 0.06]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="middle">{row}</Text>
             </group>
-
             <group position={[16, y, z]}>
               <RoundedBox args={[0.6, 0.6, 0.1]} radius={0.05} smoothness={2}>
-                <meshStandardMaterial 
-                  color="#1a1a3e" 
-                  roughness={0.5} 
-                  emissive="#3a5a9a"
-                  emissiveIntensity={0.2}
-                />
+                <meshStandardMaterial color="#1a1a3e" roughness={0.5} emissive="#3a5a9a" emissiveIntensity={0.2} />
               </RoundedBox>
-              <Text 
-                position={[0, 0, 0.06]} 
-                fontSize={0.4} 
-                color="#60a5fa" 
-                anchorX="center" 
-                anchorY="middle"
-              >
-                {row}
-              </Text>
+              <Text position={[0, 0, 0.06]} fontSize={0.4} color="#60a5fa" anchorX="center" anchorY="middle">{row}</Text>
             </group>
           </React.Fragment>
         );
@@ -995,8 +606,6 @@ function RowLabels({ rows }: { rows: string[] }) {
     </group>
   );
 }
-
-// Keep all other helper components (SeatTooltip, YouTubeOverlay, MiniMap, BookingModal) exactly as in original
 
 // --- SEAT TOOLTIP ---
 function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number, number] }) {
@@ -1016,7 +625,7 @@ function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number
         </div>
         <div className="flex justify-between text-sm mb-1">
           <span className="text-gray-400">Price</span>
-          <span className="font-bold text-emerald-400 text-base">${seat.price.toFixed(2)}</span>
+          <span className="font-bold text-emerald-400 text-base">₹{seat.price.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">Status</span>
@@ -1131,15 +740,15 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
                   ${s.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' :
                     s.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
                     'bg-white/5 text-gray-300 border-white/10'}`}>
-                  {s.row}{s.number} <span className="text-gray-400 ml-1">${s.price}</span>
+                  {s.row}{s.number} <span className="text-gray-400 ml-1">₹{s.price}</span>
                 </span>
               ))}
             </div>
           </div>
           <div className="border-t border-white/10 pt-3 space-y-2">
-            <div className="flex justify-between text-sm text-gray-400"><span>{selectedSeats.length}× Tickets</span><span>${total.toFixed(2)}</span></div>
-            <div className="flex justify-between text-sm text-gray-500"><span>Service fee</span><span>$2.50</span></div>
-            <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-lg">${(total + 2.5).toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-400"><span>{selectedSeats.length}× Tickets</span><span>₹{total.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-500"><span>Service fee</span><span>₹2.50</span></div>
+            <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-lg">₹{(total + 2.5).toFixed(2)}</span></div>
           </div>
           <div className="flex gap-3 mt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 text-sm font-semibold transition-all">Cancel</button>
@@ -1154,7 +763,7 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
 }
 
 // ========================================
-// MAIN COMPONENT (Same structure, just using fixed components)
+// MAIN COMPONENT
 // ========================================
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
@@ -1172,6 +781,8 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [screenRect, setScreenRect] = useState({ left: 0, top: 0, width: 0, height: 0, visible: false });
   const [showGuide, setShowGuide] = useState(false);
   const [showMoviePanel, setShowMoviePanel] = useState(true);
+  // ✅ NEW: track if we're in "seat view" mode (looking at screen from seat)
+  const [isSeatViewMode, setIsSeatViewMode] = useState(false);
 
   const controlsRef = useRef<any>(null);
   const { playSound } = useAudio();
@@ -1215,15 +826,33 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     return scored.slice(0, count).map(s => s.seat.id);
   }, [seatPositions]);
 
+  // ✅ FIXED handleSeatClick — places camera just behind/above the seat,
+  //    looking toward the screen center. No more jarring zoom-in/out.
   const handleSeatClick = useCallback((seat: Seat) => {
     if (soundEnabled) playSound('click');
     onSeatClick(seat);
+
     const sd = seatPositions.find(s => s.seat.id === seat.id);
     if (sd) {
       const [x, y, z] = sd.position;
-      setCameraTarget({ position: new THREE.Vector3(x * 0.35, y + 2.5, z + 4), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
+
+      // Camera sits just behind and slightly above eye-level of the seat
+      const camX = x * 0.4;          // slight horizontal offset toward center
+      const camY = y + 1.4;          // eye-level height above seat
+      const camZ = z + 1.2;          // just behind the seat position
+
+      // Look at the center of the screen
+      const lookAtX = x * 0.1;       // barely offset so gaze is mostly centered
+      const lookAtY = SCREEN_Y;
+      const lookAtZ = SCREEN_Z;
+
+      setCameraTarget({
+        position: new THREE.Vector3(camX, camY, camZ),
+        lookAt: new THREE.Vector3(lookAtX, lookAtY, lookAtZ),
+      });
       setIsAnimating(true);
       setViewingSeatId(seat.id);
+      setIsSeatViewMode(true);
     }
   }, [soundEnabled, playSound, onSeatClick, seatPositions]);
 
@@ -1238,11 +867,13 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     setIsAnimating(true);
     setViewingSeatId(null);
     setViewMode('default');
+    setIsSeatViewMode(false);
   }, [soundEnabled, playSound]);
 
   const changeView = useCallback((mode: ViewMode) => {
     if (soundEnabled) playSound('click');
     setViewMode(mode);
+    setIsSeatViewMode(false);
     const views: Record<ViewMode, CameraTarget> = {
       default: { position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT },
       topdown: { position: new THREE.Vector3(0, 28, 10), lookAt: new THREE.Vector3(0, 0, 8) },
@@ -1280,7 +911,13 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         const td = seatPositions.find(s => s.seat.id === target!.id);
         if (td) {
           const [x, y, z] = td.position;
-          setCameraTarget({ position: new THREE.Vector3(x * 0.35, y + 2.5, z + 4), lookAt: new THREE.Vector3(0, SCREEN_Y, SCREEN_Z) });
+          const camX = x * 0.4;
+          const camY = y + 1.4;
+          const camZ = z + 1.2;
+          setCameraTarget({
+            position: new THREE.Vector3(camX, camY, camZ),
+            lookAt: new THREE.Vector3(x * 0.1, SCREEN_Y, SCREEN_Z),
+          });
           setIsAnimating(true);
           setViewingSeatId(target.id);
         }
@@ -1296,52 +933,39 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     <div className="relative w-full h-[900px] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80">
       {youtubeId && <YouTubeOverlay videoId={youtubeId} rect={screenRect} />}
 
-      {/* TOP CONTROLS - keeping same UI from original */}
+      {/* TOP CONTROLS */}
       <div className="absolute top-0 left-0 right-0 z-20">
         <div className="bg-gradient-to-b from-black/90 via-black/60 to-transparent pt-4 pb-12 px-5">
           <div className="flex items-start justify-between gap-5">
             <div className="flex-1 max-w-[560px]">
               <button onClick={() => setShowMoviePanel(!showMoviePanel)} className="flex items-center gap-2.5 mb-3 group">
                 <Film className="w-4 h-4 text-blue-400" />
-                <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">
-                  Movie & Showtime
-                </span>
+                <span className="text-xs font-bold uppercase tracking-widest text-gray-300 group-hover:text-white transition-colors">Movie & Showtime</span>
                 {showMoviePanel ? <ChevronDown className="w-3.5 h-3.5 text-gray-500" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-500" />}
               </button>
-
               {showMoviePanel && (
                 <div className="space-y-3">
                   <div className="flex gap-2 overflow-x-auto pb-2">
                     {movies.map(movie => (
-                      <button key={movie.id}
-                        onClick={() => { if (soundEnabled) playSound('click'); setSelectedMovie(movie); }}
+                      <button key={movie.id} onClick={() => { if (soundEnabled) playSound('click'); setSelectedMovie(movie); }}
                         className={`flex-shrink-0 flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all border shadow-lg
-                          ${selectedMovie.id === movie.id
-                            ? 'bg-blue-600/40 border-blue-400/60 text-white shadow-blue-500/30'
-                            : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'
-                          }`}>
-                        <img src={movie.image} alt="" className="w-6 h-9 object-cover rounded shadow-md"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                          ${selectedMovie.id === movie.id ? 'bg-blue-600/40 border-blue-400/60 text-white shadow-blue-500/30' : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:bg-white/10'}`}>
+                        <img src={movie.image} alt="" className="w-6 h-9 object-cover rounded shadow-md" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         <span className="whitespace-nowrap">{movie.title}</span>
                       </button>
                     ))}
                   </div>
                   <div className="flex gap-2 flex-wrap">
                     {showtimes.map(st => (
-                      <button key={st.id}
-                        onClick={() => { if (soundEnabled) playSound('click'); setSelectedShowtime(st); }}
+                      <button key={st.id} onClick={() => { if (soundEnabled) playSound('click'); setSelectedShowtime(st); }}
                         className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shadow-md
-                          ${selectedShowtime.id === st.id
-                            ? 'bg-emerald-600/40 border-emerald-400/60 text-emerald-300 shadow-emerald-500/30'
-                            : 'bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/8'
-                          }`}>
+                          ${selectedShowtime.id === st.id ? 'bg-emerald-600/40 border-emerald-400/60 text-emerald-300 shadow-emerald-500/30' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/8'}`}>
                         {st.time}
                       </button>
                     ))}
                   </div>
                   <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2 border border-white/10 shadow-lg">
-                    <img src={selectedMovie.image} alt="" className="w-8 h-12 object-cover rounded shadow-lg"
-                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    <img src={selectedMovie.image} alt="" className="w-8 h-12 object-cover rounded shadow-lg" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     <div className="min-w-0 flex-1">
                       <p className="text-white text-sm font-bold truncate">{selectedMovie.title}</p>
                       <p className="text-gray-400 text-[10px] mt-0.5">{selectedMovie.genre} · {selectedMovie.duration}</p>
@@ -1375,7 +999,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
                 ]).map(({ m, l, I }) => (
                   <button key={m} onClick={() => changeView(m)}
                     className={`px-2.5 py-1.5 rounded-lg text-[10px] font-bold transition-all border flex items-center gap-1 shadow-md
-                      ${viewMode === m ? 'bg-white/15 border-white/25 text-white shadow-white/20' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/10'}`}>
+                      ${viewMode === m && !isSeatViewMode ? 'bg-white/15 border-white/25 text-white shadow-white/20' : 'bg-white/5 border-white/10 text-gray-500 hover:text-white hover:bg-white/10'}`}>
                     <I className="w-3 h-3" />{l}
                   </button>
                 ))}
@@ -1385,176 +1009,4 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
                   className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-amber-500/25 border border-amber-500/30 text-amber-400 hover:bg-amber-500/35 flex items-center gap-1.5 shadow-lg shadow-amber-500/20">
                   <Sparkles className="w-3 h-3" /> Best Seats
                 </button>
-                <button onClick={resetView}
-                  className="px-3 py-1.5 rounded-lg text-[10px] font-bold bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:bg-white/10 flex items-center gap-1.5 shadow-md">
-                  <RotateCcw className="w-3 h-3" /> Reset
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {viewingSeat && (
-        <div className="absolute top-[120px] left-1/2 -translate-x-1/2 z-20">
-          <div className="bg-blue-600/25 backdrop-blur-xl text-white px-5 py-2 rounded-full flex items-center gap-2.5 border border-blue-500/30 shadow-xl shadow-blue-500/20">
-            <Eye className="w-3.5 h-3.5 text-blue-400" />
-            <span className="text-xs font-bold">Row {viewingSeat.row} · Seat {viewingSeat.number}</span>
-            <span className="text-gray-400 text-[10px]">· Arrow keys to navigate</span>
-          </div>
-        </div>
-      )}
-
-      <div className="absolute left-4 bottom-4 z-10">
-        <button onClick={() => setShowGuide(!showGuide)}
-          className="flex items-center gap-1.5 bg-black/70 backdrop-blur-xl px-3 py-1.5 rounded-lg border border-white/15 text-gray-400 hover:text-white text-xs font-medium mb-2 shadow-lg">
-          <Info className="w-3 h-3" /> Guide
-          {showGuide ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-        </button>
-        {showGuide && (
-          <div className="bg-black/80 backdrop-blur-xl p-3 rounded-xl border border-white/15 shadow-2xl">
-            <div className="grid grid-cols-2 gap-x-5 gap-y-1.5">
-              {[
-                ['#3b4a5c', 'Standard'],
-                ['#2563eb', 'Premium'],
-                ['#7c3aed', 'VIP'],
-                ['#0d9488', 'Accessible'],
-                ['#10b981', 'Selected'],
-                ['#1a1a2e', 'Booked'],
-                ['#fbbf24', 'Best Seats']
-              ].map(([c, l]) => (
-                <div key={l} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-md flex-shrink-0 shadow-lg" style={{ backgroundColor: c }} />
-                  <span className="text-gray-300 text-xs font-medium">{l}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {showMiniMap && (
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10">
-          <MiniMap seats={seats} selectedIds={selectedSeats.map(s => s.id)} onSeatClick={handleSeatClick} />
-        </div>
-      )}
-
-      <div className="absolute right-4 bottom-4 z-10">
-        <div className="bg-slate-900/95 backdrop-blur-xl p-4 rounded-xl border border-white/15 w-[260px] shadow-2xl">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-3 flex items-center gap-2">
-            <Ticket className="w-3.5 h-3.5 text-emerald-400" /> Your Tickets
-          </h3>
-          {selectedSeats.length > 0 ? (
-            <>
-              <div className="flex flex-wrap gap-1.5 mb-3">
-                {selectedSeats.map(seat => (
-                  <span key={seat.id} className={`px-2 py-1 rounded-lg text-xs font-bold border shadow-md
-                    ${seat.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border-purple-500/25' :
-                      seat.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border-blue-500/25' :
-                      'bg-white/5 text-gray-300 border-white/10'}`}>
-                    {seat.row}{seat.number} <span className="text-gray-400">₹{seat.price}</span>
-                  </span>
-                ))}
-              </div>
-              <div className="space-y-1 text-xs border-t border-white/10 pt-2.5">
-                <div className="flex justify-between text-gray-400"><span>{selectedSeats.length} ticket{selectedSeats.length > 1 ? 's' : ''}</span><span>${totalPrice.toFixed(2)}</span></div>
-                <div className="flex justify-between text-gray-500"><span>Fee</span><span>₹2.50</span></div>
-                <div className="flex justify-between text-sm font-bold text-white pt-1.5 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-base">${(totalPrice + 2.5).toFixed(2)}</span></div>
-              </div>
-              <button onClick={() => setShowBookingModal(true)}
-                className="w-full mt-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all">
-                <Check className="w-4 h-4" /> Checkout
-              </button>
-            </>
-          ) : (
-            <div className="text-center py-6">
-              <Sofa className="w-9 h-9 text-gray-700 mx-auto mb-2" />
-              <p className="text-gray-500 text-xs font-medium">No seats selected</p>
-              <p className="text-gray-600 text-[10px] mt-1">Click a seat to begin</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ===== 3D CANVAS - FIXED ===== */}
-      <Canvas
-        shadows
-        camera={{ position: [DEFAULT_CAMERA_POS.x, DEFAULT_CAMERA_POS.y, DEFAULT_CAMERA_POS.z], fov: 55, near: 0.5, far: 100 }}
-        gl={{
-          antialias: true,
-          preserveDrawingBuffer: true,
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.2,
-          powerPreference: 'high-performance',
-        }}
-        style={{ background: 'linear-gradient(to bottom, #05050a, #0a0a15)' }}
-        dpr={[1, 2]}
-      >
-        <CameraController target={cameraTarget} isAnimating={isAnimating} onDone={() => setIsAnimating(false)} controlsRef={controlsRef} />
-
-        {/* Lighting */}
-        <ambientLight intensity={0.5} color="#b8c6db" />
-        <hemisphereLight args={['#4a5a88', '#0f0f22', 0.6]} />
-        
-        <directionalLight
-          position={[8, 20, 10]} intensity={1.5} color="#f5ead6"
-          castShadow shadow-mapSize={[2048, 2048]}
-          shadow-camera-left={-25} shadow-camera-right={25}
-          shadow-camera-top={25} shadow-camera-bottom={-25}
-          shadow-bias={-0.0001}
-        />
-        <directionalLight position={[-10, 15, -8]} intensity={0.5} color="#7788cc" />
-        <directionalLight position={[0, 8, -20]} intensity={0.7} color="#5577dd" />
-
-        {youtubeId && <ScreenPositionTracker onUpdate={handleScreenUpdate} />}
-
-        <PremiumTheaterScreen movieTitle={selectedMovie.title} />
-        <RowLabels rows={rows} />
-        <TheaterEnvironment lightsOn={lightsOn} />
-
-        {/* SEATS - NOW VISIBLE */}
-        {seatPositions.map(({ seat, position }) => (
-          <PremiumSeat3D 
-            key={seat.id} 
-            seat={seat} 
-            position={position} 
-            onClick={handleSeatClick}
-            onHover={handleSeatHover} 
-            isHighlighted={highlightedSeats.includes(seat.id)}
-            soundEnabled={soundEnabled} 
-            playSound={playSound} 
-          />
-        ))}
-
-        {hoveredSeat && <SeatTooltip seat={hoveredSeat.seat} position={hoveredSeat.position} />}
-
-        <OrbitControls 
-          ref={controlsRef} 
-          minDistance={4} 
-          maxDistance={40}
-          maxPolarAngle={Math.PI / 2.05} 
-          minPolarAngle={0.15}
-          target={[DEFAULT_LOOK_AT.x, DEFAULT_LOOK_AT.y, DEFAULT_LOOK_AT.z]}
-          enableDamping 
-          dampingFactor={0.05} 
-          rotateSpeed={0.6} 
-          zoomSpeed={1} 
-        />
-      </Canvas>
-
-      <BookingModal 
-        isOpen={showBookingModal} 
-        onClose={() => setShowBookingModal(false)}
-        onConfirm={() => { 
-          if (soundEnabled) playSound('success'); 
-          setShowBookingModal(false); 
-          alert('🎬 Booking confirmed! Enjoy your movie!'); 
-        }}
-        selectedSeats={selectedSeats} 
-        movie={selectedMovie} 
-        showtime={selectedShowtime} 
-        total={totalPrice} 
-      />
-    </div>
-  );
-}
+                <button 
