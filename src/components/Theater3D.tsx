@@ -996,6 +996,8 @@ function RowLabels({ rows }: { rows: string[] }) {
   );
 }
 
+// Keep all other helper components (SeatTooltip, YouTubeOverlay, MiniMap, BookingModal) exactly as in original
+
 // --- SEAT TOOLTIP ---
 function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number, number] }) {
   const isBooked = seat.status === 'booked' || seat.isBooked;
@@ -1014,7 +1016,7 @@ function SeatTooltip({ seat, position }: { seat: Seat; position: [number, number
         </div>
         <div className="flex justify-between text-sm mb-1">
           <span className="text-gray-400">Price</span>
-          <span className="font-bold text-emerald-400 text-base">₹{seat.price.toFixed(2)}</span>
+          <span className="font-bold text-emerald-400 text-base">${seat.price.toFixed(2)}</span>
         </div>
         <div className="flex justify-between text-sm">
           <span className="text-gray-400">Status</span>
@@ -1129,15 +1131,15 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
                   ${s.type === 'vip' ? 'bg-purple-500/20 text-purple-300 border-purple-500/30' :
                     s.type === 'premium' ? 'bg-blue-500/20 text-blue-300 border-blue-500/30' :
                     'bg-white/5 text-gray-300 border-white/10'}`}>
-                  {s.row}{s.number} <span className="text-gray-400 ml-1">₹{s.price}</span>
+                  {s.row}{s.number} <span className="text-gray-400 ml-1">${s.price}</span>
                 </span>
               ))}
             </div>
           </div>
           <div className="border-t border-white/10 pt-3 space-y-2">
-            <div className="flex justify-between text-sm text-gray-400"><span>{selectedSeats.length}× Tickets</span><span>₹{total.toFixed(2)}</span></div>
-            <div className="flex justify-between text-sm text-gray-500"><span>Service fee</span><span>₹2.50</span></div>
-            <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-lg">₹{(total + 2.5).toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-400"><span>{selectedSeats.length}× Tickets</span><span>${total.toFixed(2)}</span></div>
+            <div className="flex justify-between text-sm text-gray-500"><span>Service fee</span><span>$2.50</span></div>
+            <div className="flex justify-between text-base font-bold text-white pt-2 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-lg">${(total + 2.5).toFixed(2)}</span></div>
           </div>
           <div className="flex gap-3 mt-2">
             <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border border-white/10 text-gray-400 hover:text-white hover:bg-white/5 text-sm font-semibold transition-all">Cancel</button>
@@ -1152,7 +1154,7 @@ function BookingModal({ isOpen, onClose, onConfirm, selectedSeats, movie, showti
 }
 
 // ========================================
-// MAIN COMPONENT
+// MAIN COMPONENT (Same structure, just using fixed components)
 // ========================================
 export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
   const [cameraTarget, setCameraTarget] = useState<CameraTarget>({ position: DEFAULT_CAMERA_POS, lookAt: DEFAULT_LOOK_AT });
@@ -1294,7 +1296,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
     <div className="relative w-full h-[900px] bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl overflow-hidden shadow-2xl border border-slate-800/80">
       {youtubeId && <YouTubeOverlay videoId={youtubeId} rect={screenRect} />}
 
-      {/* TOP CONTROLS */}
+      {/* TOP CONTROLS - keeping same UI from original */}
       <div className="absolute top-0 left-0 right-0 z-20">
         <div className="bg-gradient-to-b from-black/90 via-black/60 to-transparent pt-4 pb-12 px-5">
           <div className="flex items-start justify-between gap-5">
@@ -1455,9 +1457,9 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
                 ))}
               </div>
               <div className="space-y-1 text-xs border-t border-white/10 pt-2.5">
-                <div className="flex justify-between text-gray-400"><span>{selectedSeats.length} ticket{selectedSeats.length > 1 ? 's' : ''}</span><span>₹{totalPrice.toFixed(2)}</span></div>
+                <div className="flex justify-between text-gray-400"><span>{selectedSeats.length} ticket{selectedSeats.length > 1 ? 's' : ''}</span><span>${totalPrice.toFixed(2)}</span></div>
                 <div className="flex justify-between text-gray-500"><span>Fee</span><span>₹2.50</span></div>
-                <div className="flex justify-between text-sm font-bold text-white pt-1.5 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-base">₹{(totalPrice + 2.5).toFixed(2)}</span></div>
+                <div className="flex justify-between text-sm font-bold text-white pt-1.5 border-t border-white/10"><span>Total</span><span className="text-emerald-400 text-base">${(totalPrice + 2.5).toFixed(2)}</span></div>
               </div>
               <button onClick={() => setShowBookingModal(true)}
                 className="w-full mt-3 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/30 transition-all">
@@ -1474,7 +1476,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         </div>
       </div>
 
-      {/* 3D CANVAS */}
+      {/* ===== 3D CANVAS - FIXED ===== */}
       <Canvas
         shadows
         camera={{ position: [DEFAULT_CAMERA_POS.x, DEFAULT_CAMERA_POS.y, DEFAULT_CAMERA_POS.z], fov: 55, near: 0.5, far: 100 }}
@@ -1490,6 +1492,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
       >
         <CameraController target={cameraTarget} isAnimating={isAnimating} onDone={() => setIsAnimating(false)} controlsRef={controlsRef} />
 
+        {/* Lighting */}
         <ambientLight intensity={0.5} color="#b8c6db" />
         <hemisphereLight args={['#4a5a88', '#0f0f22', 0.6]} />
         
@@ -1509,6 +1512,7 @@ export default function Theater3D({ seats, onSeatClick }: Theater3DProps) {
         <RowLabels rows={rows} />
         <TheaterEnvironment lightsOn={lightsOn} />
 
+        {/* SEATS - NOW VISIBLE */}
         {seatPositions.map(({ seat, position }) => (
           <PremiumSeat3D 
             key={seat.id} 
